@@ -1,0 +1,35 @@
+[
+  {
+    "name": "Terminal",
+    "icon": "org.omarchy.terminal",
+    "glyph": "󰞷",
+    "command": "omarchy-launch-terminal"
+  },
+  {
+    "name": "Discord",
+    "glyph": "󰙯",
+    "command": "omarchy-launch-or-focus-webapp \"Discord\" \"https://discord.com/\""
+  },
+  {
+    "name": "NovelAI",
+    "glyph": "",
+    "command": "omarchy-launch-webapp --incognito \"https://novelai.net\""
+  },
+  {
+    "name": "Browser",
+    "icon": "chromium",
+    "glyph": "󰇧",
+    "command": "omarchy-launch-browser"
+  },
+  {
+    "name": "Files",
+    "icon": "org.gnome.Nautilus",
+    "glyph": "󰉋",
+    "command": "omarchy-launch-nautilus"
+  },
+  {
+    "name": "Lazyvim",
+    "glyph": "",
+    "command": "omarchy-launch-editor"
+  }
+]
