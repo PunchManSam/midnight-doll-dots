@@ -10,6 +10,7 @@ PINK="\033[38;2;255;81;197m"
 VIOLET="\033[38;2;187;154;247m"
 CYAN="\033[36m"
 GREEN="\033[32m"
+YELLOW="\033[33m"
 RESET="\033[0m"
 
 echo -e "${PINK}${BOLD}"
@@ -27,41 +28,76 @@ DOTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${HOME}/.config/omarchy/backups/midnight-doll-$(date +%Y%m%d_%H%M%S)"
 OMARCHY_SHELL_DIR="${HOME}/omarchy/shell"
 
-echo -e "${VIOLET}[*] Checking environment & dependencies...${RESET}"
+echo -e "${VIOLET}[*] Checking environment & active configuration...${RESET}"
+
+# Detect current active theme
+ACTIVE_THEME=""
+if [ -f "${HOME}/.local/state/omarchy/current/theme.name" ]; then
+  ACTIVE_THEME="$(cat "${HOME}/.local/state/omarchy/current/theme.name" | tr -d '[:space:]')"
+fi
+if [ -z "${ACTIVE_THEME}" ]; then
+  ACTIVE_THEME="default"
+fi
+echo -e "${CYAN}[i] Detected current active theme:${RESET} ${BOLD}${ACTIVE_THEME}${RESET}"
 
 # Check for CAVA
 if ! command -v cava &> /dev/null; then
-  echo -e "${CYAN}[i] Note: 'cava' audio visualizer was not found in PATH.${RESET}"
-  echo -e "    Install cava via your package manager (e.g. 'sudo pacman -S cava' or 'yay -S cava') for audio spectrum support."
+  echo -e "${YELLOW}[!] Note: 'cava' audio visualizer was not found in PATH.${RESET}"
+  echo -e "    Install cava via your package manager (e.g. 'sudo pacman -S cava' or 'yay -S cava') for live audio spectrum support."
 fi
 
-# Check for omarchy
-if ! command -v omarchy &> /dev/null; then
-  echo -e "${VIOLET}[!] Warning: 'omarchy' CLI not detected in PATH. Proceeding with file deployment...${RESET}"
-fi
-
-# Create backup directory
+# Create comprehensive backup directory
 mkdir -p "${BACKUP_DIR}"
-echo -e "${VIOLET}[*] Created backup directory at: ${BACKUP_DIR}${RESET}"
+echo -e "${VIOLET}[*] Creating comprehensive backup at:${RESET} ${BACKUP_DIR}"
 
-# Backup existing files if they exist
+# 1. Record original theme metadata
+echo "${ACTIVE_THEME}" > "${BACKUP_DIR}/original_theme.txt"
+
+# 2. Backup currently active theme files
+if [ -n "${ACTIVE_THEME}" ] && [ -d "${HOME}/.config/omarchy/themes/${ACTIVE_THEME}" ]; then
+  mkdir -p "${BACKUP_DIR}/active-theme"
+  cp -r "${HOME}/.config/omarchy/themes/${ACTIVE_THEME}" "${BACKUP_DIR}/active-theme/"
+  echo -e "    ✓ Backed up active theme directory: ${ACTIVE_THEME}"
+fi
+
+# 3. Backup existing Midnight-Doll theme if present
 if [ -d "${HOME}/.config/omarchy/themes/midnight-doll" ]; then
-  cp -r "${HOME}/.config/omarchy/themes/midnight-doll" "${BACKUP_DIR}/" 2>/dev/null || true
+  mkdir -p "${BACKUP_DIR}/existing-midnight-doll"
+  cp -r "${HOME}/.config/omarchy/themes/midnight-doll" "${BACKUP_DIR}/existing-midnight-doll/"
+  echo -e "    ✓ Backed up existing Midnight-Doll configuration"
 fi
-if [ -f "${HOME}/.config/omarchy/sys-hud.sh" ]; then
-  cp "${HOME}/.config/omarchy/sys-hud.sh" "${BACKUP_DIR}/" 2>/dev/null || true
-fi
-if [ -f "${HOME}/.config/omarchy/cava.conf" ]; then
-  cp "${HOME}/.config/omarchy/cava.conf" "${BACKUP_DIR}/" 2>/dev/null || true
-fi
+
+# 4. Backup existing omarchy configs
+for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json"; do
+  if [ -f "${HOME}/.config/omarchy/${cfg}" ]; then
+    cp "${HOME}/.config/omarchy/${cfg}" "${BACKUP_DIR}/"
+    echo -e "    ✓ Backed up config: ~/.config/omarchy/${cfg}"
+  fi
+done
+
+# 5. Backup Quickshell plugins
 if [ -d "${OMARCHY_SHELL_DIR}" ]; then
   mkdir -p "${BACKUP_DIR}/shell-plugins"
-  cp -r "${OMARCHY_SHELL_DIR}/plugins/bar" "${BACKUP_DIR}/shell-plugins/" 2>/dev/null || true
-  cp -r "${OMARCHY_SHELL_DIR}/plugins/menu" "${BACKUP_DIR}/shell-plugins/" 2>/dev/null || true
-  cp -r "${OMARCHY_SHELL_DIR}/plugins/panels/clock" "${BACKUP_DIR}/shell-plugins/" 2>/dev/null || true
+  for plugin in "bar" "menu" "panels/clock"; do
+    if [ -d "${OMARCHY_SHELL_DIR}/plugins/${plugin}" ]; then
+      mkdir -p "${BACKUP_DIR}/shell-plugins/$(dirname "${plugin}")"
+      cp -r "${OMARCHY_SHELL_DIR}/plugins/${plugin}" "${BACKUP_DIR}/shell-plugins/$(dirname "${plugin}")/"
+      echo -e "    ✓ Backed up shell plugin: ${plugin}"
+    fi
+  done
 fi
 
-echo -e "${VIOLET}[*] Deploying Theme & Scripts to ~/.config/omarchy/...${RESET}"
+# 6. Generate detailed backup manifest
+cat << MANIFEST > "${BACKUP_DIR}/backup_manifest.json"
+{
+  "timestamp": "$(date -Iseconds 2>/dev/null || date)",
+  "original_theme": "${ACTIVE_THEME}",
+  "user": "${USER}",
+  "backup_dir": "${BACKUP_DIR}"
+}
+MANIFEST
+
+echo -e "\n${VIOLET}[*] Deploying Theme & Scripts to ~/.config/omarchy/...${RESET}"
 mkdir -p "${HOME}/.config/omarchy/themes/midnight-doll"
 cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${HOME}/.config/omarchy/themes/midnight-doll/"
 cp "${DOTS_DIR}/config/omarchy/sys-hud.sh" "${HOME}/.config/omarchy/"
@@ -87,4 +123,5 @@ if command -v omarchy &> /dev/null; then
 fi
 
 echo -e "\n${GREEN}${BOLD}✓ Midnight-Doll // Cyberdeck HUD successfully installed!${RESET}"
-echo -e "${PINK}Press Win+Space or inspect your top & left bars to explore.${RESET}\n"
+echo -e "${PINK}Press Win+Space or inspect your top & left bars to explore.${RESET}"
+echo -e "${VIOLET}To restore your previous setup at any time, run: ./uninstall.sh${RESET}\n"
