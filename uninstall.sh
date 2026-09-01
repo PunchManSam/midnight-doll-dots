@@ -60,8 +60,16 @@ for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json"; do
   fi
 done
 
-# 5. Restore shell plugins
-if [ -d "${LATEST_BACKUP}/shell-plugins" ] && [ -d "${OMARCHY_SHELL_DIR}" ]; then
+# 5. Restore shell plugins (dev checkout only)
+CAN_RESTORE_DEV_SHELL=false
+if [ -d "${OMARCHY_SHELL_DIR}" ] && [ -w "${OMARCHY_SHELL_DIR}/plugins/bar" ]; then
+  RESOLVED_SHELL="$(realpath "${OMARCHY_SHELL_DIR}" 2>/dev/null || true)"
+  if [[ -n "${RESOLVED_SHELL}" && "${RESOLVED_SHELL}" != "/usr/share/omarchy"* ]]; then
+    CAN_RESTORE_DEV_SHELL=true
+  fi
+fi
+
+if [ -d "${LATEST_BACKUP}/shell-plugins" ] && [ "$CAN_RESTORE_DEV_SHELL" = true ]; then
   cp -r "${LATEST_BACKUP}/shell-plugins/"* "${OMARCHY_SHELL_DIR}/plugins/"
   echo -e "    ✓ Restored original shell plugins"
 fi

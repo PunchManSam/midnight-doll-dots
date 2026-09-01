@@ -75,8 +75,16 @@ for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json"; do
   fi
 done
 
-# 5. Backup Quickshell plugins
-if [ -d "${OMARCHY_SHELL_DIR}" ]; then
+# 5. Backup Quickshell plugins (dev checkout only)
+CAN_PATCH_DEV_SHELL=false
+if [ -d "${OMARCHY_SHELL_DIR}" ] && [ -w "${OMARCHY_SHELL_DIR}/plugins/bar" ]; then
+  RESOLVED_SHELL="$(realpath "${OMARCHY_SHELL_DIR}" 2>/dev/null || true)"
+  if [[ -n "${RESOLVED_SHELL}" && "${RESOLVED_SHELL}" != "/usr/share/omarchy"* ]]; then
+    CAN_PATCH_DEV_SHELL=true
+  fi
+fi
+
+if [ "$CAN_PATCH_DEV_SHELL" = true ]; then
   mkdir -p "${BACKUP_DIR}/shell-plugins"
   for plugin in "bar" "menu" "panels/clock"; do
     if [ -d "${OMARCHY_SHELL_DIR}/plugins/${plugin}" ]; then
@@ -107,12 +115,14 @@ if [ ! -f "${HOME}/.config/omarchy/midnight-shortcuts.json" ]; then
 fi
 chmod +x "${HOME}/.config/omarchy/sys-hud.sh"
 
-if [ -d "${OMARCHY_SHELL_DIR}" ]; then
+if [ "$CAN_PATCH_DEV_SHELL" = true ]; then
   echo -e "${VIOLET}[*] Deploying Shell Plugins & HUD Modules to ${OMARCHY_SHELL_DIR}...${RESET}"
   cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${OMARCHY_SHELL_DIR}/plugins/bar/"
   cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${OMARCHY_SHELL_DIR}/plugins/bar/widgets/"
   cp "${DOTS_DIR}/shell-patch/plugins/menu/BarWidget.qml" "${OMARCHY_SHELL_DIR}/plugins/menu/"
   cp "${DOTS_DIR}/shell-patch/plugins/panels/clock/BarWidget.qml" "${OMARCHY_SHELL_DIR}/plugins/panels/clock/"
+else
+  echo -e "${CYAN}[i] Omarchy package install detected; preserving system shell integrity.${RESET}"
 fi
 
 # Activate theme if omarchy CLI is available

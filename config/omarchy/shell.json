@@ -61,8 +61,6 @@
     "lock": 300,
     "screensaver": 150
   },
-  "plugins": [
-    {}
-  ],
+  "plugins": [],
   "version": 1
 }
