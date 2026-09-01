@@ -115,20 +115,140 @@ if [ ! -f "${HOME}/.config/omarchy/midnight-shortcuts.json" ]; then
 fi
 chmod +x "${HOME}/.config/omarchy/sys-hud.sh"
 
-if [ "$CAN_PATCH_DEV_SHELL" = true ]; then
-  echo -e "${VIOLET}[*] Deploying Shell Plugins & HUD Modules to ${OMARCHY_SHELL_DIR}...${RESET}"
-  cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${OMARCHY_SHELL_DIR}/plugins/bar/"
-  cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${OMARCHY_SHELL_DIR}/plugins/bar/widgets/"
-  cp "${DOTS_DIR}/shell-patch/plugins/menu/BarWidget.qml" "${OMARCHY_SHELL_DIR}/plugins/menu/"
-  cp "${DOTS_DIR}/shell-patch/plugins/panels/clock/BarWidget.qml" "${OMARCHY_SHELL_DIR}/plugins/panels/clock/"
-else
-  echo -e "${CYAN}[i] Omarchy package install detected; preserving system shell integrity.${RESET}"
-fi
+# Deploy user plugins to ~/.config/omarchy/plugins/
+echo -e "${VIOLET}[*] Deploying Midnight-Doll Cyberdeck plugins to ~/.config/omarchy/plugins/...${RESET}"
+PLUGINS_DIR="${HOME}/.config/omarchy/plugins"
+OMARCHY_SYS_PLUGINS="${OMARCHY_PATH:-/usr/share/omarchy}/shell/plugins"
 
-# Activate theme if omarchy CLI is available
+# 1. Bar plugin (Dual-bar HUD, CAVA visualizer, live telemetry)
+mkdir -p "${PLUGINS_DIR}/midnight-doll.bar/widgets"
+if [ -d "${OMARCHY_SYS_PLUGINS}/bar" ]; then
+  cp -r "${OMARCHY_SYS_PLUGINS}/bar/"* "${PLUGINS_DIR}/midnight-doll.bar/" 2>/dev/null || true
+fi
+cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.bar/"
+cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.bar/widgets/"
+cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.bar/manifest.json"
+{
+  "schemaVersion": 1,
+  "id": "midnight-doll.bar",
+  "name": "Midnight Doll Cyberdeck Bar",
+  "version": "1.0.0",
+  "author": "Midnight Doll",
+  "description": "Dual-bar HUD & visualizer",
+  "kinds": [
+    "bar"
+  ],
+  "entryPoints": {
+    "bar": "Bar.qml"
+  }
+}
+EOF
+
+# 2. Workspaces widget (bracketed workspaces)
+mkdir -p "${PLUGINS_DIR}/midnight-doll.workspaces"
+cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.workspaces/"
+cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.workspaces/manifest.json"
+{
+  "schemaVersion": 1,
+  "id": "midnight-doll.workspaces",
+  "name": "Midnight Doll Workspaces",
+  "version": "1.0.0",
+  "author": "Midnight Doll",
+  "description": "Retro bracketed workspace switcher",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Workspaces.qml"
+  },
+  "barWidget": {
+    "displayName": "Midnight Doll Workspaces",
+    "description": "Retro bracketed workspace switcher",
+    "category": "Compositor",
+    "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.workspaces"
+  }
+}
+EOF
+
+# 3. Menu widget (Nerd Font Skull launcher)
+mkdir -p "${PLUGINS_DIR}/midnight-doll.menu"
+if [ -d "${OMARCHY_SYS_PLUGINS}/menu" ]; then
+  cp -r "${OMARCHY_SYS_PLUGINS}/menu/"* "${PLUGINS_DIR}/midnight-doll.menu/" 2>/dev/null || true
+fi
+cp "${DOTS_DIR}/shell-patch/plugins/menu/BarWidget.qml" "${PLUGINS_DIR}/midnight-doll.menu/"
+cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.menu/manifest.json"
+{
+  "schemaVersion": 1,
+  "id": "midnight-doll.menu",
+  "name": "Midnight Doll Menu",
+  "version": "1.0.0",
+  "author": "Midnight Doll",
+  "description": "Cyberdeck Skull Menu Launcher",
+  "kinds": [
+    "menu",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "menu": "Menu.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Midnight Doll Menu",
+    "description": "Cyberdeck Skull Menu Launcher",
+    "category": "Compositor",
+    "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.menu"
+  }
+}
+EOF
+
+# 4. Clock widget (military uppercase format)
+mkdir -p "${PLUGINS_DIR}/midnight-doll.clock"
+if [ -d "${OMARCHY_SYS_PLUGINS}/panels/clock" ]; then
+  cp -r "${OMARCHY_SYS_PLUGINS}/panels/clock/"* "${PLUGINS_DIR}/midnight-doll.clock/" 2>/dev/null || true
+fi
+cp "${DOTS_DIR}/shell-patch/plugins/panels/clock/BarWidget.qml" "${PLUGINS_DIR}/midnight-doll.clock/"
+cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.clock/manifest.json"
+{
+  "schemaVersion": 1,
+  "id": "midnight-doll.clock",
+  "name": "Midnight Doll Clock",
+  "version": "1.0.0",
+  "author": "Midnight Doll",
+  "description": "Military Monospace Header Clock",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Midnight Doll Clock",
+    "description": "Military Monospace Header Clock",
+    "category": "Time",
+    "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.clock"
+  }
+}
+EOF
+
+# Activate theme and plugins if omarchy CLI is available
 if command -v omarchy &> /dev/null; then
-  echo -e "${PINK}[*] Activating Midnight-Doll theme...${RESET}"
+  echo -e "${PINK}[*] Activating Midnight-Doll theme & cyberdeck bar...${RESET}"
   omarchy theme set "Midnight Doll" || true
+  omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+  omarchy bar use midnight-doll.bar || true
+  omarchy plugin enable midnight-doll.workspaces || true
+  omarchy plugin enable midnight-doll.menu || true
+  omarchy plugin enable midnight-doll.clock || true
   omarchy restart shell || true
 fi
 

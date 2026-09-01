@@ -60,18 +60,20 @@ for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json"; do
   fi
 done
 
-# 5. Restore shell plugins (dev checkout only)
-CAN_RESTORE_DEV_SHELL=false
-if [ -d "${OMARCHY_SHELL_DIR}" ] && [ -w "${OMARCHY_SHELL_DIR}/plugins/bar" ]; then
-  RESOLVED_SHELL="$(realpath "${OMARCHY_SHELL_DIR}" 2>/dev/null || true)"
-  if [[ -n "${RESOLVED_SHELL}" && "${RESOLVED_SHELL}" != "/usr/share/omarchy"* ]]; then
-    CAN_RESTORE_DEV_SHELL=true
-  fi
+# 5. Clean up Midnight-Doll plugins and reset bar
+if command -v omarchy &> /dev/null; then
+  echo -e "${VIOLET}[*] Resetting bar and disabling Midnight-Doll plugins...${RESET}"
+  omarchy bar reset >/dev/null 2>&1 || true
+  omarchy plugin disable midnight-doll.workspaces >/dev/null 2>&1 || true
+  omarchy plugin disable midnight-doll.menu >/dev/null 2>&1 || true
+  omarchy plugin disable midnight-doll.clock >/dev/null 2>&1 || true
 fi
+rm -rf "${HOME}/.config/omarchy/plugins/midnight-doll."*
+echo -e "    ✓ Removed Midnight-Doll user plugins"
 
 if [ -d "${LATEST_BACKUP}/shell-plugins" ] && [ "$CAN_RESTORE_DEV_SHELL" = true ]; then
   cp -r "${LATEST_BACKUP}/shell-plugins/"* "${OMARCHY_SHELL_DIR}/plugins/"
-  echo -e "    ✓ Restored original shell plugins"
+  echo -e "    ✓ Restored original dev shell plugins"
 fi
 
 # 6. Reactivate original theme
