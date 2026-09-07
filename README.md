@@ -92,9 +92,15 @@ chmod +x install.sh
 ./install.sh
 ```
 
-The installer will:
+The interactive installer will guide you through configuration steps:
+1. **CAVA Visualizer**: Checks if `cava` is installed, offering 1-click automatic installation if missing.
+2. **Accent Color**: Keep the default Cyberpunk Magenta (`#ff51c5`) or choose Neon Green, Cyber Red, Electric Cyan, Violet, Acid Yellow, Hot Orange, or enter any custom hex color.
+3. **HUD Header Text**: Set custom top-bar title and subtitle (Default: `MIDNIGHT-DOLL // HUD`).
+4. **Omarchy Menu Icon**: Set a custom launcher icon glyph from [Nerd Fonts](https://www.nerdfonts.com/cheat-sheet) (Default: `󰚌`).
+
+After configuration, the installer will:
 1. Automatically create a timestamped backup in `~/.config/omarchy/backups/`.
-2. Deploy the theme, scripts, and shell patches.
+2. Deploy the theme, scripts, and user plugins.
 3. Activate **Midnight-Doll** and reload your shell live.
 
 ---

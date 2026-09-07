@@ -40,6 +40,8 @@ Item {
     onFileChanged: reload()
   }
   property string activeTheme: ""
+  property string hudTitle: "MIDNIGHT-DOLL"
+  property string hudSubtitle: "HUD"
   readonly property bool isMidnightDoll: {
     var name = activeTheme.toLowerCase().replace(/[\s_-]+/g, "")
     return name === "midnightdoll"
@@ -2160,13 +2162,14 @@ Item {
               rightPadding: 8
 
               Text {
-                text: "MIDNIGHT-DOLL"
+                text: root.hudTitle
                 font.family: root.fontFamily
                 font.bold: true
                 font.pixelSize: 12
                 color: "#bb9af7"
               }
               Text {
+                visible: root.hudSubtitle !== ""
                 text: " // "
                 font.family: root.fontFamily
                 font.bold: true
@@ -2174,7 +2177,8 @@ Item {
                 color: Qt.rgba(1, 1, 1, 0.4)
               }
               Text {
-                text: "HUD"
+                visible: root.hudSubtitle !== ""
+                text: root.hudSubtitle
                 font.family: root.fontFamily
                 font.bold: true
                 font.pixelSize: 12
@@ -2851,7 +2855,7 @@ Item {
             ctx.arc(cx, cy, 1.3, 0, 2 * Math.PI)
             if (d < numDots) {
               if (d === numDots - 1) {
-                ctx.fillStyle = "#ff51c5" // Vibrant neon pink peak
+                ctx.fillStyle = Color.accent ? Color.accent : "#ff51c5" // Vibrant neon accent peak
               } else {
                 ctx.fillStyle = "#bb9af7" // Bright violet active LED
               }

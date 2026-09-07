@@ -6,6 +6,8 @@ BarWidget {
   id: root
   moduleName: "omarchy.menu"
 
+  property string menuIcon: "󰚌"
+
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
@@ -13,7 +15,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: (root.bar && root.bar.isMidnightDoll) ? "\udb81\ude8c" : "\ue900"
+    text: (root.bar && root.bar.isMidnightDoll) ? root.menuIcon : "\ue900"
     fontFamily: (root.bar && root.bar.isMidnightDoll) ? "JetBrainsMono Nerd Font" : "omarchy"
     fontSize: (root.bar && root.bar.isMidnightDoll) ? 18 : Style.font.body
     foreground: (root.bar && root.bar.isMidnightDoll) ? Color.accent : (root.bar ? root.bar.barForeground : Color.foreground)
