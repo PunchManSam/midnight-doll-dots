@@ -1329,12 +1329,20 @@ Item {
           color: Color.border
         }
 
-        Text {
-          text: "SELECT ICON PRESET"
-          font.family: root.fontFamily
-          font.bold: true
-          font.pixelSize: Style.font.caption
-          color: Color.accent
+        RowLayout {
+          Layout.fillWidth: true
+          Text {
+            text: "SELECT ICON PRESET"
+            font.family: root.fontFamily
+            font.bold: true
+            font.pixelSize: Style.font.caption
+            color: Color.accent
+            Layout.fillWidth: true
+          }
+          Button {
+            text: "󰌹 NERD FONTS CHEAT SHEET"
+            onClicked: root.run("xdg-open 'https://www.nerdfonts.com/cheat-sheet'")
+          }
         }
 
         Flow {
@@ -1396,12 +1404,22 @@ Item {
           color: Color.border
         }
 
-        Text {
-          text: "ADD CUSTOM SHORTCUT"
-          font.family: root.fontFamily
-          font.bold: true
-          font.pixelSize: Style.font.caption
-          color: Color.foreground
+        RowLayout {
+          Layout.fillWidth: true
+          Text {
+            text: "ADD CUSTOM SHORTCUT"
+            font.family: root.fontFamily
+            font.bold: true
+            font.pixelSize: Style.font.caption
+            color: Color.foreground
+            Layout.fillWidth: true
+          }
+          Text {
+            text: "Paste glyphs from nerdfonts.com/cheat-sheet"
+            font.family: root.fontFamily
+            font.pixelSize: 10
+            color: Qt.rgba(1, 1, 1, 0.45)
+          }
         }
 
         RowLayout {
@@ -1418,9 +1436,9 @@ Item {
 
           TextField {
             id: newGlyphField
-            placeholderText: "󰨞"
+            placeholderText: "󰨞 (NF)"
             font.family: root.fontFamily
-            Layout.preferredWidth: 50
+            Layout.preferredWidth: 60
             color: root.urgent
             horizontalAlignment: Text.AlignHCenter
           }
@@ -1548,7 +1566,16 @@ Item {
             radius: 0
             color: itemHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
 
-            HoverHandler { id: itemHover }
+            HoverHandler {
+              id: itemHover
+              onHoveredChanged: {
+                if (hovered) {
+                  root.showTooltip(parent, (modelData.name || "Shortcut") + " (Right-click: edit)")
+                } else {
+                  root.hideTooltip(parent)
+                }
+              }
+            }
 
             Text {
               anchors.centerIn: parent
@@ -1569,6 +1596,39 @@ Item {
                 }
               }
             }
+          }
+        }
+
+        Rectangle {
+          width: 35
+          height: 24
+          radius: 0
+          color: addBtnHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+
+          HoverHandler {
+            id: addBtnHover
+            onHoveredChanged: {
+              if (hovered) {
+                root.showTooltip(parent, "Edit Shortcuts (Nerd Fonts)")
+              } else {
+                root.hideTooltip(parent)
+              }
+            }
+          }
+
+          Text {
+            anchors.centerIn: parent
+            text: "󰐕"
+            font.family: root.fontFamily
+            font.pixelSize: 13
+            color: addBtnHover.hovered ? Color.accent : Qt.rgba(1, 1, 1, 0.25)
+          }
+
+          MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: root.midnightShortcutEditorOpen = !root.midnightShortcutEditorOpen
           }
         }
       }
