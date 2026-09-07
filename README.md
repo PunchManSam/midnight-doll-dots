@@ -86,7 +86,7 @@ Ensure the following tools and fonts are installed on your system:
 Clone the repository and run the automated installer:
 
 ```bash
-git clone https://github.com/<your-username>/midnight-doll-dots.git
+git clone https://github.com/PunchManSam/midnight-doll-dots.git
 cd midnight-doll-dots
 chmod +x install.sh
 ./install.sh
