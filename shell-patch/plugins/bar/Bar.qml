@@ -74,15 +74,40 @@ Item {
     midnightShortcutsFile.setText(JSON.stringify(list, null, 2) + "\n")
   }
   property bool midnightShortcutEditorOpen: false
+  property bool barResyncing: false
   property bool topBarReady: true
+
   Timer {
     id: leftBarPriorityTimer
-    interval: 80
+    interval: 180
     onTriggered: root.topBarReady = true
   }
-  function resyncLeftBarPriority() {
+
+  Timer {
+    id: barResyncTimer
+    interval: 60
+    onTriggered: {
+      root.barResyncing = false
+      leftBarPriorityTimer.restart()
+    }
+  }
+
+  function resyncBars() {
     root.topBarReady = false
-    leftBarPriorityTimer.restart()
+    root.barResyncing = true
+    barResyncTimer.restart()
+  }
+
+  function resyncLeftBarPriority() {
+    resyncBars()
+  }
+  Connections {
+    target: root
+    function onIsMidnightDollChanged() {
+      if (root.isMidnightDoll) {
+        root.resyncLeftBarPriority()
+      }
+    }
   }
   property QtObject leftBarContext: QtObject {
     id: leftBarCtx
@@ -1078,7 +1103,7 @@ Item {
     required property var ghostScreen
     screen: ghostScreen
 
-    visible: root.isMidnightDoll && !root.barHidden && !remapGuardCorner.remapping
+    visible: root.isMidnightDoll && !root.barHidden && root.topBarReady && !remapGuardCorner.remapping
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "omarchy-midnight-corner"
     WlrLayershell.layer: WlrLayer.Top
@@ -1442,6 +1467,14 @@ Item {
       window: leftBarWindow
     }
 
+    Connections {
+      target: leftBarWindow.screen
+      ignoreUnknownSignals: true
+      function onGeometryChanged() { root.resyncLeftBarPriority() }
+      function onPhysicalPixelDensityChanged() { root.resyncLeftBarPriority() }
+      function onLogicalPixelDensityChanged() { root.resyncLeftBarPriority() }
+    }
+
     margins {
       top: 0
       bottom: 0
@@ -1612,12 +1645,26 @@ Item {
     // reveal has to rebuild them — new surface, re-shaped glyphs, re-uploaded
     // textures — which measures ~150ms against ~20ms to tear down. Parking
     // keeps the surface alive, so showing is only a margin change.
-    visible: !remapGuard.remapping
-    exclusionMode: root.barHidden ? ExclusionMode.Ignore : ExclusionMode.Auto
+    visible: !remapGuard.remapping && (!root.isMidnightDoll || !root.barResyncing)
+    exclusionMode: (root.barHidden || (root.isMidnightDoll && root.barResyncing)) ? ExclusionMode.Ignore : ExclusionMode.Auto
 
     ScreenMoveRemap {
       id: remapGuard
       window: barWindow
+    }
+
+    Component.onCompleted: {
+      if (root.isMidnightDoll) {
+        root.resyncLeftBarPriority()
+      }
+    }
+
+    Connections {
+      target: barWindow.screen
+      ignoreUnknownSignals: true
+      function onGeometryChanged() { root.resyncLeftBarPriority() }
+      function onPhysicalPixelDensityChanged() { root.resyncLeftBarPriority() }
+      function onLogicalPixelDensityChanged() { root.resyncLeftBarPriority() }
     }
 
     margins {
