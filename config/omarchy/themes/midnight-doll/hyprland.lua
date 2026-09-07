@@ -26,3 +26,8 @@ hl.config({
 
 -- Terminal opacity 0.90
 o.window({ tag = "terminal" }, { opacity = "0.90 0.90" })
+
+-- Layer surface space-reservation order: ensure the top bar takes edge priority over the left bar
+hl.layer_rule({ match = { namespace = "omarchy-bar" }, order = 10 })
+hl.layer_rule({ match = { namespace = "omarchy-midnight-left-bar" }, order = 1 })
+
