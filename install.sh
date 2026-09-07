@@ -26,7 +26,6 @@ echo -e "${RESET}"
 
 DOTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${HOME}/.config/omarchy/backups/midnight-doll-$(date +%Y%m%d_%H%M%S)"
-OMARCHY_SHELL_DIR="${HOME}/omarchy/shell"
 
 echo -e "${VIOLET}[*] Checking environment & active configuration...${RESET}"
 
@@ -75,24 +74,11 @@ for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json"; do
   fi
 done
 
-# 5. Backup Quickshell plugins (dev checkout only)
-CAN_PATCH_DEV_SHELL=false
-if [ -d "${OMARCHY_SHELL_DIR}" ] && [ -w "${OMARCHY_SHELL_DIR}/plugins/bar" ]; then
-  RESOLVED_SHELL="$(realpath "${OMARCHY_SHELL_DIR}" 2>/dev/null || true)"
-  if [[ -n "${RESOLVED_SHELL}" && "${RESOLVED_SHELL}" != "/usr/share/omarchy"* ]]; then
-    CAN_PATCH_DEV_SHELL=true
-  fi
-fi
-
-if [ "$CAN_PATCH_DEV_SHELL" = true ]; then
-  mkdir -p "${BACKUP_DIR}/shell-plugins"
-  for plugin in "bar" "menu" "panels/clock"; do
-    if [ -d "${OMARCHY_SHELL_DIR}/plugins/${plugin}" ]; then
-      mkdir -p "${BACKUP_DIR}/shell-plugins/$(dirname "${plugin}")"
-      cp -r "${OMARCHY_SHELL_DIR}/plugins/${plugin}" "${BACKUP_DIR}/shell-plugins/$(dirname "${plugin}")/"
-      echo -e "    ✓ Backed up shell plugin: ${plugin}"
-    fi
-  done
+# 5. Backup existing Midnight-Doll user plugins if present
+if compgen -G "${HOME}/.config/omarchy/plugins/midnight-doll.*" > /dev/null; then
+  mkdir -p "${BACKUP_DIR}/existing-plugins"
+  cp -r "${HOME}/.config/omarchy/plugins/midnight-doll."* "${BACKUP_DIR}/existing-plugins/" 2>/dev/null || true
+  echo -e "    ✓ Backed up existing Midnight-Doll user plugins"
 fi
 
 # 6. Generate detailed backup manifest

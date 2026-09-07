@@ -1,5 +1,5 @@
 #!/bin/bash
-state_file="/tmp/omarchy_syshud.state"
+state_file="${XDG_RUNTIME_DIR:-/tmp}/omarchy_syshud_${UID:-$USER}.state"
 read -r cpu u n s i io ir st g gn < /proc/stat
 total=$((u + n + s + i + io + ir + st))
 idle=$i

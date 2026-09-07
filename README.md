@@ -53,7 +53,6 @@ midnight-doll-dots/
 │       ├── sys-hud.sh             # Fast real-time system metrics engine
 │       ├── cava.conf              # Audio spectrum capture profile
 │       ├── midnight-shortcuts.json# Left bar launcher shortcuts store
-│       ├── shell.json             # Shell bar & module configuration
 │       └── themes/
 │           └── midnight-doll/     # Colors, Hyprland rules, and terminal profiles
 │               ├── colors.toml

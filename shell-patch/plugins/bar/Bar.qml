@@ -2153,7 +2153,7 @@ Item {
             }
 
             Row {
-              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu") && moduleListRoot.region === "left"
+              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.id === "midnight-doll.menu" || modelData.name === "omarchy.menu" || modelData.name === "midnight-doll.menu") && moduleListRoot.region === "left"
               spacing: 0
               anchors.verticalCenter: parent.verticalCenter
               leftPadding: 6
@@ -2715,7 +2715,7 @@ Item {
 
     Process {
       id: cavaProc
-      command: ["/home/punch/.local/bin/cava", "-p", root.home + "/.config/omarchy/cava.conf"]
+      command: ["cava", "-p", root.home + "/.config/omarchy/cava.conf"]
       running: cavaRoot.visible
       stdout: SplitParser {
         onRead: function(line) {

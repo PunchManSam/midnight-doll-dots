@@ -13,7 +13,6 @@ YELLOW="\033[33m"
 RESET="\033[0m"
 
 BACKUP_ROOT="${HOME}/.config/omarchy/backups"
-OMARCHY_SHELL_DIR="${HOME}/omarchy/shell"
 
 echo -e "${VIOLET}${BOLD}[*] Looking for latest backup to restore...${RESET}"
 
@@ -45,20 +44,31 @@ if [ -d "${LATEST_BACKUP}/active-theme" ]; then
   echo -e "    ✓ Restored active theme files for ${ORIGINAL_THEME}"
 fi
 
-# 3. Restore previous Midnight-Doll directory if it existed
+# 3. Restore previous Midnight-Doll directory or remove if newly installed
 if [ -d "${LATEST_BACKUP}/existing-midnight-doll" ]; then
   rm -rf "${HOME}/.config/omarchy/themes/midnight-doll"
   cp -r "${LATEST_BACKUP}/existing-midnight-doll/"* "${HOME}/.config/omarchy/themes/midnight-doll/" 2>/dev/null || true
   echo -e "    ✓ Restored previous Midnight-Doll theme configuration"
+else
+  rm -rf "${HOME}/.config/omarchy/themes/midnight-doll"
+  echo -e "    ✓ Removed Midnight-Doll theme directory"
 fi
 
-# 4. Restore configs (shell.json, sys-hud.sh, cava.conf)
-for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json"; do
+# 4. Restore or clean configs
+for cfg in "sys-hud.sh" "cava.conf" "midnight-shortcuts.json"; do
   if [ -f "${LATEST_BACKUP}/${cfg}" ]; then
     cp "${LATEST_BACKUP}/${cfg}" "${HOME}/.config/omarchy/"
     echo -e "    ✓ Restored ~/.config/omarchy/${cfg}"
+  else
+    rm -f "${HOME}/.config/omarchy/${cfg}"
+    echo -e "    ✓ Removed ~/.config/omarchy/${cfg}"
   fi
 done
+
+if [ -f "${LATEST_BACKUP}/shell.json" ]; then
+  cp "${LATEST_BACKUP}/shell.json" "${HOME}/.config/omarchy/"
+  echo -e "    ✓ Restored ~/.config/omarchy/shell.json"
+fi
 
 # 5. Clean up Midnight-Doll plugins and reset bar
 if command -v omarchy &> /dev/null; then
@@ -69,11 +79,12 @@ if command -v omarchy &> /dev/null; then
   omarchy plugin disable midnight-doll.clock >/dev/null 2>&1 || true
 fi
 rm -rf "${HOME}/.config/omarchy/plugins/midnight-doll."*
-echo -e "    ✓ Removed Midnight-Doll user plugins"
 
-if [ -d "${LATEST_BACKUP}/shell-plugins" ] && [ "$CAN_RESTORE_DEV_SHELL" = true ]; then
-  cp -r "${LATEST_BACKUP}/shell-plugins/"* "${OMARCHY_SHELL_DIR}/plugins/"
-  echo -e "    ✓ Restored original dev shell plugins"
+if [ -d "${LATEST_BACKUP}/existing-plugins" ]; then
+  cp -r "${LATEST_BACKUP}/existing-plugins/"* "${HOME}/.config/omarchy/plugins/" 2>/dev/null || true
+  echo -e "    ✓ Restored previous plugin configuration"
+else
+  echo -e "    ✓ Removed Midnight-Doll user plugins"
 fi
 
 # 6. Reactivate original theme
