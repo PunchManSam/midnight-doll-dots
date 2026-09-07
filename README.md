@@ -140,5 +140,15 @@ cd midnight-doll-dots
 
 ---
 
+## ⚠️ Disclaimer
+
+> [!WARNING]
+> This project, scripts, and configuration files are provided **"AS IS"** without warranty of any kind, express or implied. Execute and install this software solely at your own risk and judgment.
+> 
+> While the installer creates timestamped backups before applying changes, the author and contributors assume **no liability or responsibility** for any potential system damage, corrupted configurations, data loss, or other issues resulting from the use or execution of this repository. Always inspect shell scripts before running them on your machine.
+
+---
+
 ## 📜 License
 Released under the [MIT License](LICENSE). Designed for the Omarchy community.
+
