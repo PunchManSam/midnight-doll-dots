@@ -43,6 +43,7 @@ Item {
   property string hudTitle: "MIDNIGHT-DOLL"
   property string hudSubtitle: "HUD"
   property string hudCommand: "omarchy-launch-or-focus-tui btop"
+  property color secondaryColor: "#bb9af7"
   property string menuIcon: "󰚌"
 
   function hudTooltipText() {
@@ -2245,7 +2246,7 @@ Item {
                 font.family: root.fontFamily
                 font.bold: true
                 font.pixelSize: 12
-                color: "#bb9af7"
+                color: root.secondaryColor
                 anchors.verticalCenter: parent.verticalCenter
               }
               Text {
@@ -2703,7 +2704,7 @@ Item {
         font.family: root.fontFamily
         font.pixelSize: 8
         font.bold: true
-        color: "#bb9af7"
+        color: root.secondaryColor
         width: 17
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -2739,7 +2740,7 @@ Item {
         font.family: root.fontFamily
         font.pixelSize: 8
         font.bold: true
-        color: "#bb9af7"
+        color: root.secondaryColor
         width: 17
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -2775,7 +2776,7 @@ Item {
         font.family: root.fontFamily
         font.pixelSize: 8
         font.bold: true
-        color: "#bb9af7"
+        color: root.secondaryColor
         width: 17
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -2811,7 +2812,7 @@ Item {
         font.family: root.fontFamily
         font.pixelSize: 8
         font.bold: true
-        color: "#bb9af7"
+        color: root.secondaryColor
         width: 17
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -2884,7 +2885,7 @@ Item {
           font.family: root.fontFamily
           font.pixelSize: 7
           font.bold: true
-          color: cavaRoot.airLevel > 0.6 ? root.urgent : "#bb9af7"
+          color: cavaRoot.airLevel > 0.6 ? root.urgent : root.secondaryColor
           anchors.verticalCenter: parent.verticalCenter
           width: 18
           horizontalAlignment: Text.AlignRight
@@ -2892,7 +2893,7 @@ Item {
         Rectangle {
           width: 24
           height: 2
-          color: Qt.rgba(0.73, 0.60, 0.97, 0.22)
+          color: Qt.rgba(root.secondaryColor.r, root.secondaryColor.g, root.secondaryColor.b, 0.22)
           anchors.verticalCenter: parent.verticalCenter
           Rectangle {
             anchors.left: parent.left
@@ -2911,7 +2912,7 @@ Item {
           font.family: root.fontFamily
           font.pixelSize: 7
           font.bold: true
-          color: cavaRoot.midLevel > 0.6 ? root.urgent : "#bb9af7"
+          color: cavaRoot.midLevel > 0.6 ? root.urgent : root.secondaryColor
           anchors.verticalCenter: parent.verticalCenter
           width: 18
           horizontalAlignment: Text.AlignRight
@@ -2919,7 +2920,7 @@ Item {
         Rectangle {
           width: 24
           height: 2
-          color: Qt.rgba(0.73, 0.60, 0.97, 0.22)
+          color: Qt.rgba(root.secondaryColor.r, root.secondaryColor.g, root.secondaryColor.b, 0.22)
           anchors.verticalCenter: parent.verticalCenter
           Rectangle {
             anchors.left: parent.left
@@ -2938,7 +2939,7 @@ Item {
           font.family: root.fontFamily
           font.pixelSize: 7
           font.bold: true
-          color: cavaRoot.bassLevel > 0.6 ? root.urgent : "#bb9af7"
+          color: cavaRoot.bassLevel > 0.6 ? root.urgent : root.secondaryColor
           anchors.verticalCenter: parent.verticalCenter
           width: 18
           horizontalAlignment: Text.AlignRight
@@ -2946,7 +2947,7 @@ Item {
         Rectangle {
           width: 24
           height: 2
-          color: Qt.rgba(0.73, 0.60, 0.97, 0.22)
+          color: Qt.rgba(root.secondaryColor.r, root.secondaryColor.g, root.secondaryColor.b, 0.22)
           anchors.verticalCenter: parent.verticalCenter
           Rectangle {
             anchors.left: parent.left
@@ -2958,7 +2959,7 @@ Item {
       }
     }
 
-    // Dynamic Rich Violet LED Dot Matrix Visualizer
+    // Dynamic LED Dot Matrix Visualizer
     Canvas {
       id: waveCanvas
       width: 140
@@ -2991,10 +2992,10 @@ Item {
               if (d === numDots - 1) {
                 ctx.fillStyle = Color.accent ? Color.accent : "#ff51c5" // Vibrant neon accent peak
               } else {
-                ctx.fillStyle = "#bb9af7" // Bright violet active LED
+                ctx.fillStyle = root.secondaryColor // Complimentary accent active LED
               }
             } else {
-              ctx.fillStyle = Qt.rgba(0.73, 0.60, 0.97, 0.28) // Visible glowing violet base LED
+              ctx.fillStyle = Qt.rgba(root.secondaryColor.r, root.secondaryColor.g, root.secondaryColor.b, 0.28) // Base glowing LED
             }
             ctx.fill()
           }

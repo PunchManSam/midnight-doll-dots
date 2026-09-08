@@ -92,7 +92,7 @@ chmod +x install.sh
 
 The interactive installer will guide you through configuration steps:
 1. **CAVA Visualizer**: Checks if `cava` is installed, offering 1-click automatic installation if missing.
-2. **Accent Color**: Keep the default Cyberpunk Magenta (`#ff51c5`) or choose Neon Green, Cyber Red, Electric Cyan, Violet, Acid Yellow, Hot Orange, or enter any custom hex color.
+2. **Dual-Tone Accent Colors**: Configure your **Primary Accent** (active workspaces, buttons, peak LEDs, window borders) and **Complimentary Accent** (HUD title, telemetry metrics, visualizer LEDs). Features smart recommended pairings for every primary color, a full palette of complimentary options, or custom hex codes.
 3. **HUD Header Text**: Set custom top-bar title and subtitle (e.g. `MIDNIGHT-DOLL // HUD` or single handle like `ro0tUser`).
 4. **HUD Click Action**: Configure the command executed when clicking the HUD title/subtitle (Default: floating `btop` system monitor via `omarchy-launch-or-focus-tui btop`).
 5. **Omarchy Menu Icon**: Set a custom launcher icon glyph from [Nerd Fonts](https://www.nerdfonts.com/cheat-sheet) (Default: `󰚌`).
@@ -120,10 +120,10 @@ Edit `~/.config/omarchy/midnight-shortcuts.json` or simply **Right-Click** anywh
 ```
 
 ### Color Palette
-Colors are defined in `~/.config/omarchy/themes/midnight-doll/colors.toml`:
+Dual-tone colors are configured during installation or in `~/.config/omarchy/themes/midnight-doll/colors.toml`:
 - **Background**: `#010101` (Pitch Black)
-- **Neon Accent**: `#ff51c5` (Cyberpunk Pink)
-- **Violet Accent**: `#bb9af7` (Glowing Violet)
+- **Primary Accent**: `#ff51c5` (Cyberpunk Pink default — workspaces, peak LEDs, window borders)
+- **Complimentary Accent**: `#bb9af7` (Glowing Violet default — HUD title, metrics, active LED matrix)
 - **Urgent / Warning**: `#ff5555`
 
 ---

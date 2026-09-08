@@ -142,11 +142,12 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# Step 2: Theme Accent Color Configuration
 # ------------------------------------------------------------------------------
-echo -e "\n${PINK}[Step 2/5] Accent Color Configuration${RESET}"
-echo -e "${VIOLET}The default accent color for this theme is Cyberpunk Magenta (#ff51c5).${RESET}"
-COLOR_CHOICE=$(prompt_choose "Choose an accent color for the theme:" \
+# Step 2: Theme Accent Color Configuration (Dual-Tone Palette)
+# ------------------------------------------------------------------------------
+echo -e "\n${PINK}[Step 2/5] Dual-Tone Accent Color Configuration${RESET}"
+echo -e "${VIOLET}Select the Primary Accent color (active workspaces, buttons, peak LEDs, window borders):${RESET}"
+COLOR_CHOICE=$(prompt_choose "Choose Primary Accent color:" \
   "Cyberpunk Magenta [#ff51c5] (Default)" \
   "Neon Green [#00ff9f]" \
   "Cyber Red [#ff3366]" \
@@ -156,31 +157,87 @@ COLOR_CHOICE=$(prompt_choose "Choose an accent color for the theme:" \
   "Hot Orange [#ff8800]" \
   "Custom Hex Code")
 
-CHOSEN_HEX="#ff51c5"
+CHOSEN_PRIMARY="#ff51c5"
 case "$COLOR_CHOICE" in
-  *"#ff51c5"*) CHOSEN_HEX="#ff51c5" ;;
-  *"#00ff9f"*) CHOSEN_HEX="#00ff9f" ;;
-  *"#ff3366"*) CHOSEN_HEX="#ff3366" ;;
-  *"#00f0ff"*) CHOSEN_HEX="#00f0ff" ;;
-  *"#bb9af7"*) CHOSEN_HEX="#bb9af7" ;;
-  *"#ffe600"*) CHOSEN_HEX="#ffe600" ;;
-  *"#ff8800"*) CHOSEN_HEX="#ff8800" ;;
+  *"#ff51c5"*) CHOSEN_PRIMARY="#ff51c5" ;;
+  *"#00ff9f"*) CHOSEN_PRIMARY="#00ff9f" ;;
+  *"#ff3366"*) CHOSEN_PRIMARY="#ff3366" ;;
+  *"#00f0ff"*) CHOSEN_PRIMARY="#00f0ff" ;;
+  *"#bb9af7"*) CHOSEN_PRIMARY="#bb9af7" ;;
+  *"#ffe600"*) CHOSEN_PRIMARY="#ffe600" ;;
+  *"#ff8800"*) CHOSEN_PRIMARY="#ff8800" ;;
   "Custom Hex Code")
     while true; do
-      CUSTOM_INPUT=$(prompt_input "Enter a custom hex color (e.g. #ff007f or 00e5ff):" "#ff51c5" "#RRGGBB")
+      CUSTOM_INPUT=$(prompt_input "Enter a custom hex color for Primary Accent (e.g. #ff007f):" "#ff51c5" "#RRGGBB")
       CUSTOM_INPUT="$(echo "$CUSTOM_INPUT" | tr -d '[:space:]')"
       [[ "$CUSTOM_INPUT" != \#* ]] && CUSTOM_INPUT="#$CUSTOM_INPUT"
       if [[ "$CUSTOM_INPUT" =~ ^#[0-9a-fA-F]{6}$ ]]; then
-        CHOSEN_HEX="$CUSTOM_INPUT"
+        CHOSEN_PRIMARY="$CUSTOM_INPUT"
         break
       else
         echo -e "${YELLOW}[!] Invalid hex code '$CUSTOM_INPUT'. Format must be 6 hex characters (e.g. #ff007f). Please try again.${RESET}"
       fi
     done
     ;;
-  *) CHOSEN_HEX="#ff51c5" ;;
+  *) CHOSEN_PRIMARY="#ff51c5" ;;
 esac
-echo -e "    ${GREEN}✓ Accent color set to:${RESET} ${BOLD}${CHOSEN_HEX}${RESET}"
+CHOSEN_HEX="${CHOSEN_PRIMARY}"
+echo -e "    ${GREEN}✓ Primary Accent set to:${RESET} ${BOLD}${CHOSEN_PRIMARY}${RESET}"
+
+# Determine recommended complimentary color based on chosen primary
+case "$CHOSEN_PRIMARY" in
+  "#ff51c5") REC_HEX="#bb9af7"; REC_LABEL="Vibrant Violet [#bb9af7] (Default Cyberpunk Pairing)" ;;
+  "#00ff9f") REC_HEX="#00f0ff"; REC_LABEL="Electric Cyan [#00f0ff]" ;;
+  "#ff3366") REC_HEX="#00f0ff"; REC_LABEL="Electric Cyan [#00f0ff]" ;;
+  "#00f0ff") REC_HEX="#ff51c5"; REC_LABEL="Cyberpunk Magenta [#ff51c5]" ;;
+  "#bb9af7") REC_HEX="#00f0ff"; REC_LABEL="Electric Cyan [#00f0ff]" ;;
+  "#ffe600") REC_HEX="#bb9af7"; REC_LABEL="Vibrant Violet [#bb9af7]" ;;
+  "#ff8800") REC_HEX="#00f0ff"; REC_LABEL="Electric Cyan [#00f0ff]" ;;
+  *)         REC_HEX="#bb9af7"; REC_LABEL="Vibrant Violet [#bb9af7]" ;;
+esac
+
+echo -e "\n${VIOLET}Select the Complimentary / Secondary Accent color (HUD title, telemetry metrics, audio LED visualizer):${RESET}"
+COMP_CHOICE=$(prompt_choose "Choose Complimentary Accent color:" \
+  "${REC_LABEL} (Recommended)" \
+  "Vibrant Violet [#bb9af7]" \
+  "Electric Cyan [#00f0ff]" \
+  "Cyberpunk Magenta [#ff51c5]" \
+  "Neon Green [#00ff9f]" \
+  "Cyber Red [#ff3366]" \
+  "Acid Yellow [#ffe600]" \
+  "Hot Orange [#ff8800]" \
+  "Ice Blue [#7da6ff]" \
+  "Ghost White [#d0d0d0]" \
+  "Custom Hex Code")
+
+CHOSEN_SECONDARY="$REC_HEX"
+case "$COMP_CHOICE" in
+  *"(Recommended)"*) CHOSEN_SECONDARY="$REC_HEX" ;;
+  *"#bb9af7"*) CHOSEN_SECONDARY="#bb9af7" ;;
+  *"#00f0ff"*) CHOSEN_SECONDARY="#00f0ff" ;;
+  *"#ff51c5"*) CHOSEN_SECONDARY="#ff51c5" ;;
+  *"#00ff9f"*) CHOSEN_SECONDARY="#00ff9f" ;;
+  *"#ff3366"*) CHOSEN_SECONDARY="#ff3366" ;;
+  *"#ffe600"*) CHOSEN_SECONDARY="#ffe600" ;;
+  *"#ff8800"*) CHOSEN_SECONDARY="#ff8800" ;;
+  *"#7da6ff"*) CHOSEN_SECONDARY="#7da6ff" ;;
+  *"#d0d0d0"*) CHOSEN_SECONDARY="#d0d0d0" ;;
+  "Custom Hex Code")
+    while true; do
+      CUSTOM_INPUT=$(prompt_input "Enter a custom hex color for Complimentary Accent (e.g. #00ffff):" "$REC_HEX" "#RRGGBB")
+      CUSTOM_INPUT="$(echo "$CUSTOM_INPUT" | tr -d '[:space:]')"
+      [[ "$CUSTOM_INPUT" != \#* ]] && CUSTOM_INPUT="#$CUSTOM_INPUT"
+      if [[ "$CUSTOM_INPUT" =~ ^#[0-9a-fA-F]{6}$ ]]; then
+        CHOSEN_SECONDARY="$CUSTOM_INPUT"
+        break
+      else
+        echo -e "${YELLOW}[!] Invalid hex code '$CUSTOM_INPUT'. Format must be 6 hex characters (e.g. #00ffff). Please try again.${RESET}"
+      fi
+    done
+    ;;
+  *) CHOSEN_SECONDARY="$REC_HEX" ;;
+esac
+echo -e "    ${GREEN}✓ Complimentary Accent set to:${RESET} ${BOLD}${CHOSEN_SECONDARY}${RESET}"
 
 # ------------------------------------------------------------------------------
 # Step 3: Top Bar HUD Header Text
@@ -276,7 +333,9 @@ cat << MANIFEST > "${BACKUP_DIR}/backup_manifest.json"
   "original_theme": "${ACTIVE_THEME}",
   "user": "${USER}",
   "backup_dir": "${BACKUP_DIR}",
-  "chosen_accent_color": "${CHOSEN_HEX}",
+  "primary_accent_color": "${CHOSEN_PRIMARY}",
+  "secondary_accent_color": "${CHOSEN_SECONDARY}",
+  "chosen_accent_color": "${CHOSEN_PRIMARY}",
   "hud_text": "${HUD_TEXT}",
   "hud_command": "${HUD_CMD}",
   "menu_icon": "${MENU_GLYPH}"
@@ -293,36 +352,62 @@ if [ ! -f "${HOME}/.config/omarchy/midnight-shortcuts.json" ]; then
 fi
 chmod +x "${HOME}/.config/omarchy/sys-hud.sh"
 
-# Apply customized accent color if changed
-if [ "${CHOSEN_HEX}" != "#ff51c5" ]; then
-  echo -e "    ✓ Applying custom accent color ${CHOSEN_HEX} to theme configs..."
-  python3 - "${HOME}/.config/omarchy/themes/midnight-doll/colors.toml" \
-    "${HOME}/.config/omarchy/themes/midnight-doll/ghostty.conf" \
-    "${HOME}/.config/omarchy/themes/midnight-doll/hyprland.lua" \
-    "${CHOSEN_HEX}" << 'EOF'
+# Apply customized accent & complimentary colors to theme configs
+echo -e "    ✓ Applying dual-tone color scheme (${CHOSEN_PRIMARY} / ${CHOSEN_SECONDARY}) to theme configs..."
+python3 - "${HOME}/.config/omarchy/themes/midnight-doll/colors.toml" \
+  "${HOME}/.config/omarchy/themes/midnight-doll/ghostty.conf" \
+  "${HOME}/.config/omarchy/themes/midnight-doll/hyprland.lua" \
+  "${CHOSEN_PRIMARY}" \
+  "${CHOSEN_SECONDARY}" << 'EOF'
 import sys, re
-target_colors, target_ghostty, target_hypr, hex_col = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-with open(target_colors, 'r', encoding='utf-8') as f:
+
+colors_path, ghostty_path, hypr_path = sys.argv[1], sys.argv[2], sys.argv[3]
+pri_hex, sec_hex = sys.argv[4].strip(), sys.argv[5].strip()
+
+# Derive darker selection background from primary hex
+try:
+    pr, pg, pb = int(pri_hex[1:3], 16), int(pri_hex[3:5], 16), int(pri_hex[5:7], 16)
+    sel_hex = f"#{int(pr * 0.5):02x}{int(pg * 0.5):02x}{int(pb * 0.5):02x}"
+except Exception:
+    sel_hex = "#7f2862"
+
+# Derive inactive border glow from secondary hex
+try:
+    sr, sg, sb = int(sec_hex[1:3], 16), int(sec_hex[3:5], 16), int(sec_hex[5:7], 16)
+    inactive_border = f"{int(sr * 0.22):02x}{int(sg * 0.22):02x}{int(sb * 0.22):02x}"
+except Exception:
+    inactive_border = "2b0938"
+
+raw_pri = pri_hex.lstrip('#')
+
+# 1. Update colors.toml
+with open(colors_path, 'r', encoding='utf-8') as f:
     c = f.read()
-c = re.sub(r'accent = "#[0-9a-fA-F]{6}"', f'accent = "{hex_col}"', c)
-c = re.sub(r'foreground = "#[0-9a-fA-F]{6}"', f'foreground = "{hex_col}"', c)
-with open(target_colors, 'w', encoding='utf-8') as f:
+c = re.sub(r'^accent = "#[0-9a-fA-F]{6}"', f'accent = "{pri_hex}"', c, flags=re.MULTILINE)
+c = re.sub(r'^foreground = "#[0-9a-fA-F]{6}"', f'foreground = "{pri_hex}"', c, flags=re.MULTILINE)
+c = re.sub(r'^selection = "#[0-9a-fA-F]{6}"', f'selection = "{sel_hex}"', c, flags=re.MULTILINE)
+c = re.sub(r'^muted = "#[0-9a-fA-F]{6}"', f'muted = "{sec_hex}"', c, flags=re.MULTILINE)
+c = re.sub(r'^bright_magenta = "#[0-9a-fA-F]{6}"', f'bright_magenta = "{sec_hex}"', c, flags=re.MULTILINE)
+with open(colors_path, 'w', encoding='utf-8') as f:
     f.write(c)
 
-with open(target_ghostty, 'r', encoding='utf-8') as f:
+# 2. Update ghostty.conf
+with open(ghostty_path, 'r', encoding='utf-8') as f:
     g = f.read()
-g = re.sub(r'foreground = #[0-9a-fA-F]{6}', f'foreground = {hex_col}', g)
-with open(target_ghostty, 'w', encoding='utf-8') as f:
+g = re.sub(r'^foreground = #[0-9a-fA-F]{6}', f'foreground = {pri_hex}', g, flags=re.MULTILINE)
+g = re.sub(r'^selection-background = #[0-9a-fA-F]{6}', f'selection-background = {sel_hex}', g, flags=re.MULTILINE)
+g = re.sub(r'^palette = 13=#[0-9a-fA-F]{6}', f'palette = 13={sec_hex}', g, flags=re.MULTILINE)
+with open(ghostty_path, 'w', encoding='utf-8') as f:
     f.write(g)
 
-hex_raw = hex_col.lstrip('#')
-with open(target_hypr, 'r', encoding='utf-8') as f:
+# 3. Update hyprland.lua
+with open(hypr_path, 'r', encoding='utf-8') as f:
     h = f.read()
-h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({hex_raw})"', h)
-with open(target_hypr, 'w', encoding='utf-8') as f:
+h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({raw_pri})"', h)
+h = re.sub(r'inactive_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'inactive_border_color = "rgb({inactive_border})"', h)
+with open(hypr_path, 'w', encoding='utf-8') as f:
     f.write(h)
 EOF
-fi
 
 # Deploy user plugins to ~/.config/omarchy/plugins/
 echo -e "${VIOLET}[*] Deploying Midnight-Doll Cyberdeck plugins to ~/.config/omarchy/plugins/...${RESET}"
@@ -336,18 +421,20 @@ if [ -d "${OMARCHY_SYS_PLUGINS}/bar" ]; then
 fi
 cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.bar/"
 cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.bar/widgets/"
-python3 - "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${HUD_CMD}" "${MENU_GLYPH}" << 'EOF'
+python3 - "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${HUD_CMD}" "${CHOSEN_SECONDARY}" "${MENU_GLYPH}" << 'EOF'
 import sys, re
-target_bar, title, subtitle, cmd, glyph = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+target_bar, title, subtitle, cmd, sec_color, glyph = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]
 with open(target_bar, 'r', encoding='utf-8') as f:
     c = f.read()
 title_escaped = title.replace('\\', '\\\\').replace('"', '\\"')
 sub_escaped = subtitle.replace('\\', '\\\\').replace('"', '\\"')
 cmd_escaped = cmd.replace('\\', '\\\\').replace('"', '\\"')
+sec_escaped = sec_color.replace('\\', '\\\\').replace('"', '\\"')
 glyph_escaped = glyph.replace('\\', '\\\\').replace('"', '\\"')
 c = re.sub(r'property string hudTitle: ".*?"', lambda m: f'property string hudTitle: "{title_escaped}"', c)
 c = re.sub(r'property string hudSubtitle: ".*?"', lambda m: f'property string hudSubtitle: "{sub_escaped}"', c)
 c = re.sub(r'property string hudCommand: ".*?"', lambda m: f'property string hudCommand: "{cmd_escaped}"', c)
+c = re.sub(r'property color secondaryColor: ".*?"', lambda m: f'property color secondaryColor: "{sec_escaped}"', c)
 c = re.sub(r'property string menuIcon: ".*?"', lambda m: f'property string menuIcon: "{glyph_escaped}"', c)
 with open(target_bar, 'w', encoding='utf-8') as f:
     f.write(c)
@@ -446,15 +533,16 @@ if command -v omarchy &> /dev/null; then
 fi
 
 echo -e "\n${GREEN}${BOLD}✓ Midnight-Doll // Cyberdeck HUD successfully installed!${RESET}"
-echo -e "    ${PINK}• Accent Color:${RESET} ${CHOSEN_HEX}"
+echo -e "    ${PINK}• Primary Accent:${RESET}       ${CHOSEN_PRIMARY}"
+echo -e "    ${PINK}• Complimentary Accent:${RESET} ${CHOSEN_SECONDARY}"
 if [ -n "$HUD_TITLE" ] && [ -n "$HUD_SUBTITLE" ]; then
-  echo -e "    ${PINK}• HUD Header:${RESET}   ${HUD_TITLE} // ${HUD_SUBTITLE}"
+  echo -e "    ${PINK}• HUD Header:${RESET}           ${HUD_TITLE} // ${HUD_SUBTITLE}"
 elif [ -n "$HUD_SUBTITLE" ]; then
-  echo -e "    ${PINK}• HUD Header:${RESET}   ${HUD_SUBTITLE}"
+  echo -e "    ${PINK}• HUD Header:${RESET}           ${HUD_SUBTITLE}"
 else
-  echo -e "    ${PINK}• HUD Header:${RESET}   ${HUD_TITLE}"
+  echo -e "    ${PINK}• HUD Header:${RESET}           ${HUD_TITLE}"
 fi
-echo -e "    ${PINK}• HUD Action:${RESET}   ${HUD_CMD:-[Disabled]}"
-echo -e "    ${PINK}• Menu Icon:${RESET}    ${MENU_GLYPH}"
+echo -e "    ${PINK}• HUD Action:${RESET}           ${HUD_CMD:-[Disabled]}"
+echo -e "    ${PINK}• Menu Icon:${RESET}            ${MENU_GLYPH}"
 echo -e "\n${PINK}Press Win+Space or inspect your top & left bars to explore.${RESET}"
 echo -e "${VIOLET}To restore your previous setup at any time, run: ./uninstall.sh${RESET}\n"
