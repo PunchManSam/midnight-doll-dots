@@ -206,7 +206,7 @@ echo -e "    ${GREEN}✓ HUD title set to:${RESET} ${BOLD}${HUD_TITLE}${HUD_SUBT
 echo -e "\n${PINK}[Step 4/4] Omarchy Menu Launcher Icon${RESET}"
 echo -e "${CYAN}Browse Nerd Font glyphs at:${RESET} ${BOLD}https://www.nerdfonts.com/cheat-sheet${RESET}"
 echo -e "${VIOLET}Current default is the Cyberdeck Skull glyph: 󰚌${RESET}"
-MENU_GLYPH=$(prompt_input "Enter a new menu icon glyph (or press Enter for default 󰚌):" "󰚌" "󰚌")
+MENU_GLYPH=$(prompt_input "Enter a menu icon glyph for omarchy.menu (or press Enter for default 󰚌):" "󰚌" "󰚌")
 echo -e "    ${GREEN}✓ Menu icon set to:${RESET} ${BOLD}${MENU_GLYPH}${RESET}"
 
 # Create comprehensive backup directory
@@ -313,14 +313,15 @@ cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.b
 cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.bar/widgets/"
 python3 -c "
 import sys, re
-target_bar, title, subtitle = sys.argv[1], sys.argv[2], sys.argv[3]
+target_bar, title, subtitle, glyph = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 with open(target_bar, 'r', encoding='utf-8') as f:
     c = f.read()
 c = re.sub(r'property string hudTitle: \".*?\"', f'property string hudTitle: \"{title}\"', c)
 c = re.sub(r'property string hudSubtitle: \".*?\"', f'property string hudSubtitle: \"{subtitle}\"', c)
+c = re.sub(r'property string menuIcon: \".*?\"', f'property string menuIcon: \"{glyph}\"', c)
 with open(target_bar, 'w', encoding='utf-8') as f:
     f.write(c)
-" "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}"
+" "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${MENU_GLYPH}"
 cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.bar/manifest.json"
 {
   "schemaVersion": 1,
@@ -367,51 +368,10 @@ cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.workspaces/manifest.json"
 }
 EOF
 
-# 3. Menu widget (Nerd Font Skull launcher)
-mkdir -p "${PLUGINS_DIR}/midnight-doll.menu"
-if [ -d "${OMARCHY_SYS_PLUGINS}/menu" ]; then
-  cp -r "${OMARCHY_SYS_PLUGINS}/menu/"* "${PLUGINS_DIR}/midnight-doll.menu/" 2>/dev/null || true
-fi
-cp "${DOTS_DIR}/shell-patch/plugins/menu/BarWidget.qml" "${PLUGINS_DIR}/midnight-doll.menu/"
-python3 -c "
-import sys, re
-target_menu, glyph = sys.argv[1], sys.argv[2]
-with open(target_menu, 'r', encoding='utf-8') as f:
-    c = f.read()
-c = re.sub(r'property string menuIcon: \".*?\"', f'property string menuIcon: \"{glyph}\"', c)
-with open(target_menu, 'w', encoding='utf-8') as f:
-    f.write(c)
-" "${PLUGINS_DIR}/midnight-doll.menu/BarWidget.qml" "${MENU_GLYPH}"
-cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.menu/manifest.json"
-{
-  "schemaVersion": 1,
-  "id": "midnight-doll.menu",
-  "name": "Midnight Doll Menu",
-  "version": "1.0.0",
-  "author": "Midnight Doll",
-  "description": "Cyberdeck Skull Menu Launcher",
-  "kinds": [
-    "menu",
-    "bar-widget"
-  ],
-  "keepLoaded": true,
-  "entryPoints": {
-    "menu": "Menu.qml",
-    "barWidget": "BarWidget.qml"
-  },
-  "barWidget": {
-    "displayName": "Midnight Doll Menu",
-    "description": "Cyberdeck Skull Menu Launcher",
-    "category": "Compositor",
-    "allowMultiple": false
-  },
-  "omarchy": {
-    "clonedFrom": "omarchy.menu"
-  }
-}
-EOF
+# Remove legacy midnight-doll.menu if present
+rm -rf "${PLUGINS_DIR}/midnight-doll.menu"
 
-# 4. Clock widget (military uppercase format)
+# 3. Clock widget (military uppercase format)
 mkdir -p "${PLUGINS_DIR}/midnight-doll.clock"
 if [ -d "${OMARCHY_SYS_PLUGINS}/panels/clock" ]; then
   cp -r "${OMARCHY_SYS_PLUGINS}/panels/clock/"* "${PLUGINS_DIR}/midnight-doll.clock/" 2>/dev/null || true
@@ -450,8 +410,8 @@ if command -v omarchy &> /dev/null; then
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
   omarchy bar use midnight-doll.bar || true
   omarchy plugin enable midnight-doll.workspaces || true
-  omarchy plugin enable midnight-doll.menu || true
   omarchy plugin enable midnight-doll.clock || true
+  omarchy plugin enable omarchy.menu || true
   omarchy restart shell || true
 fi
 

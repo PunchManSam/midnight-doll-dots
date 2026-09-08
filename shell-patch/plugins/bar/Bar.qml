@@ -42,6 +42,7 @@ Item {
   property string activeTheme: ""
   property string hudTitle: "MIDNIGHT-DOLL"
   property string hudSubtitle: "HUD"
+  property string menuIcon: "󰚌"
   readonly property bool isMidnightDoll: {
     var name = activeTheme.toLowerCase().replace(/[\s_-]+/g, "")
     return name === "midnightdoll"
@@ -2201,12 +2202,31 @@ Item {
             spacing: 0
 
             ModuleSlot {
+              visible: !(root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu"))
+              width: visible ? implicitWidth : 0
               entry: modelData
               region: moduleListRoot.region
             }
 
+            WidgetButton {
+              id: midnightMenuBtn
+              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu")
+              bar: root
+              text: root.menuIcon
+              fontFamily: "JetBrainsMono Nerd Font"
+              fontSize: 18
+              foreground: Color.accent
+              horizontalMargin: 6
+              fixedWidth: 28
+              fixedHeight: root.barSize
+              onPressed: function(button) {
+                if (button === Qt.RightButton) root.run("xdg-terminal-exec")
+                else root.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
+              }
+            }
+
             Row {
-              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.id === "midnight-doll.menu" || modelData.name === "omarchy.menu" || modelData.name === "midnight-doll.menu") && moduleListRoot.region === "left"
+              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu") && moduleListRoot.region === "left"
               spacing: 0
               anchors.verticalCenter: parent.verticalCenter
               leftPadding: 6
@@ -2250,10 +2270,32 @@ Item {
         Repeater {
           model: moduleListRoot.entries
 
-          ModuleSlot {
-            required property var modelData
-            entry: modelData
-            region: moduleListRoot.region
+          Column {
+            spacing: 0
+
+            ModuleSlot {
+              visible: !(root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu"))
+              height: visible ? implicitHeight : 0
+              required property var modelData
+              entry: modelData
+              region: moduleListRoot.region
+            }
+
+            WidgetButton {
+              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu")
+              bar: root
+              text: root.menuIcon
+              fontFamily: "JetBrainsMono Nerd Font"
+              fontSize: 18
+              foreground: Color.accent
+              verticalPadding: 6
+              fixedWidth: root.barSize
+              fixedHeight: 28
+              onPressed: function(button) {
+                if (button === Qt.RightButton) root.run("xdg-terminal-exec")
+                else root.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
+              }
+            }
           }
         }
       }

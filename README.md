@@ -25,7 +25,7 @@
 
 ## ⚡ Key Features
 
-- 💀 **Cyberdeck Skull Primary Launcher**: Custom enlarged **18px Neon Pink Nerd Font Skull (`󰚌`)** for the menu launcher.
+- 💀 **Cyberdeck Skull Menu Launcher**: Dedicated **18px Neon Pink Nerd Font Skull (`󰚌`)** menu icon on the top bar with full native integration with the official Omarchy application launcher and shell menus.
 - 🎛️ **Dual-Bar Sequencing Architecture**:
   - **Top Bar (30px)**: Full-width priority header with solid pitch-black `#010101` backplane and neon accent underline.
   - **Left Launcher Panel (36px)**: Edge-flush vertical app launcher with interactive right-click JSON shortcut editor.
@@ -64,8 +64,6 @@ midnight-doll-dots/
         │   ├── Bar.qml            # Dual-bar HUD & visualizer core engine
         │   └── widgets/
         │       └── Workspaces.qml # Bracketed [1] [2] workspaces
-        ├── menu/
-        │   └── BarWidget.qml      # Nerd Font pink skull launcher
         └── panels/clock/
             └── BarWidget.qml      # Military uppercase date-time widget
 ```

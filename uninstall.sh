@@ -77,6 +77,7 @@ if command -v omarchy &> /dev/null; then
   omarchy plugin disable midnight-doll.workspaces >/dev/null 2>&1 || true
   omarchy plugin disable midnight-doll.menu >/dev/null 2>&1 || true
   omarchy plugin disable midnight-doll.clock >/dev/null 2>&1 || true
+  omarchy plugin enable omarchy.menu >/dev/null 2>&1 || true
 fi
 rm -rf "${HOME}/.config/omarchy/plugins/midnight-doll."*
 
