@@ -1763,39 +1763,11 @@ Item {
 
     Item {
       id: midnightCornerFillet
-      x: 36
+      x: 34
       y: root.barSize
-      width: root.midnightCornerRadius
+      width: root.midnightCornerRadius + 2
       height: root.midnightCornerRadius
       visible: root.isMidnightDoll && !root.barHidden && root.position === "top"
-      opacity: root.transparent ? 0.0 : 1.0
-      Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
-      z: 998
-
-      Shape {
-        anchors.fill: parent
-        asynchronous: false
-        preferredRendererType: Shape.CurveRenderer
-
-        ShapePath {
-          strokeWidth: 0
-          strokeColor: "transparent"
-          fillColor: "#010101"
-
-          startX: 0
-          startY: 0
-          PathLine { x: midnightCornerFillet.width; y: 0 }
-          PathAngleArc {
-            centerX: midnightCornerFillet.width
-            centerY: midnightCornerFillet.height
-            radiusX: midnightCornerFillet.width
-            radiusY: midnightCornerFillet.height
-            startAngle: -90
-            sweepAngle: -90
-          }
-          PathLine { x: 0; y: 0 }
-        }
-      }
     }
 
     Shape {
@@ -1810,6 +1782,26 @@ Item {
       asynchronous: false
       preferredRendererType: Shape.CurveRenderer
       z: 999
+
+      ShapePath {
+        strokeWidth: 0
+        strokeColor: "transparent"
+        fillColor: "#010101"
+
+        startX: 34
+        startY: root.barSize
+        PathLine { x: 35.5 + root.midnightCornerRadius; y: root.barSize }
+        PathAngleArc {
+          centerX: 35.5 + root.midnightCornerRadius
+          centerY: root.barSize - 0.5 + root.midnightCornerRadius
+          radiusX: root.midnightCornerRadius
+          radiusY: root.midnightCornerRadius
+          startAngle: -90
+          sweepAngle: -90
+        }
+        PathLine { x: 34; y: root.barSize + root.midnightCornerRadius }
+        PathLine { x: 34; y: root.barSize }
+      }
 
       ShapePath {
         strokeWidth: 1.0
