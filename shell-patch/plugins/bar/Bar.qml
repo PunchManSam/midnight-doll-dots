@@ -2238,6 +2238,7 @@ Item {
                 font.bold: true
                 font.pixelSize: 12
                 color: "#bb9af7"
+                anchors.verticalCenter: parent.verticalCenter
               }
               Text {
                 visible: root.hudSubtitle !== ""
@@ -2246,22 +2247,17 @@ Item {
                 font.bold: true
                 font.pixelSize: 12
                 color: Qt.rgba(1, 1, 1, 0.4)
+                anchors.verticalCenter: parent.verticalCenter
               }
-              MouseArea {
-                id: hudSubMouse
+              Item {
                 visible: root.hudSubtitle !== ""
-                width: hudSubtitleText.implicitWidth + 4
-                height: root.barSize
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                property bool tooltipHovered: containsMouse
-                onEntered: root.showTooltip(hudSubMouse, "Activity Monitor (btop)")
-                onExited: root.hideTooltip(hudSubMouse)
-                onClicked: root.run("omarchy-launch-or-focus-tui btop")
+                width: hudSubtitleText.implicitWidth
+                height: hudSubtitleText.implicitHeight
+                anchors.verticalCenter: parent.verticalCenter
 
                 Text {
                   id: hudSubtitleText
-                  anchors.centerIn: parent
+                  anchors.fill: parent
                   text: root.hudSubtitle
                   font.family: root.fontFamily
                   font.bold: true
@@ -2271,6 +2267,19 @@ Item {
                   Behavior on color {
                     ColorAnimation { duration: 120 }
                   }
+                }
+
+                MouseArea {
+                  id: hudSubMouse
+                  anchors.centerIn: parent
+                  width: parent.width + 8
+                  height: root.barSize
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  property bool tooltipHovered: containsMouse
+                  onEntered: root.showTooltip(hudSubMouse, "Activity Monitor (btop)")
+                  onExited: root.hideTooltip(hudSubMouse)
+                  onClicked: root.run("omarchy-launch-or-focus-tui btop")
                 }
               }
             }
