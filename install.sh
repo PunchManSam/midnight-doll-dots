@@ -296,13 +296,16 @@ chmod +x "${HOME}/.config/omarchy/sys-hud.sh"
 # Apply customized accent color if changed
 if [ "${CHOSEN_HEX}" != "#ff51c5" ]; then
   echo -e "    ✓ Applying custom accent color ${CHOSEN_HEX} to theme configs..."
-  python3 -c "
+  python3 - "${HOME}/.config/omarchy/themes/midnight-doll/colors.toml" \
+    "${HOME}/.config/omarchy/themes/midnight-doll/ghostty.conf" \
+    "${HOME}/.config/omarchy/themes/midnight-doll/hyprland.lua" \
+    "${CHOSEN_HEX}" << 'EOF'
 import sys, re
 target_colors, target_ghostty, target_hypr, hex_col = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 with open(target_colors, 'r', encoding='utf-8') as f:
     c = f.read()
-c = re.sub(r'accent = \"#[0-9a-fA-F]{6}\"', f'accent = \"{hex_col}\"', c)
-c = re.sub(r'foreground = \"#[0-9a-fA-F]{6}\"', f'foreground = \"{hex_col}\"', c)
+c = re.sub(r'accent = "#[0-9a-fA-F]{6}"', f'accent = "{hex_col}"', c)
+c = re.sub(r'foreground = "#[0-9a-fA-F]{6}"', f'foreground = "{hex_col}"', c)
 with open(target_colors, 'w', encoding='utf-8') as f:
     f.write(c)
 
@@ -315,13 +318,10 @@ with open(target_ghostty, 'w', encoding='utf-8') as f:
 hex_raw = hex_col.lstrip('#')
 with open(target_hypr, 'r', encoding='utf-8') as f:
     h = f.read()
-h = re.sub(r'active_border_color = \"rgb\([0-9a-fA-F]{6}\)\"', f'active_border_color = \"rgb({hex_raw})\"', h)
+h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({hex_raw})"', h)
 with open(target_hypr, 'w', encoding='utf-8') as f:
     f.write(h)
-" "${HOME}/.config/omarchy/themes/midnight-doll/colors.toml" \
-  "${HOME}/.config/omarchy/themes/midnight-doll/ghostty.conf" \
-  "${HOME}/.config/omarchy/themes/midnight-doll/hyprland.lua" \
-  "${CHOSEN_HEX}"
+EOF
 fi
 
 # Deploy user plugins to ~/.config/omarchy/plugins/
@@ -336,22 +336,22 @@ if [ -d "${OMARCHY_SYS_PLUGINS}/bar" ]; then
 fi
 cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.bar/"
 cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.bar/widgets/"
-python3 -c "
+python3 - "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${HUD_CMD}" "${MENU_GLYPH}" << 'EOF'
 import sys, re
 target_bar, title, subtitle, cmd, glyph = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 with open(target_bar, 'r', encoding='utf-8') as f:
     c = f.read()
-title_escaped = title.replace('\\', '\\\\').replace('\"', '\\\"')
-sub_escaped = subtitle.replace('\\', '\\\\').replace('\"', '\\\"')
-cmd_escaped = cmd.replace('\\', '\\\\').replace('\"', '\\\"')
-glyph_escaped = glyph.replace('\\', '\\\\').replace('\"', '\\\"')
-c = re.sub(r'property string hudTitle: \".*?\"', lambda m: f'property string hudTitle: \"{title_escaped}\"', c)
-c = re.sub(r'property string hudSubtitle: \".*?\"', lambda m: f'property string hudSubtitle: \"{sub_escaped}\"', c)
-c = re.sub(r'property string hudCommand: \".*?\"', lambda m: f'property string hudCommand: \"{cmd_escaped}\"', c)
-c = re.sub(r'property string menuIcon: \".*?\"', lambda m: f'property string menuIcon: \"{glyph_escaped}\"', c)
+title_escaped = title.replace('\\', '\\\\').replace('"', '\\"')
+sub_escaped = subtitle.replace('\\', '\\\\').replace('"', '\\"')
+cmd_escaped = cmd.replace('\\', '\\\\').replace('"', '\\"')
+glyph_escaped = glyph.replace('\\', '\\\\').replace('"', '\\"')
+c = re.sub(r'property string hudTitle: ".*?"', lambda m: f'property string hudTitle: "{title_escaped}"', c)
+c = re.sub(r'property string hudSubtitle: ".*?"', lambda m: f'property string hudSubtitle: "{sub_escaped}"', c)
+c = re.sub(r'property string hudCommand: ".*?"', lambda m: f'property string hudCommand: "{cmd_escaped}"', c)
+c = re.sub(r'property string menuIcon: ".*?"', lambda m: f'property string menuIcon: "{glyph_escaped}"', c)
 with open(target_bar, 'w', encoding='utf-8') as f:
     f.write(c)
-" "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${HUD_CMD}" "${MENU_GLYPH}"
+EOF
 cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.bar/manifest.json"
 {
   "schemaVersion": 1,
