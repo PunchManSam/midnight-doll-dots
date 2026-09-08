@@ -119,7 +119,7 @@ echo -e "\n${VIOLET}[*] Interactive Configuration Setup${RESET}"
 if command -v cava &> /dev/null; then
   echo -e "    ${GREEN}✓ 'cava' audio visualizer detected at $(command -v cava)${RESET}"
 else
-  echo -e "\n${PINK}[Step 1/4] Audio Visualizer Setup${RESET}"
+  echo -e "\n${PINK}[Step 1/5] Audio Visualizer Setup${RESET}"
   if prompt_confirm "This theme incorporates a cava visualizer. Would you like to install cava?" true; then
     echo -e "${VIOLET}[*] Installing cava...${RESET}"
     if command -v omarchy &> /dev/null; then
@@ -144,7 +144,7 @@ fi
 # ------------------------------------------------------------------------------
 # Step 2: Theme Accent Color Configuration
 # ------------------------------------------------------------------------------
-echo -e "\n${PINK}[Step 2/4] Accent Color Configuration${RESET}"
+echo -e "\n${PINK}[Step 2/5] Accent Color Configuration${RESET}"
 echo -e "${VIOLET}The default accent color for this theme is Cyberpunk Magenta (#ff51c5).${RESET}"
 COLOR_CHOICE=$(prompt_choose "Choose an accent color for the theme:" \
   "Cyberpunk Magenta [#ff51c5] (Default)" \
@@ -183,11 +183,13 @@ esac
 echo -e "    ${GREEN}✓ Accent color set to:${RESET} ${BOLD}${CHOSEN_HEX}${RESET}"
 
 # ------------------------------------------------------------------------------
-# Step 3: Top Bar HUD Text Configuration
+# Step 3: Top Bar HUD Header Text
 # ------------------------------------------------------------------------------
-echo -e "\n${PINK}[Step 3/4] Top Bar HUD Header Text${RESET}"
+echo -e "\n${PINK}[Step 3/5] Top Bar HUD Header Text${RESET}"
 echo -e "${VIOLET}Default header text is: MIDNIGHT-DOLL // HUD${RESET}"
-HUD_TEXT=$(prompt_input "Change the HUD text (or press Enter to keep default):" "MIDNIGHT-DOLL // HUD" "MIDNIGHT-DOLL // HUD")
+echo -e "${CYAN}Tip: Use 'TITLE // SUBTITLE' (e.g. MIDNIGHT-DOLL // HUD) or a single title (e.g. ro0tUser).${RESET}"
+echo -e "${CYAN}     A single title will be styled in your accent color and can launch a custom command on click.${RESET}"
+HUD_TEXT=$(prompt_input "Enter HUD text (or press Enter to keep default):" "MIDNIGHT-DOLL // HUD" "MIDNIGHT-DOLL // HUD")
 if [[ "$HUD_TEXT" == *" // "* ]]; then
   HUD_TITLE="${HUD_TEXT%% // *}"
   HUD_SUBTITLE="${HUD_TEXT#* // }"
@@ -195,15 +197,37 @@ elif [[ "$HUD_TEXT" == *"/"* ]]; then
   HUD_TITLE="$(echo "$HUD_TEXT" | awk -F'/' '{print $1}' | sed 's/[[:space:]]*$//')"
   HUD_SUBTITLE="$(echo "$HUD_TEXT" | awk -F'/' '{print $2}' | sed 's/^[[:space:]]*//')"
 else
-  HUD_TITLE="$HUD_TEXT"
-  HUD_SUBTITLE=""
+  HUD_TITLE=""
+  HUD_SUBTITLE="$HUD_TEXT"
 fi
-echo -e "    ${GREEN}✓ HUD title set to:${RESET} ${BOLD}${HUD_TITLE}${HUD_SUBTITLE:+ // $HUD_SUBTITLE}${RESET}"
+
+if [ -n "$HUD_TITLE" ] && [ -n "$HUD_SUBTITLE" ]; then
+  echo -e "    ${GREEN}✓ HUD title set to:${RESET} ${BOLD}${HUD_TITLE} // ${HUD_SUBTITLE}${RESET}"
+elif [ -n "$HUD_SUBTITLE" ]; then
+  echo -e "    ${GREEN}✓ HUD title set to:${RESET} ${BOLD}${HUD_SUBTITLE}${RESET} (accent subtitle)"
+else
+  echo -e "    ${GREEN}✓ HUD title set to:${RESET} ${BOLD}${HUD_TITLE}${RESET}"
+fi
 
 # ------------------------------------------------------------------------------
-# Step 4: Omarchy Menu Launcher Icon Configuration
+# Step 4: Top Bar HUD Click Command
 # ------------------------------------------------------------------------------
-echo -e "\n${PINK}[Step 4/4] Omarchy Menu Launcher Icon${RESET}"
+CLICK_LABEL="${HUD_SUBTITLE:-$HUD_TITLE}"
+echo -e "\n${PINK}[Step 4/5] Top Bar HUD Click Command${RESET}"
+echo -e "${VIOLET}Clicking '${CLICK_LABEL}' on the top bar launches an application or terminal command.${RESET}"
+echo -e "${VIOLET}Default is floating btop system monitor ('omarchy-launch-or-focus-tui btop').${RESET}"
+HUD_CMD=$(prompt_input "Enter command to launch on click (or press Enter for default):" "omarchy-launch-or-focus-tui btop" "omarchy-launch-or-focus-tui btop")
+if [ "$HUD_CMD" = "none" ] || [ "$HUD_CMD" = "off" ] || [ "$HUD_CMD" = "disabled" ]; then
+  HUD_CMD=""
+  echo -e "    ${YELLOW}[!] HUD click action disabled.${RESET}"
+else
+  echo -e "    ${GREEN}✓ HUD click command set to:${RESET} ${BOLD}${HUD_CMD}${RESET}"
+fi
+
+# ------------------------------------------------------------------------------
+# Step 5: Omarchy Menu Launcher Icon Configuration
+# ------------------------------------------------------------------------------
+echo -e "\n${PINK}[Step 5/5] Omarchy Menu Launcher Icon${RESET}"
 echo -e "${CYAN}Browse Nerd Font glyphs at:${RESET} ${BOLD}https://www.nerdfonts.com/cheat-sheet${RESET}"
 echo -e "${VIOLET}Current default is the Cyberdeck Skull glyph: 󰚌${RESET}"
 MENU_GLYPH=$(prompt_input "Enter a menu icon glyph for omarchy.menu (or press Enter for default 󰚌):" "󰚌" "󰚌")
@@ -254,6 +278,7 @@ cat << MANIFEST > "${BACKUP_DIR}/backup_manifest.json"
   "backup_dir": "${BACKUP_DIR}",
   "chosen_accent_color": "${CHOSEN_HEX}",
   "hud_text": "${HUD_TEXT}",
+  "hud_command": "${HUD_CMD}",
   "menu_icon": "${MENU_GLYPH}"
 }
 MANIFEST
@@ -313,15 +338,20 @@ cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.b
 cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.bar/widgets/"
 python3 -c "
 import sys, re
-target_bar, title, subtitle, glyph = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+target_bar, title, subtitle, cmd, glyph = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 with open(target_bar, 'r', encoding='utf-8') as f:
     c = f.read()
-c = re.sub(r'property string hudTitle: \".*?\"', f'property string hudTitle: \"{title}\"', c)
-c = re.sub(r'property string hudSubtitle: \".*?\"', f'property string hudSubtitle: \"{subtitle}\"', c)
-c = re.sub(r'property string menuIcon: \".*?\"', f'property string menuIcon: \"{glyph}\"', c)
+title_escaped = title.replace('\\', '\\\\').replace('\"', '\\\"')
+sub_escaped = subtitle.replace('\\', '\\\\').replace('\"', '\\\"')
+cmd_escaped = cmd.replace('\\', '\\\\').replace('\"', '\\\"')
+glyph_escaped = glyph.replace('\\', '\\\\').replace('\"', '\\\"')
+c = re.sub(r'property string hudTitle: \".*?\"', lambda m: f'property string hudTitle: \"{title_escaped}\"', c)
+c = re.sub(r'property string hudSubtitle: \".*?\"', lambda m: f'property string hudSubtitle: \"{sub_escaped}\"', c)
+c = re.sub(r'property string hudCommand: \".*?\"', lambda m: f'property string hudCommand: \"{cmd_escaped}\"', c)
+c = re.sub(r'property string menuIcon: \".*?\"', lambda m: f'property string menuIcon: \"{glyph_escaped}\"', c)
 with open(target_bar, 'w', encoding='utf-8') as f:
     f.write(c)
-" "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${MENU_GLYPH}"
+" "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${HUD_CMD}" "${MENU_GLYPH}"
 cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.bar/manifest.json"
 {
   "schemaVersion": 1,
@@ -417,7 +447,14 @@ fi
 
 echo -e "\n${GREEN}${BOLD}✓ Midnight-Doll // Cyberdeck HUD successfully installed!${RESET}"
 echo -e "    ${PINK}• Accent Color:${RESET} ${CHOSEN_HEX}"
-echo -e "    ${PINK}• HUD Header:${RESET}   ${HUD_TITLE}${HUD_SUBTITLE:+ // $HUD_SUBTITLE}"
+if [ -n "$HUD_TITLE" ] && [ -n "$HUD_SUBTITLE" ]; then
+  echo -e "    ${PINK}• HUD Header:${RESET}   ${HUD_TITLE} // ${HUD_SUBTITLE}"
+elif [ -n "$HUD_SUBTITLE" ]; then
+  echo -e "    ${PINK}• HUD Header:${RESET}   ${HUD_SUBTITLE}"
+else
+  echo -e "    ${PINK}• HUD Header:${RESET}   ${HUD_TITLE}"
+fi
+echo -e "    ${PINK}• HUD Action:${RESET}   ${HUD_CMD:-[Disabled]}"
 echo -e "    ${PINK}• Menu Icon:${RESET}    ${MENU_GLYPH}"
 echo -e "\n${PINK}Press Win+Space or inspect your top & left bars to explore.${RESET}"
 echo -e "${VIOLET}To restore your previous setup at any time, run: ./uninstall.sh${RESET}\n"

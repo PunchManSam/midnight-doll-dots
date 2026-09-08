@@ -42,7 +42,14 @@ Item {
   property string activeTheme: ""
   property string hudTitle: "MIDNIGHT-DOLL"
   property string hudSubtitle: "HUD"
+  property string hudCommand: "omarchy-launch-or-focus-tui btop"
   property string menuIcon: "󰚌"
+
+  function hudTooltipText() {
+    if (!root.hudCommand || root.hudCommand.trim() === "") return ""
+    if (root.hudCommand.indexOf("btop") !== -1) return "Activity Monitor (btop)"
+    return "Run: " + root.hudCommand
+  }
   readonly property bool isMidnightDoll: {
     var name = activeTheme.toLowerCase().replace(/[\s_-]+/g, "")
     return name === "midnightdoll"
@@ -2233,6 +2240,7 @@ Item {
               rightPadding: 8
 
               Text {
+                visible: root.hudTitle !== ""
                 text: root.hudTitle
                 font.family: root.fontFamily
                 font.bold: true
@@ -2241,7 +2249,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
               }
               Text {
-                visible: root.hudSubtitle !== ""
+                visible: root.hudTitle !== "" && root.hudSubtitle !== ""
                 text: " // "
                 font.family: root.fontFamily
                 font.bold: true
@@ -2262,7 +2270,7 @@ Item {
                   font.family: root.fontFamily
                   font.bold: true
                   font.pixelSize: 12
-                  color: hudSubMouse.containsMouse ? "#ffffff" : Color.accent
+                  color: (hudSubMouse.enabled && hudSubMouse.containsMouse) ? "#ffffff" : Color.accent
 
                   Behavior on color {
                     ColorAnimation { duration: 120 }
@@ -2274,12 +2282,18 @@ Item {
                   anchors.centerIn: parent
                   width: parent.width + 8
                   height: root.barSize
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
+                  enabled: root.hudCommand !== ""
+                  hoverEnabled: enabled
+                  cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                   property bool tooltipHovered: containsMouse
-                  onEntered: root.showTooltip(hudSubMouse, "Activity Monitor (btop)")
+                  onEntered: {
+                    var tip = root.hudTooltipText()
+                    if (tip) root.showTooltip(hudSubMouse, tip)
+                  }
                   onExited: root.hideTooltip(hudSubMouse)
-                  onClicked: root.run("omarchy-launch-or-focus-tui btop")
+                  onClicked: {
+                    if (root.hudCommand) root.run(root.hudCommand)
+                  }
                 }
               }
             }

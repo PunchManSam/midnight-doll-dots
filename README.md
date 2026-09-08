@@ -30,7 +30,7 @@
   - **Top Bar (30px)**: Full-width priority header with solid pitch-black `#010101` backplane and neon accent underline.
   - **Left Launcher Panel (36px)**: Edge-flush vertical app launcher with interactive right-click JSON shortcut editor.
   - **Pixel-Perfect Curved Seam**: Anti-aliased QML Canvas connecting the top and left bars without graphical tearing across scaled displays.
-- 📊 **Real-Time Ultra-Fast System Telemetry & Interactive HUD**: Custom 3ms metrics sampler monitoring **CPU %**, **RAM (Used / Total)**, **Disk %**, and **Live Network TX / RX** rates; click the **HUD** header subtitle to instantly summon a floating **btop** activity monitor.
+- 📊 **Real-Time Ultra-Fast System Telemetry & Interactive HUD**: Custom 3ms metrics sampler monitoring **CPU %**, **RAM (Used / Total)**, **Disk %**, and **Live Network TX / RX** rates. The HUD title is fully interactive: click the accent header/subtitle to instantly summon a floating **btop** activity monitor or your own custom command. Supports dual-tone (`TITLE // SUBTITLE`) or single-word accent branding (e.g. `ro0tUser`).
 - 🎵 **Violet LED Dot-Matrix Audio Visualizer**:
   - Pipewire-driven **CAVA spectrum capture**.
   - **22-column × 5-tier discrete violet LED dot-matrix** (`#bb9af7`) with **neon pink peak indicators** (`#ff51c5`).
@@ -93,8 +93,9 @@ chmod +x install.sh
 The interactive installer will guide you through configuration steps:
 1. **CAVA Visualizer**: Checks if `cava` is installed, offering 1-click automatic installation if missing.
 2. **Accent Color**: Keep the default Cyberpunk Magenta (`#ff51c5`) or choose Neon Green, Cyber Red, Electric Cyan, Violet, Acid Yellow, Hot Orange, or enter any custom hex color.
-3. **HUD Header Text**: Set custom top-bar title and subtitle (Default: `MIDNIGHT-DOLL // HUD`).
-4. **Omarchy Menu Icon**: Set a custom launcher icon glyph from [Nerd Fonts](https://www.nerdfonts.com/cheat-sheet) (Default: `󰚌`).
+3. **HUD Header Text**: Set custom top-bar title and subtitle (e.g. `MIDNIGHT-DOLL // HUD` or single handle like `ro0tUser`).
+4. **HUD Click Action**: Configure the command executed when clicking the HUD title/subtitle (Default: floating `btop` system monitor via `omarchy-launch-or-focus-tui btop`).
+5. **Omarchy Menu Icon**: Set a custom launcher icon glyph from [Nerd Fonts](https://www.nerdfonts.com/cheat-sheet) (Default: `󰚌`).
 
 After configuration, the installer will:
 1. Automatically create a timestamped backup in `~/.config/omarchy/backups/`.
