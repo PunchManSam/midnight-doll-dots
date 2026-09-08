@@ -2247,13 +2247,31 @@ Item {
                 font.pixelSize: 12
                 color: Qt.rgba(1, 1, 1, 0.4)
               }
-              Text {
+              MouseArea {
+                id: hudSubMouse
                 visible: root.hudSubtitle !== ""
-                text: root.hudSubtitle
-                font.family: root.fontFamily
-                font.bold: true
-                font.pixelSize: 12
-                color: Color.accent
+                width: hudSubtitleText.implicitWidth + 4
+                height: root.barSize
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                property bool tooltipHovered: containsMouse
+                onEntered: root.showTooltip(hudSubMouse, "Activity Monitor (btop)")
+                onExited: root.hideTooltip(hudSubMouse)
+                onClicked: root.run("omarchy-launch-or-focus-tui btop")
+
+                Text {
+                  id: hudSubtitleText
+                  anchors.centerIn: parent
+                  text: root.hudSubtitle
+                  font.family: root.fontFamily
+                  font.bold: true
+                  font.pixelSize: 12
+                  color: hudSubMouse.containsMouse ? "#ffffff" : Color.accent
+
+                  Behavior on color {
+                    ColorAnimation { duration: 120 }
+                  }
+                }
               }
             }
           }

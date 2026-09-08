@@ -30,7 +30,7 @@
   - **Top Bar (30px)**: Full-width priority header with solid pitch-black `#010101` backplane and neon accent underline.
   - **Left Launcher Panel (36px)**: Edge-flush vertical app launcher with interactive right-click JSON shortcut editor.
   - **Pixel-Perfect Curved Seam**: Anti-aliased QML Canvas connecting the top and left bars without graphical tearing across scaled displays.
-- 📊 **Real-Time Ultra-Fast System Telemetry**: Custom 3ms metrics sampler monitoring **CPU %**, **RAM (Used / Total)**, **Disk %**, and **Live Network TX / RX** rates.
+- 📊 **Real-Time Ultra-Fast System Telemetry & Interactive HUD**: Custom 3ms metrics sampler monitoring **CPU %**, **RAM (Used / Total)**, **Disk %**, and **Live Network TX / RX** rates; click the **HUD** header subtitle to instantly summon a floating **btop** activity monitor.
 - 🎵 **Violet LED Dot-Matrix Audio Visualizer**:
   - Pipewire-driven **CAVA spectrum capture**.
   - **22-column × 5-tier discrete violet LED dot-matrix** (`#bb9af7`) with **neon pink peak indicators** (`#ff51c5`).
