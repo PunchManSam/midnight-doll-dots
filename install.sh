@@ -27,6 +27,25 @@ echo -e "${RESET}"
 DOTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${HOME}/.config/omarchy/backups/midnight-doll-$(date +%Y%m%d_%H%M%S)"
 
+# CLI Argument Parsing for unattended / direct custom color setup
+CLI_PRIMARY=""
+CLI_SECONDARY=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --accent|--primary|-a|-p)
+      CLI_PRIMARY="$2"
+      shift 2
+      ;;
+    --secondary|--complimentary|-s|-c)
+      CLI_SECONDARY="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
 echo -e "${VIOLET}[*] Checking environment & active configuration...${RESET}"
 
 # Detect current active theme
@@ -95,19 +114,71 @@ prompt_choose() {
 
 prompt_input() {
   local header="$1"
-  local default_val="$2"
+  local default_val="${2:-}"
   local placeholder="${3:-}"
   if command -v gum &> /dev/null && [ -t 0 ]; then
     local res
-    res=$(gum input --value="$default_val" --placeholder="$placeholder" --header="$header")
+    if [ -n "$default_val" ]; then
+      res=$(gum input --value="$default_val" --placeholder="$placeholder" --header="$header")
+    else
+      res=$(gum input --placeholder="$placeholder" --header="$header")
+    fi
     echo "${res:-$default_val}"
   elif [ -t 0 ]; then
     local res
-    read -rp "$header [$default_val]: " res
+    if [ -n "$default_val" ]; then
+      read -rp "$header [$default_val]: " res
+    else
+      read -rp "$header: " res
+    fi
     echo "${res:-$default_val}"
   else
     echo "$default_val"
   fi
+}
+
+normalize_color() {
+  local input="$1"
+  local fallback="${2:-}"
+  input="$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+  case "$input" in
+    "magenta"|"pink") echo "#ff51c5"; return ;;
+    "green"|"neon"|"lime"|"neon-green") echo "#00ff9f"; return ;;
+    "red") echo "#ff3366"; return ;;
+    "cyan"|"aqua"|"teal") echo "#00f0ff"; return ;;
+    "violet"|"purple"|"lavender") echo "#bb9af7"; return ;;
+    "yellow") echo "#ffe600"; return ;;
+    "orange") echo "#ff8800"; return ;;
+    "blue"|"sky") echo "#7da6ff"; return ;;
+    "white") echo "#ffffff"; return ;;
+  esac
+  [[ "$input" != \#* ]] && input="#$input"
+  if [[ "$input" =~ ^#[0-9a-f]{3}$ ]]; then
+    local r="${input:1:1}" g="${input:2:1}" b="${input:3:1}"
+    echo "#${r}${r}${g}${g}${b}${b}"
+    return
+  fi
+  if [[ "$input" =~ ^#[0-9a-f]{6}$ ]]; then
+    echo "$input"
+    return
+  fi
+  echo "$fallback"
+}
+
+calc_complement() {
+  local hex="$1"
+  python3 -c "
+import colorsys, sys
+try:
+    h_str = sys.argv[1].lstrip('#')
+    r, g, b = int(h_str[0:2], 16)/255.0, int(h_str[2:4], 16)/255.0, int(h_str[4:6], 16)/255.0
+    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    ch = (h + 0.5) % 1.0
+    cr, cg, cb = colorsys.hsv_to_rgb(ch, s, v)
+    print(f'#{int(round(cr*255)):02x}{int(round(cg*255)):02x}{int(round(cb*255)):02x}')
+except Exception:
+    print('#bb9af7')
+" "$hex"
 }
 
 echo -e "\n${VIOLET}[*] Interactive Configuration Setup${RESET}"
@@ -142,47 +213,56 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
 # Step 2: Theme Accent Color Configuration (Dual-Tone Palette)
 # ------------------------------------------------------------------------------
 echo -e "\n${PINK}[Step 2/5] Dual-Tone Accent Color Configuration${RESET}"
-echo -e "${VIOLET}Select the Primary Accent color (active workspaces, buttons, peak LEDs, window borders):${RESET}"
-COLOR_CHOICE=$(prompt_choose "Choose Primary Accent color:" \
-  "Cyberpunk Magenta [#ff51c5] (Default)" \
-  "Neon Green [#00ff9f]" \
-  "Cyber Red [#ff3366]" \
-  "Electric Cyan [#00f0ff]" \
-  "Vibrant Violet [#bb9af7]" \
-  "Acid Yellow [#ffe600]" \
-  "Hot Orange [#ff8800]" \
-  "Custom Hex Code")
 
-CHOSEN_PRIMARY="#ff51c5"
-case "$COLOR_CHOICE" in
-  *"#ff51c5"*) CHOSEN_PRIMARY="#ff51c5" ;;
-  *"#00ff9f"*) CHOSEN_PRIMARY="#00ff9f" ;;
-  *"#ff3366"*) CHOSEN_PRIMARY="#ff3366" ;;
-  *"#00f0ff"*) CHOSEN_PRIMARY="#00f0ff" ;;
-  *"#bb9af7"*) CHOSEN_PRIMARY="#bb9af7" ;;
-  *"#ffe600"*) CHOSEN_PRIMARY="#ffe600" ;;
-  *"#ff8800"*) CHOSEN_PRIMARY="#ff8800" ;;
-  "Custom Hex Code")
-    while true; do
-      CUSTOM_INPUT=$(prompt_input "Enter a custom hex color for Primary Accent (e.g. #ff007f):" "#ff51c5" "#RRGGBB")
-      CUSTOM_INPUT="$(echo "$CUSTOM_INPUT" | tr -d '[:space:]')"
-      [[ "$CUSTOM_INPUT" != \#* ]] && CUSTOM_INPUT="#$CUSTOM_INPUT"
-      if [[ "$CUSTOM_INPUT" =~ ^#[0-9a-fA-F]{6}$ ]]; then
-        CHOSEN_PRIMARY="$CUSTOM_INPUT"
-        break
-      else
-        echo -e "${YELLOW}[!] Invalid hex code '$CUSTOM_INPUT'. Format must be 6 hex characters (e.g. #ff007f). Please try again.${RESET}"
-      fi
-    done
-    ;;
-  *) CHOSEN_PRIMARY="#ff51c5" ;;
-esac
+if [ -n "$CLI_PRIMARY" ]; then
+  CHOSEN_PRIMARY="$(normalize_color "$CLI_PRIMARY" "#ff51c5")"
+  echo -e "    ${GREEN}✓ Primary Accent set from CLI flag to:${RESET} ${BOLD}${CHOSEN_PRIMARY}${RESET}"
+else
+  echo -e "${VIOLET}Select the Primary Accent color (active workspaces, buttons, peak LEDs, window borders):${RESET}"
+  COLOR_CHOICE=$(prompt_choose "Choose Primary Accent color:" \
+    "Cyberpunk Magenta [#ff51c5] (Default)" \
+    "Enter Custom Color / Hex Code..." \
+    "Neon Green [#00ff9f]" \
+    "Cyber Red [#ff3366]" \
+    "Electric Cyan [#00f0ff]" \
+    "Vibrant Violet [#bb9af7]" \
+    "Acid Yellow [#ffe600]" \
+    "Hot Orange [#ff8800]")
+
+  CHOSEN_PRIMARY="#ff51c5"
+  case "$COLOR_CHOICE" in
+    *"#ff51c5"*) CHOSEN_PRIMARY="#ff51c5" ;;
+    *"#00ff9f"*) CHOSEN_PRIMARY="#00ff9f" ;;
+    *"#ff3366"*) CHOSEN_PRIMARY="#ff3366" ;;
+    *"#00f0ff"*) CHOSEN_PRIMARY="#00f0ff" ;;
+    *"#bb9af7"*) CHOSEN_PRIMARY="#bb9af7" ;;
+    *"#ffe600"*) CHOSEN_PRIMARY="#ffe600" ;;
+    *"#ff8800"*) CHOSEN_PRIMARY="#ff8800" ;;
+    *"Custom"*)
+      while true; do
+        CUSTOM_INPUT=$(prompt_input "Enter custom primary color (hex e.g. #ff007f or ff007f, #f0f, or name e.g. cyan):" "" "#RRGGBB")
+        CUSTOM_INPUT="$(echo "$CUSTOM_INPUT" | tr -d '[:space:]')"
+        if [ -z "$CUSTOM_INPUT" ]; then
+          CHOSEN_PRIMARY="#ff51c5"
+          break
+        fi
+        NORMALIZED="$(normalize_color "$CUSTOM_INPUT" "")"
+        if [ -n "$NORMALIZED" ]; then
+          CHOSEN_PRIMARY="$NORMALIZED"
+          break
+        else
+          echo -e "${YELLOW}[!] Invalid color '$CUSTOM_INPUT'. Enter a hex code (e.g. #ff007f or ff007f), 3-digit hex (#f0f), or color name. Please try again.${RESET}"
+        fi
+      done
+      ;;
+    *) CHOSEN_PRIMARY="#ff51c5" ;;
+  esac
+  echo -e "    ${GREEN}✓ Primary Accent set to:${RESET} ${BOLD}${CHOSEN_PRIMARY}${RESET}"
+fi
 CHOSEN_HEX="${CHOSEN_PRIMARY}"
-echo -e "    ${GREEN}✓ Primary Accent set to:${RESET} ${BOLD}${CHOSEN_PRIMARY}${RESET}"
 
 # Determine recommended complimentary color based on chosen primary
 case "$CHOSEN_PRIMARY" in
@@ -193,51 +273,64 @@ case "$CHOSEN_PRIMARY" in
   "#bb9af7") REC_HEX="#00f0ff"; REC_LABEL="Electric Cyan [#00f0ff]" ;;
   "#ffe600") REC_HEX="#bb9af7"; REC_LABEL="Vibrant Violet [#bb9af7]" ;;
   "#ff8800") REC_HEX="#00f0ff"; REC_LABEL="Electric Cyan [#00f0ff]" ;;
-  *)         REC_HEX="#bb9af7"; REC_LABEL="Vibrant Violet [#bb9af7]" ;;
-esac
-
-echo -e "\n${VIOLET}Select the Complimentary / Secondary Accent color (HUD title, telemetry metrics, audio LED visualizer):${RESET}"
-COMP_CHOICE=$(prompt_choose "Choose Complimentary Accent color:" \
-  "${REC_LABEL} (Recommended)" \
-  "Vibrant Violet [#bb9af7]" \
-  "Electric Cyan [#00f0ff]" \
-  "Cyberpunk Magenta [#ff51c5]" \
-  "Neon Green [#00ff9f]" \
-  "Cyber Red [#ff3366]" \
-  "Acid Yellow [#ffe600]" \
-  "Hot Orange [#ff8800]" \
-  "Ice Blue [#7da6ff]" \
-  "Ghost White [#d0d0d0]" \
-  "Custom Hex Code")
-
-CHOSEN_SECONDARY="$REC_HEX"
-case "$COMP_CHOICE" in
-  *"(Recommended)"*) CHOSEN_SECONDARY="$REC_HEX" ;;
-  *"#bb9af7"*) CHOSEN_SECONDARY="#bb9af7" ;;
-  *"#00f0ff"*) CHOSEN_SECONDARY="#00f0ff" ;;
-  *"#ff51c5"*) CHOSEN_SECONDARY="#ff51c5" ;;
-  *"#00ff9f"*) CHOSEN_SECONDARY="#00ff9f" ;;
-  *"#ff3366"*) CHOSEN_SECONDARY="#ff3366" ;;
-  *"#ffe600"*) CHOSEN_SECONDARY="#ffe600" ;;
-  *"#ff8800"*) CHOSEN_SECONDARY="#ff8800" ;;
-  *"#7da6ff"*) CHOSEN_SECONDARY="#7da6ff" ;;
-  *"#d0d0d0"*) CHOSEN_SECONDARY="#d0d0d0" ;;
-  "Custom Hex Code")
-    while true; do
-      CUSTOM_INPUT=$(prompt_input "Enter a custom hex color for Complimentary Accent (e.g. #00ffff):" "$REC_HEX" "#RRGGBB")
-      CUSTOM_INPUT="$(echo "$CUSTOM_INPUT" | tr -d '[:space:]')"
-      [[ "$CUSTOM_INPUT" != \#* ]] && CUSTOM_INPUT="#$CUSTOM_INPUT"
-      if [[ "$CUSTOM_INPUT" =~ ^#[0-9a-fA-F]{6}$ ]]; then
-        CHOSEN_SECONDARY="$CUSTOM_INPUT"
-        break
-      else
-        echo -e "${YELLOW}[!] Invalid hex code '$CUSTOM_INPUT'. Format must be 6 hex characters (e.g. #00ffff). Please try again.${RESET}"
-      fi
-    done
+  *)
+    CALC_HEX="$(calc_complement "$CHOSEN_PRIMARY")"
+    REC_HEX="$CALC_HEX"
+    REC_LABEL="Harmonic Complement [${CALC_HEX}] (Calculated for ${CHOSEN_PRIMARY})"
     ;;
-  *) CHOSEN_SECONDARY="$REC_HEX" ;;
 esac
-echo -e "    ${GREEN}✓ Complimentary Accent set to:${RESET} ${BOLD}${CHOSEN_SECONDARY}${RESET}"
+
+if [ -n "$CLI_SECONDARY" ]; then
+  CHOSEN_SECONDARY="$(normalize_color "$CLI_SECONDARY" "$REC_HEX")"
+  echo -e "    ${GREEN}✓ Complimentary Accent set from CLI flag to:${RESET} ${BOLD}${CHOSEN_SECONDARY}${RESET}"
+else
+  echo -e "\n${VIOLET}Select the Complimentary / Secondary Accent color (HUD title, telemetry metrics, audio LED visualizer):${RESET}"
+  COMP_CHOICE=$(prompt_choose "Choose Complimentary Accent color:" \
+    "${REC_LABEL} (Recommended)" \
+    "Enter Custom Color / Hex Code..." \
+    "Vibrant Violet [#bb9af7]" \
+    "Electric Cyan [#00f0ff]" \
+    "Cyberpunk Magenta [#ff51c5]" \
+    "Neon Green [#00ff9f]" \
+    "Cyber Red [#ff3366]" \
+    "Acid Yellow [#ffe600]" \
+    "Hot Orange [#ff8800]" \
+    "Ice Blue [#7da6ff]" \
+    "Ghost White [#d0d0d0]")
+
+  CHOSEN_SECONDARY="$REC_HEX"
+  case "$COMP_CHOICE" in
+    *"(Recommended)"*) CHOSEN_SECONDARY="$REC_HEX" ;;
+    *"#bb9af7"*) CHOSEN_SECONDARY="#bb9af7" ;;
+    *"#00f0ff"*) CHOSEN_SECONDARY="#00f0ff" ;;
+    *"#ff51c5"*) CHOSEN_SECONDARY="#ff51c5" ;;
+    *"#00ff9f"*) CHOSEN_SECONDARY="#00ff9f" ;;
+    *"#ff3366"*) CHOSEN_SECONDARY="#ff3366" ;;
+    *"#ffe600"*) CHOSEN_SECONDARY="#ffe600" ;;
+    *"#ff8800"*) CHOSEN_SECONDARY="#ff8800" ;;
+    *"#7da6ff"*) CHOSEN_SECONDARY="#7da6ff" ;;
+    *"#d0d0d0"*) CHOSEN_SECONDARY="#d0d0d0" ;;
+    *"Custom"*)
+      while true; do
+        CUSTOM_INPUT=$(prompt_input "Enter custom complimentary color (hex e.g. #00ffff, or name):" "" "#RRGGBB")
+        CUSTOM_INPUT="$(echo "$CUSTOM_INPUT" | tr -d '[:space:]')"
+        if [ -z "$CUSTOM_INPUT" ]; then
+          CHOSEN_SECONDARY="$REC_HEX"
+          break
+        fi
+        NORMALIZED="$(normalize_color "$CUSTOM_INPUT" "")"
+        if [ -n "$NORMALIZED" ]; then
+          CHOSEN_SECONDARY="$NORMALIZED"
+          break
+        else
+          echo -e "${YELLOW}[!] Invalid color '$CUSTOM_INPUT'. Enter a hex code (e.g. #00ffff or 00ffff) or color name. Please try again.${RESET}"
+        fi
+      done
+      ;;
+    *) CHOSEN_SECONDARY="$REC_HEX" ;;
+  esac
+  echo -e "    ${GREEN}✓ Complimentary Accent set to:${RESET} ${BOLD}${CHOSEN_SECONDARY}${RESET}"
+fi
 
 # ------------------------------------------------------------------------------
 # Step 3: Top Bar HUD Header Text
@@ -312,7 +405,7 @@ if [ -d "${HOME}/.config/omarchy/themes/midnight-doll" ]; then
 fi
 
 # 4. Backup existing omarchy configs
-for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json"; do
+for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "set-accent.sh"; do
   if [ -f "${HOME}/.config/omarchy/${cfg}" ]; then
     cp "${HOME}/.config/omarchy/${cfg}" "${BACKUP_DIR}/"
     echo -e "    ✓ Backed up config: ~/.config/omarchy/${cfg}"
@@ -347,10 +440,12 @@ mkdir -p "${HOME}/.config/omarchy/themes/midnight-doll"
 cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${HOME}/.config/omarchy/themes/midnight-doll/"
 cp "${DOTS_DIR}/config/omarchy/sys-hud.sh" "${HOME}/.config/omarchy/"
 cp "${DOTS_DIR}/config/omarchy/cava.conf" "${HOME}/.config/omarchy/"
+cp "${DOTS_DIR}/config/omarchy/set-accent.sh" "${HOME}/.config/omarchy/"
 if [ ! -f "${HOME}/.config/omarchy/midnight-shortcuts.json" ]; then
   cp "${DOTS_DIR}/config/omarchy/midnight-shortcuts.json" "${HOME}/.config/omarchy/"
 fi
 chmod +x "${HOME}/.config/omarchy/sys-hud.sh"
+chmod +x "${HOME}/.config/omarchy/set-accent.sh"
 
 # Apply customized accent & complimentary colors to theme configs
 echo -e "    ✓ Applying dual-tone color scheme (${CHOSEN_PRIMARY} / ${CHOSEN_SECONDARY}) to theme configs..."

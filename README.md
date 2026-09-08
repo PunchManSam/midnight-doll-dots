@@ -119,8 +119,16 @@ Edit `~/.config/omarchy/midnight-shortcuts.json` or simply **Right-Click** anywh
 ]
 ```
 
-### Color Palette
-Dual-tone colors are configured during installation or in `~/.config/omarchy/themes/midnight-doll/colors.toml`:
+### Color Palette & Live Accent Switcher
+Dual-tone colors can be configured during installation, passed via CLI flags (`./install.sh --accent #39ff14`), or changed dynamically anytime using the included **`set-accent.sh`** tool:
+
+```bash
+# Switch accent colors live anytime without reinstalling
+~/.config/omarchy/set-accent.sh #39ff14               # Computes harmonic complement automatically
+~/.config/omarchy/set-accent.sh #00ff9f #00f0ff       # Custom Primary and Complimentary pairing
+~/.config/omarchy/set-accent.sh cyan purple           # Accepts color names and 3/6-digit hex
+```
+
 - **Background**: `#010101` (Pitch Black)
 - **Primary Accent**: `#ff51c5` (Cyberpunk Pink default — workspaces, peak LEDs, window borders)
 - **Complimentary Accent**: `#bb9af7` (Glowing Violet default — HUD title, metrics, active LED matrix)
