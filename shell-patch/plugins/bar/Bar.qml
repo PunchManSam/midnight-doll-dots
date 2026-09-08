@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Shapes
 import qs.Commons
 import qs.Ui
 import "BarModel.js" as BarModel
@@ -83,6 +84,80 @@ Item {
     midnightShortcutsFile.setText(JSON.stringify(list, null, 2) + "\n")
   }
   property bool midnightShortcutEditorOpen: false
+
+  // Responsive corner fillet radius based on bar size and screen resolution / scaling
+  readonly property int midnightCornerRadius: {
+    if (Style.cornerRadius > 0) return Style.cornerRadius
+    var base = Math.round(root.barSize * 0.5)
+    var rounded = Math.max(12, Math.min(24, base))
+    return Math.round(rounded / 4) * 4
+  }
+
+  // Active window in top-left detection and adaptive highlight styling
+  property bool topLeftWindowActive: false
+  property bool topLeftWindowPresent: false
+  readonly property color inactiveBorderColor: {
+    try {
+      return Qt.rgba(root.secondaryColor.r * 0.22, root.secondaryColor.g * 0.22, root.secondaryColor.b * 0.22, 1.0)
+    } catch (e) {
+      return "#2b0938"
+    }
+  }
+
+  readonly property real cornerStrokeWidth: 1.0
+  readonly property color cornerStrokeColor: {
+    if (topLeftWindowPresent) {
+      return topLeftWindowActive ? Color.accent : root.inactiveBorderColor
+    }
+    return Color.accent
+  }
+
+  function updateTopLeftWindowState() {
+    if (!root.isMidnightDoll) return
+    var activeTop = Hyprland.activeToplevel
+    var activeAt = (activeTop && activeTop.lastIpcObject) ? activeTop.lastIpcObject.at : null
+    var isActiveInTopLeft = false
+    if (activeAt && Array.isArray(activeAt) && activeAt.length >= 2) {
+      if (activeAt[0] <= 45 && activeAt[1] <= 40) {
+        isActiveInTopLeft = true
+      }
+    }
+
+    var isPresentInTopLeft = false
+    var ws = Hyprland.focusedWorkspace
+    if (ws && ws.toplevels && ws.toplevels.values) {
+      var list = ws.toplevels.values
+      for (var i = 0; i < list.length; i++) {
+        var top = list[i]
+        var ipc = top ? top.lastIpcObject : null
+        if (ipc && !ipc.floating && ipc.at && Array.isArray(ipc.at) && ipc.at.length >= 2) {
+          if (ipc.at[0] <= 45 && ipc.at[1] <= 40) {
+            isPresentInTopLeft = true
+            if (top.activated || top === activeTop) {
+              isActiveInTopLeft = true
+            }
+            break
+          }
+        }
+      }
+    }
+
+    root.topLeftWindowActive = isActiveInTopLeft
+    root.topLeftWindowPresent = isPresentInTopLeft || isActiveInTopLeft
+  }
+
+  Connections {
+    target: Hyprland
+    function onActiveToplevelChanged() { root.updateTopLeftWindowState() }
+    function onFocusedWorkspaceChanged() { root.updateTopLeftWindowState() }
+  }
+
+  Timer {
+    interval: 600
+    running: root.isMidnightDoll
+    repeat: true
+    onTriggered: root.updateTopLeftWindowState()
+  }
   property QtObject leftBarContext: QtObject {
     id: leftBarCtx
     property string position: "left"
@@ -875,6 +950,9 @@ Item {
   function setRequestedTransparency(value) {
     var nextTransparent = value === true
     requestedTransparent = nextTransparent
+    if (root.isMidnightDoll) {
+      transparent = nextTransparent
+    }
     if (!nextTransparent) {
       foregroundAnimationEnabled = false
       useTransparentForeground = false
@@ -1040,30 +1118,6 @@ Item {
     model: Quickshell.screens
 
     delegate: Component {
-      BarPanel {
-        required property var modelData
-
-        screen: modelData
-      }
-    }
-  }
-
-  Variants {
-    model: Quickshell.screens
-
-    delegate: Component {
-      MidnightCornerOverlay {
-        required property var modelData
-
-        ghostScreen: modelData
-      }
-    }
-  }
-
-  Variants {
-    model: Quickshell.screens
-
-    delegate: Component {
       MidnightLeftPanel {
         required property var modelData
 
@@ -1072,71 +1126,19 @@ Item {
     }
   }
 
-  component MidnightCornerOverlay: PanelWindow {
-    id: cornerWindow
-    required property var ghostScreen
-    screen: ghostScreen
 
-    visible: root.isMidnightDoll && !root.barHidden && !remapGuardCorner.remapping
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "omarchy-midnight-corner"
-    WlrLayershell.layer: WlrLayer.Top
+  Variants {
+    model: Quickshell.screens
 
-    ScreenMoveRemap {
-      id: remapGuardCorner
-      window: cornerWindow
-    }
+    delegate: Component {
+      BarPanel {
+        required property var modelData
 
-    anchors {
-      top: true
-      left: true
-    }
-
-    margins {
-      top: root.barSize - 1
-      left: 35
-    }
-
-    implicitWidth: 13
-    implicitHeight: 13
-    color: "transparent"
-    surfaceFormat.opaque: false
-
-    Canvas {
-      id: cornerFillet
-      anchors.fill: parent
-      renderTarget: Canvas.FramebufferObject
-
-      Connections {
-        target: Color
-        function onBarChanged() { cornerFillet.requestPaint() }
-        function onAccentChanged() { cornerFillet.requestPaint() }
-      }
-
-      onPaint: {
-        var ctx = getContext("2d")
-        ctx.reset()
-        var r = width
-        if (r <= 1) return
-
-        // Fill background fillet in concave corner
-        ctx.fillStyle = Color.bar.background
-        ctx.beginPath()
-        ctx.moveTo(0, 0)
-        ctx.lineTo(r, 0)
-        ctx.arc(r, r, r, -Math.PI / 2, Math.PI, true)
-        ctx.closePath()
-        ctx.fill()
-
-        // Stroke accent border arc
-        ctx.strokeStyle = Color.accent
-        ctx.lineWidth = 1.0
-        ctx.beginPath()
-        ctx.arc(r, r, r - 0.5, -Math.PI / 2, Math.PI, true)
-        ctx.stroke()
+        screen: modelData
       }
     }
   }
+
 
   Variants {
     model: Quickshell.screens
@@ -1453,7 +1455,8 @@ Item {
     id: leftBarWindow
 
     visible: root.isMidnightDoll && !root.barHidden && !remapGuardLeft.remapping
-    exclusionMode: (root.isMidnightDoll && !root.barHidden) ? ExclusionMode.Auto : ExclusionMode.Ignore
+    exclusionMode: (root.isMidnightDoll && !root.barHidden) ? ExclusionMode.Normal : ExclusionMode.Ignore
+    exclusiveZone: 36
 
     ScreenMoveRemap {
       id: remapGuardLeft
@@ -1476,36 +1479,73 @@ Item {
 
     implicitWidth: 36
     implicitHeight: 0
-    color: "#010101"
-    surfaceFormat.opaque: true
+    color: "transparent"
+    surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-midnight-left-bar"
     WlrLayershell.layer: WlrLayer.Top
+
+    mask: Region {
+      Region {
+        item: leftBarBody
+      }
+    }
 
     Item {
       anchors.fill: parent
 
-      Rectangle {
-        anchors.fill: parent
-        color: "#010101"
-      }
-
-      Rectangle {
+      Item {
+        id: leftBarBody
         anchors {
           top: parent.top
-          topMargin: (root.isMidnightDoll && root.position === "top") ? 11 : 0
           bottom: parent.bottom
-          right: parent.right
+          left: parent.left
         }
-        width: 1
-        color: Color.accent
+        width: 36
+        opacity: root.transparent ? 0.0 : 1.0
+        Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
+
+        Rectangle {
+          id: leftBarBackground
+          anchors {
+            top: parent.top
+            bottom: parent.bottom
+            left: parent.left
+          }
+          width: 35
+          color: "#010101"
+        }
+
+        Rectangle {
+          id: leftBarRightBorder
+          anchors {
+            top: parent.top
+            topMargin: (root.isMidnightDoll && root.position === "top") ? (root.midnightCornerRadius - 1) : 0
+            bottom: parent.bottom
+            right: parent.right
+          }
+          width: 1
+          color: Color.accent
+        }
       }
 
       MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.RightButton
+        id: leftBarMouseArea
+        anchors {
+          top: parent.top
+          bottom: parent.bottom
+          left: parent.left
+        }
+        width: 36
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         onClicked: function(mouse) {
           if (mouse.button === Qt.RightButton) {
             root.midnightShortcutEditorOpen = !root.midnightShortcutEditorOpen
+          }
+        }
+        onDoubleClicked: function(mouse) {
+          if (mouse.button === Qt.LeftButton) {
+            root.toggleTransparency()
+            mouse.accepted = true
           }
         }
       }
@@ -1516,9 +1556,8 @@ Item {
           top: parent.top
           topMargin: 6
           left: parent.left
-          right: parent.right
-          rightMargin: 1
         }
+        width: 35
         spacing: 2
 
         Repeater {
@@ -1606,9 +1645,8 @@ Item {
           bottom: parent.bottom
           bottomMargin: 6
           left: parent.left
-          right: parent.right
-          rightMargin: 1
         }
+        width: 35
         spacing: 2
 
         Rectangle {
@@ -1673,7 +1711,8 @@ Item {
     // textures — which measures ~150ms against ~20ms to tear down. Parking
     // keeps the surface alive, so showing is only a margin change.
     visible: !remapGuard.remapping
-    exclusionMode: root.barHidden ? ExclusionMode.Ignore : ExclusionMode.Auto
+    exclusionMode: root.barHidden ? ExclusionMode.Ignore : ((root.isMidnightDoll && root.position === "top") ? ExclusionMode.Normal : ExclusionMode.Auto)
+    exclusiveZone: (root.isMidnightDoll && root.position === "top") ? root.barSize : 0
 
     ScreenMoveRemap {
       id: remapGuard
@@ -1695,32 +1734,109 @@ Item {
     }
 
     implicitWidth: root.vertical ? root.barSize : 0
-    implicitHeight: root.vertical ? 0 : root.barSize
-    color: root.transparent ? "transparent" : (root.isMidnightDoll ? "#010101" : root.background)
+    implicitHeight: (root.isMidnightDoll && root.position === "top" && !root.barHidden) ? (root.barSize + root.midnightCornerRadius) : (root.vertical ? 0 : root.barSize)
+    color: "transparent"
     surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-bar"
     WlrLayershell.layer: WlrLayer.Top
 
+    mask: Region {
+      Region {
+        item: barBackgroundRect
+      }
+      Region {
+        item: (root.isMidnightDoll && !root.transparent && root.position === "top") ? midnightCornerFillet : null
+      }
+    }
+
     Rectangle {
-      anchors.fill: parent
-      color: root.transparent ? "transparent" : (root.isMidnightDoll ? "#010101" : root.background)
+      id: barBackgroundRect
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: root.barSize
+      color: root.isMidnightDoll ? "#010101" : root.background
+      opacity: root.transparent ? 0.0 : 1.0
+      Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
       z: -1
     }
 
-    Rectangle {
-      id: midnightBottomBorder
-      anchors.bottom: parent.bottom
-      anchors.left: parent.left
-      anchors.leftMargin: (root.isMidnightDoll && root.position === "top") ? 47 : 0
-      anchors.right: parent.right
-      height: 1
-      color: Color.accent
+    Item {
+      id: midnightCornerFillet
+      x: 36
+      y: root.barSize
+      width: root.midnightCornerRadius
+      height: root.midnightCornerRadius
       visible: root.isMidnightDoll && !root.barHidden && root.position === "top"
+      opacity: root.transparent ? 0.0 : 1.0
+      Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
+      z: 998
+
+      Shape {
+        anchors.fill: parent
+        asynchronous: false
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+          strokeWidth: 0
+          strokeColor: "transparent"
+          fillColor: "#010101"
+
+          startX: 0
+          startY: 0
+          PathLine { x: midnightCornerFillet.width; y: 0 }
+          PathAngleArc {
+            centerX: midnightCornerFillet.width
+            centerY: midnightCornerFillet.height
+            radiusX: midnightCornerFillet.width
+            radiusY: midnightCornerFillet.height
+            startAngle: -90
+            sweepAngle: -90
+          }
+          PathLine { x: 0; y: 0 }
+        }
+      }
+    }
+
+    Shape {
+      id: midnightBorderShape
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: root.barSize + root.midnightCornerRadius
+      visible: root.isMidnightDoll && !root.barHidden && root.position === "top"
+      opacity: root.transparent ? 0.0 : 1.0
+      Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
+      asynchronous: false
+      preferredRendererType: Shape.CurveRenderer
       z: 999
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Color.accent
+        fillColor: "transparent"
+        joinStyle: ShapePath.RoundJoin
+        capStyle: ShapePath.FlatCap
+
+        startX: 35.5
+        startY: root.barSize - 0.5 + root.midnightCornerRadius
+        PathAngleArc {
+          centerX: 35.5 + root.midnightCornerRadius
+          centerY: root.barSize - 0.5 + root.midnightCornerRadius
+          radiusX: root.midnightCornerRadius
+          radiusY: root.midnightCornerRadius
+          startAngle: -180
+          sweepAngle: 90
+        }
+        PathLine { x: barWindow.width; y: root.barSize - 0.5 }
+      }
     }
 
     Loader {
-      anchors.fill: parent
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: root.barSize
       sourceComponent: root.vertical ? verticalBar : horizontalBar
 
       // A child of the loader, not a sibling of the sections: an ancestor stays
