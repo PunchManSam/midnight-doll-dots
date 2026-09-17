@@ -515,6 +515,9 @@ if [ -d "${OMARCHY_SYS_PLUGINS}/bar" ]; then
   cp -r "${OMARCHY_SYS_PLUGINS}/bar/"* "${PLUGINS_DIR}/midnight-doll.bar/" 2>/dev/null || true
 fi
 cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.bar/"
+if [ -f "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" ]; then
+  cp "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" "${PLUGINS_DIR}/midnight-doll.bar/"
+fi
 cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.bar/widgets/"
 python3 - "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${HUD_CMD}" "${CHOSEN_SECONDARY}" "${MENU_GLYPH}" << 'EOF'
 import sys, re
@@ -615,6 +618,37 @@ cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.clock/manifest.json"
 }
 EOF
 
+# 4. System HUD widget (modular CPU, RAM, Disk, Network monitors)
+mkdir -p "${PLUGINS_DIR}/midnight-doll.sys-hud"
+cp -r "${DOTS_DIR}/shell-patch/plugins/sys-hud/"* "${PLUGINS_DIR}/midnight-doll.sys-hud/"
+
+# 5. Visualizer widget (modular CAVA audio LED dot-matrix)
+mkdir -p "${PLUGINS_DIR}/midnight-doll.visualizer"
+cp -r "${DOTS_DIR}/shell-patch/plugins/visualizer/"* "${PLUGINS_DIR}/midnight-doll.visualizer/"
+
+# Configure default midnightRight slot in shell.json if present
+if [ -f "${HOME}/.config/omarchy/shell.json" ]; then
+  python3 - "${HOME}/.config/omarchy/shell.json" << 'EOF'
+import sys, json
+shell_path = sys.argv[1]
+try:
+    with open(shell_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    bar = data.setdefault("bar", {})
+    layout = bar.setdefault("layout", {})
+    if "midnightRight" not in layout or not layout["midnightRight"]:
+        layout["midnightRight"] = [
+            {"id": "midnight-doll.sys-hud"},
+            {"id": "midnight-doll.visualizer"}
+        ]
+        with open(shell_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
+except Exception:
+    pass
+EOF
+fi
+
 # Activate theme and plugins if omarchy CLI is available
 if command -v omarchy &> /dev/null; then
   echo -e "${PINK}[*] Activating Midnight-Doll theme & cyberdeck bar...${RESET}"
@@ -623,6 +657,8 @@ if command -v omarchy &> /dev/null; then
   omarchy bar use midnight-doll.bar || true
   omarchy plugin enable midnight-doll.workspaces || true
   omarchy plugin enable midnight-doll.clock || true
+  omarchy plugin enable midnight-doll.sys-hud || true
+  omarchy plugin enable midnight-doll.visualizer || true
   omarchy plugin enable omarchy.menu || true
   omarchy restart shell || true
 fi

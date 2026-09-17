@@ -8,7 +8,7 @@ BarWidget {
   id: root
   moduleName: "omarchy.workspaces"
 
-  readonly property bool isMidnightDoll: root.bar && root.bar.isMidnightDoll
+  readonly property bool isMidnightDoll: !!(root.bar && root.bar.isMidnightDoll)
 
   function workspaceById(id) {
     var values = Hyprland.workspaces.values

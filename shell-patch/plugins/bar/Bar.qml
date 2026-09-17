@@ -40,7 +40,7 @@ Item {
     onLoaded: root.activeTheme = String(text() || "").trim()
     onFileChanged: reload()
   }
-  property string activeTheme: ""
+  property string activeTheme: "midnight-doll"
   property string hudTitle: "MIDNIGHT-DOLL"
   property string hudSubtitle: "HUD"
   property string hudCommand: "omarchy-launch-or-focus-tui btop"
@@ -56,6 +56,7 @@ Item {
     var name = activeTheme.toLowerCase().replace(/[\s_-]+/g, "")
     return name === "midnightdoll"
   }
+  onIsMidnightDollChanged: applyBarConfig()
   readonly property string midnightShortcutsPath: root.home + "/.config/omarchy/midnight-shortcuts.json"
   property var midnightShortcutsList: []
   FileView {
@@ -181,6 +182,9 @@ Item {
     function hideTooltip(target) { root.hideTooltip(target) }
     function moduleWidgets(name) { return root.moduleWidgets(name) }
     function canonicalWidgetId(id) { return root.canonicalWidgetId(id) }
+    function registerClickTarget(target) { root.registerClickTarget(target) }
+    function unregisterClickTarget(target) { root.unregisterClickTarget(target) }
+    function switchPanelFrom(owner, dir) { return root.switchPanelFrom(owner, dir) }
   }
   property string stateHome: home + "/.local/state"
   property string omarchyConfigDir: home + "/.config/omarchy"
@@ -188,7 +192,7 @@ Item {
     position: "top",
     transparent: false,
     centerAnchor: "omarchy.clock",
-    layout: { left: [], center: [], right: [] }
+    layout: { left: [], center: [], right: [], status: [] }
   })
   property var layoutConfig: fallbackBarConfig.layout
   property string centerAnchor: ""
@@ -352,12 +356,27 @@ Item {
     var y = scenePoint ? scenePoint.y : 0
     if (!window || !window.screen) return { x: x, y: y }
 
-    if (root.position === "bottom")
-      y += Math.max(0, window.screen.height - window.height)
-    else if (root.position === "right")
-      x += Math.max(0, window.screen.width - window.width)
+    var isLeftWindow = window.WlrLayershell && window.WlrLayershell.namespace === "omarchy-midnight-left-bar"
+    if (!isLeftWindow) {
+      if (root.position === "bottom")
+        y += Math.max(0, window.screen.height - window.height)
+      else if (root.position === "right")
+        x += Math.max(0, window.screen.width - window.width)
+    }
 
     return { x: x, y: y }
+  }
+
+  function slotScreenPoint(slot) {
+    if (!slot) return { x: 0, y: 0 }
+    var win = root.slotWindow(slot)
+    var slotLocal = { x: 0, y: 0 }
+    try {
+      slotLocal = slot.mapToItem(null, 0, 0)
+    } catch (e) {
+      slotLocal = { x: slot.x, y: slot.y }
+    }
+    return windowScreenPoint(slotLocal, win)
   }
 
   function barDragScreenPoint(scenePoint) {
@@ -368,10 +387,10 @@ Item {
     if (!slot) return null
 
     try {
-      var slotPoint = slot.mapToItem(null, 0, 0)
-      var screenPoint = barDragScreenPoint(slotPoint)
+      var screenPoint = root.slotScreenPoint(slot)
       var thickness = Style.spacing.xs
-      if (vertical) {
+      var isVertical = root.vertical || (slot.isLeftPanel === true) || (slot.region === "status")
+      if (isVertical) {
         return {
           x: screenPoint.x,
           y: screenPoint.y + (after ? slot.height : 0) - thickness / 2,
@@ -397,6 +416,10 @@ Item {
   function nearestScreenEdge(point, screen) {
     var nx = screen.width > 0 ? Util.clamp(point.x / screen.width, 0, 1) : 0.5
     var ny = screen.height > 0 ? Util.clamp(point.y / screen.height, 0, 1) : 0.5
+
+    if (root.isMidnightDoll) {
+      return ny < 0.5 ? "top" : "bottom"
+    }
 
     var edge = "top"
     var best = ny
@@ -481,15 +504,67 @@ Item {
     return BarModel.normalizePosition(value)
   }
 
+  function isStatusWidget(id) {
+    if (!id) return false
+    var base = id.replace(/^[a-zA-Z0-9_-]+\./, "")
+    var statusBases = [
+      "agents", "tray", "audio", "bluetooth", "network", "monitor", "power",
+      "battery", "microphone", "tailscale", "dropbox"
+    ]
+    return statusBases.indexOf(base) !== -1 || id.endsWith(".agents")
+  }
+
+  function isMidnightOnlyWidget(id) {
+    if (!id) return false
+    var base = id.replace(/^[a-zA-Z0-9_-]+\./, "")
+    return base === "sys-hud" || base === "system-hud" || base === "hud" ||
+           base === "visualizer" || base === "cava" ||
+           id === "midnight-doll.sys-hud" || id === "midnight-doll.system-hud" ||
+           id === "midnight-doll.hud" || id === "midnight-doll.visualizer" ||
+           id === "midnight-doll.cava"
+  }
+
+  function filterMidnightWidgets(entries) {
+    if (!Array.isArray(entries)) return []
+    var out = []
+    for (var i = 0; i < entries.length; i++) {
+      var id = root.entryId(entries[i])
+      if (!isMidnightOnlyWidget(id)) out.push(entries[i])
+    }
+    return out
+  }
+
   // Apply tray-pinning on top of the shared layout normalization so the
   // bar host and scriptable config helpers can't drift on entry shape.
   function normalizeLayout(layout) {
-    var normalized = Util.normalizeLayout(Util.isPlainObject(layout) ? layout : fallbackBarConfig.layout)
-    return {
+    var raw = Util.isPlainObject(layout) ? layout : fallbackBarConfig.layout
+    var normalized = Util.normalizeLayout(raw)
+    var res = {
       left:   pinTrayToInner(normalized.left,   "left"),
       center: pinTrayToInner(normalized.center, "center"),
-      right:  pinTrayToInner(normalized.right,  "right")
+      right:  pinTrayToInner(normalized.right,  "right"),
+      status: []
     }
+
+    if (root.isMidnightDoll) {
+      res.status = res.right
+
+      if (Array.isArray(raw.midnightRight) && raw.midnightRight.length > 0) {
+        res.right = raw.midnightRight
+      } else {
+        res.right = [
+          { id: "midnight-doll.sys-hud" },
+          { id: "midnight-doll.visualizer" }
+        ]
+      }
+    } else {
+      res.left = filterMidnightWidgets(res.left)
+      res.center = filterMidnightWidgets(res.center)
+      res.right = filterMidnightWidgets(res.right)
+      res.status = []
+    }
+
+    return res
   }
 
   // The tray drawer reveals inward (away from the bar edge). Place it at the
@@ -777,9 +852,22 @@ Item {
   function rawLayoutSection(config, region) {
     if (!Util.isPlainObject(config.bar)) config.bar = {}
     if (!Util.isPlainObject(config.bar.layout)) config.bar.layout = {}
-    if (!Array.isArray(config.bar.layout[region])) config.bar.layout[region] = []
+    var target = region
+    if (root.isMidnightDoll) {
+      if (region === "status") target = "right"
+      else if (region === "right") {
+        target = "midnightRight"
+        if (!Array.isArray(config.bar.layout.midnightRight) || config.bar.layout.midnightRight.length === 0) {
+          config.bar.layout.midnightRight = [
+            { id: "midnight-doll.sys-hud" },
+            { id: "midnight-doll.visualizer" }
+          ]
+        }
+      }
+    }
+    if (!Array.isArray(config.bar.layout[target])) config.bar.layout[target] = []
 
-    return config.bar.layout[region]
+    return config.bar.layout[target]
   }
 
   function rawEntryIndex(entries, name) {
@@ -830,44 +918,71 @@ Item {
 
   function moduleDropAtScene(scenePoint, sourceSlot) {
     var sourceWindow = root.slotWindow(sourceSlot) || root.barDragWindow
-    if (sourceWindow && sourceWindow.contentItem) {
-      var barPoint = sourceWindow.contentItem.mapFromItem(null, scenePoint.x, scenePoint.y)
-      if (barPoint.x < 0 || barPoint.x > sourceWindow.contentItem.width ||
-          barPoint.y < 0 || barPoint.y > sourceWindow.contentItem.height)
-        return null
-    }
+    var screenPoint = root.windowScreenPoint(scenePoint, sourceWindow)
+    return root.moduleDropAtScreen(screenPoint, sourceSlot)
+  }
+
+  function moduleDropAtScreen(screenPoint, sourceSlot) {
+    if (!screenPoint || !sourceSlot) return null
+
+    var screenH = (root.barDragScreen && root.barDragScreen.height) ? root.barDragScreen.height : 1080
+    var inTopBarZone = (root.position === "top") && (screenPoint.y <= (root.barSize + 15))
+    var inBottomBarZone = (root.position === "bottom") && (screenPoint.y >= (screenH - root.barSize - 15))
+    var inHorizontalBarZone = inTopBarZone || inBottomBarZone
+    var overLeftPanel = root.isMidnightDoll && (screenPoint.x <= 55) && !inHorizontalBarZone
 
     var candidates = []
     for (var i = 0; i < moduleSlots.length; i++) {
       var slot = moduleSlots[i]
       if (!slot || slot === sourceSlot || !slot.visible || slot.width <= 0 || slot.height <= 0) continue
-      if (sourceWindow && !root.sameWindow(root.slotWindow(slot), sourceWindow)) continue
 
-      var slotPoint = { x: slot.x, y: slot.y }
-      try {
-        slotPoint = slot.mapToItem(null, 0, 0)
-      } catch (e) {
-      }
+      var slotIsLeft = (slot.isLeftPanel === true) || (slot.region === "status")
+
+      // sys-hud and visualizer are wide horizontal monitors; prevent dropping them onto the 35px left bar
+      if (slotIsLeft && (sourceSlot.isSysHud || sourceSlot.isVisualizer)) continue
+
+      if (overLeftPanel && !slotIsLeft) continue
+      if (!overLeftPanel && slotIsLeft) continue
+
+      var slotScreen = root.slotScreenPoint(slot)
 
       candidates.push({
         slot: slot,
-        x: slotPoint.x,
-        y: slotPoint.y,
+        x: slotScreen.x,
+        y: slotScreen.y,
         width: slot.width,
         height: slot.height
       })
     }
 
-    return BarModel.nearestDropTarget(candidates, scenePoint, root.vertical)
+    if (candidates.length === 0) {
+      for (var j = 0; j < moduleSlots.length; j++) {
+        var fSlot = moduleSlots[j]
+        if (!fSlot || fSlot === sourceSlot || !fSlot.visible || fSlot.width <= 0 || fSlot.height <= 0) continue
+        var fSlotIsLeft = (fSlot.isLeftPanel === true) || (fSlot.region === "status")
+        if (fSlotIsLeft && (sourceSlot.isSysHud || sourceSlot.isVisualizer)) continue
+        var fScreen = root.slotScreenPoint(fSlot)
+        candidates.push({
+          slot: fSlot,
+          x: fScreen.x,
+          y: fScreen.y,
+          width: fSlot.width,
+          height: fSlot.height
+        })
+      }
+    }
+
+    if (candidates.length === 0) return null
+
+    var isVertical = overLeftPanel || root.vertical
+    return BarModel.nearestDropTarget(candidates, screenPoint, isVertical)
   }
 
   function visibleModuleSlot(region, name, sourceSlot) {
-    var sourceWindow = root.slotWindow(sourceSlot) || root.barDragWindow
     for (var i = 0; i < moduleSlots.length; i++) {
       var slot = moduleSlots[i]
       if (!slot || slot === sourceSlot || slot.region !== region || slot.moduleName !== name ||
           !slot.visible || slot.width <= 0 || slot.height <= 0) continue
-      if (sourceWindow && !root.sameWindow(root.slotWindow(slot), sourceWindow)) continue
       return slot
     }
 
@@ -1303,7 +1418,7 @@ Item {
         Rectangle {
           Layout.fillWidth: true
           height: 1
-          color: Color.border
+          color: Qt.rgba(1, 1, 1, 0.12)
         }
 
         RowLayout {
@@ -1378,7 +1493,7 @@ Item {
         Rectangle {
           Layout.fillWidth: true
           height: 1
-          color: Color.border
+          color: Qt.rgba(1, 1, 1, 0.12)
         }
 
         RowLayout {
@@ -1456,7 +1571,7 @@ Item {
 
     visible: root.isMidnightDoll && !root.barHidden && !remapGuardLeft.remapping
     exclusionMode: (root.isMidnightDoll && !root.barHidden) ? ExclusionMode.Normal : ExclusionMode.Ignore
-    exclusiveZone: 36
+    exclusiveZone: (root.isMidnightDoll && !root.barHidden) ? 36 : 0
 
     ScreenMoveRemap {
       id: remapGuardLeft
@@ -1520,6 +1635,7 @@ Item {
           anchors {
             top: parent.top
             topMargin: (root.isMidnightDoll && root.position === "top") ? (root.midnightCornerRadius - 1) : 0
+            bottomMargin: (root.isMidnightDoll && root.position === "bottom") ? (root.midnightCornerRadius - 1) : 0
             bottom: parent.bottom
             right: parent.right
           }
@@ -1643,7 +1759,7 @@ Item {
         id: statusColumn
         anchors {
           bottom: parent.bottom
-          bottomMargin: 6
+          bottomMargin: (root.isMidnightDoll && root.position === "bottom") ? (root.barSize + 6) : 6
           left: parent.left
         }
         width: 35
@@ -1653,8 +1769,7 @@ Item {
           anchors.horizontalCenter: parent.horizontalCenter
           width: 18
           height: 1
-          color: Color.border
-          opacity: 0.5
+          color: Qt.rgba(1, 1, 1, 0.2)
         }
 
         Column {
@@ -1662,15 +1777,70 @@ Item {
           spacing: 0
 
           Repeater {
-            model: root.layoutEntries("right")
+            model: root.layoutEntries("status")
 
             ModuleSlot {
               required property var modelData
               entry: modelData
-              region: "right"
+              region: "status"
               isLeftPanel: true
             }
           }
+        }
+      }
+
+    }
+
+    PopupWindow {
+      id: leftTooltipWindow
+
+      visible: root.tooltipShown && root.tooltipTarget !== null && root.tooltipText !== "" && root.targetBelongsToWindow(root.tooltipTarget, leftBarWindow)
+      color: "transparent"
+      implicitWidth: Math.ceil(leftTooltipBubble.implicitWidth)
+      implicitHeight: Math.ceil(leftTooltipBubble.implicitHeight)
+
+      anchor {
+        id: leftTooltipAnchor
+        window: leftBarWindow
+        adjustment: PopupAdjustment.Slide
+        edges: Edges.Top | Edges.Left
+        gravity: Edges.Bottom | Edges.Right
+        rect.width: 1
+        rect.height: 1
+
+        onAnchoring: {
+          var target = root.tooltipTarget
+          if (!root.targetBelongsToWindow(target, leftBarWindow)) return
+
+          var popupWidth = leftTooltipWindow.implicitWidth
+          var popupHeight = leftTooltipWindow.implicitHeight
+          var localX = target.width + 6
+          var localY = target.height / 2 - popupHeight / 2
+
+          var point = leftBarWindow.contentItem.mapFromItem(target, localX, localY)
+          leftTooltipAnchor.rect.x = Math.round(point.x)
+          leftTooltipAnchor.rect.y = Math.round(point.y)
+        }
+      }
+
+      BorderSurface {
+        id: leftTooltipBubble
+        implicitWidth: leftTooltipLabel.implicitWidth + 20
+        implicitHeight: leftTooltipLabel.implicitHeight + 14
+        color: Color.tooltip.background
+        borderSpec: Border.surfaceSpec("tooltip", "border", Color.tooltip.border, 1)
+        radius: Style.cornerRadius
+
+        Text {
+          id: leftTooltipLabel
+          textFormat: Text.PlainText
+          anchors.centerIn: parent
+          text: root.tooltipText
+          color: Color.tooltip.text
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.body
+          horizontalAlignment: Text.AlignHCenter
+          verticalAlignment: Text.AlignVCenter
         }
       }
     }
@@ -1711,8 +1881,8 @@ Item {
     // textures — which measures ~150ms against ~20ms to tear down. Parking
     // keeps the surface alive, so showing is only a margin change.
     visible: !remapGuard.remapping
-    exclusionMode: root.barHidden ? ExclusionMode.Ignore : ((root.isMidnightDoll && root.position === "top") ? ExclusionMode.Normal : ExclusionMode.Auto)
-    exclusiveZone: (root.isMidnightDoll && root.position === "top") ? root.barSize : 0
+    exclusionMode: root.barHidden ? ExclusionMode.Ignore : ExclusionMode.Normal
+    exclusiveZone: root.barHidden ? 0 : root.barSize
 
     ScreenMoveRemap {
       id: remapGuard
@@ -1751,7 +1921,8 @@ Item {
 
     Rectangle {
       id: barBackgroundRect
-      anchors.top: parent.top
+      anchors.top: root.position === "bottom" ? undefined : parent.top
+      anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
       anchors.left: parent.left
       anchors.right: parent.right
       height: root.barSize
@@ -1824,8 +1995,35 @@ Item {
       }
     }
 
+    Shape {
+      id: midnightBottomBorderShape
+      anchors.bottom: parent.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: root.barSize
+      visible: root.isMidnightDoll && !root.barHidden && root.position === "bottom"
+      opacity: root.transparent ? 0.0 : 1.0
+      Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
+      asynchronous: false
+      preferredRendererType: Shape.CurveRenderer
+      z: 999
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Color.accent
+        fillColor: "transparent"
+        joinStyle: ShapePath.RoundJoin
+        capStyle: ShapePath.FlatCap
+
+        startX: 35.5
+        startY: 0.5
+        PathLine { x: barWindow.width; y: 0.5 }
+      }
+    }
+
     Loader {
-      anchors.top: parent.top
+      anchors.top: root.position === "bottom" ? undefined : parent.top
+      anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
       anchors.left: parent.left
       anchors.right: parent.right
       height: root.barSize
@@ -1925,14 +2123,6 @@ Item {
           anchors.rightMargin: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           spacing: 6
-
-          MidnightSystemHud {
-            visible: root.isMidnightDoll
-          }
-
-          MidnightCavaVisualizer {
-            visible: root.isMidnightDoll
-          }
 
           RightModules {}
         }
@@ -2097,9 +2287,9 @@ Item {
   }
 
   component RightModules: ModuleList {
-    entries: root.isMidnightDoll ? [] : root.layoutEntries("right")
+    entries: root.layoutEntries("right")
     region: "right"
-    visible: !root.isMidnightDoll
+    visible: true
   }
 
   component CenterModules: Item {
@@ -2314,98 +2504,10 @@ Item {
         Repeater {
           model: moduleListRoot.entries
 
-          Row {
-            spacing: 0
-
-            ModuleSlot {
-              visible: !(root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu"))
-              width: visible ? implicitWidth : 0
-              entry: modelData
-              region: moduleListRoot.region
-            }
-
-            WidgetButton {
-              id: midnightMenuBtn
-              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu")
-              bar: root
-              text: root.menuIcon
-              fontFamily: "JetBrainsMono Nerd Font"
-              fontSize: 18
-              foreground: Color.accent
-              horizontalMargin: 6
-              fixedWidth: 28
-              fixedHeight: root.barSize
-              onPressed: function(button) {
-                if (button === Qt.RightButton) root.run("xdg-terminal-exec")
-                else root.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
-              }
-            }
-
-            Row {
-              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu") && moduleListRoot.region === "left"
-              spacing: 0
-              anchors.verticalCenter: parent.verticalCenter
-              leftPadding: 6
-              rightPadding: 8
-
-              Text {
-                visible: root.hudTitle !== ""
-                text: root.hudTitle
-                font.family: root.fontFamily
-                font.bold: true
-                font.pixelSize: 12
-                color: root.secondaryColor
-                anchors.verticalCenter: parent.verticalCenter
-              }
-              Text {
-                visible: root.hudTitle !== "" && root.hudSubtitle !== ""
-                text: " // "
-                font.family: root.fontFamily
-                font.bold: true
-                font.pixelSize: 12
-                color: Qt.rgba(1, 1, 1, 0.4)
-                anchors.verticalCenter: parent.verticalCenter
-              }
-              Item {
-                visible: root.hudSubtitle !== ""
-                width: hudSubtitleText.implicitWidth
-                height: hudSubtitleText.implicitHeight
-                anchors.verticalCenter: parent.verticalCenter
-
-                Text {
-                  id: hudSubtitleText
-                  anchors.fill: parent
-                  text: root.hudSubtitle
-                  font.family: root.fontFamily
-                  font.bold: true
-                  font.pixelSize: 12
-                  color: (hudSubMouse.enabled && hudSubMouse.containsMouse) ? "#ffffff" : Color.accent
-
-                  Behavior on color {
-                    ColorAnimation { duration: 120 }
-                  }
-                }
-
-                MouseArea {
-                  id: hudSubMouse
-                  anchors.centerIn: parent
-                  width: parent.width + 8
-                  height: root.barSize
-                  enabled: root.hudCommand !== ""
-                  hoverEnabled: enabled
-                  cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                  property bool tooltipHovered: containsMouse
-                  onEntered: {
-                    var tip = root.hudTooltipText()
-                    if (tip) root.showTooltip(hudSubMouse, tip)
-                  }
-                  onExited: root.hideTooltip(hudSubMouse)
-                  onClicked: {
-                    if (root.hudCommand) root.run(root.hudCommand)
-                  }
-                }
-              }
-            }
+          ModuleSlot {
+            required property var modelData
+            entry: modelData
+            region: moduleListRoot.region
           }
         }
       }
@@ -2420,32 +2522,10 @@ Item {
         Repeater {
           model: moduleListRoot.entries
 
-          Column {
-            spacing: 0
-
-            ModuleSlot {
-              visible: !(root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu"))
-              height: visible ? implicitHeight : 0
-              required property var modelData
-              entry: modelData
-              region: moduleListRoot.region
-            }
-
-            WidgetButton {
-              visible: root.isMidnightDoll && (modelData.id === "omarchy.menu" || modelData.name === "omarchy.menu")
-              bar: root
-              text: root.menuIcon
-              fontFamily: "JetBrainsMono Nerd Font"
-              fontSize: 18
-              foreground: Color.accent
-              verticalPadding: 6
-              fixedWidth: root.barSize
-              fixedHeight: 28
-              onPressed: function(button) {
-                if (button === Qt.RightButton) root.run("xdg-terminal-exec")
-                else root.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
-              }
-            }
+          ModuleSlot {
+            required property var modelData
+            entry: modelData
+            region: moduleListRoot.region
           }
         }
       }
@@ -2462,19 +2542,40 @@ Item {
     readonly property var moduleSettings: root.entrySettings(entry)
     readonly property string customType: root.customModuleType(entry)
     // Re-evaluate when the registry mutates (Component reference changes,
+    readonly property bool isSysHud: root.isMidnightDoll && (moduleName === "midnight-doll.sys-hud" || moduleName === "midnight-doll.system-hud" || moduleName === "midnight-doll.hud")
+    readonly property bool isVisualizer: root.isMidnightDoll && (moduleName === "midnight-doll.visualizer" || moduleName === "midnight-doll.cava")
+    readonly property bool isBlockedInOtherTheme: !root.isMidnightDoll && (root.isMidnightOnlyWidget(moduleName) || isSysHud || isVisualizer)
+    readonly property bool isAgents: moduleName === "omarchy.agents" || moduleName.endsWith(".agents")
+    readonly property bool isMenu: root.isMidnightDoll && (moduleName === "omarchy.menu" || moduleName === "omarchy-menu")
+    readonly property bool qmlCustom: customType === "qml"
+    readonly property bool commandCustom: customType === "command"
+
+    // Re-evaluate when the registry mutates (Component reference changes,
     // plugin enabled/disabled, etc.). Reading the `widgets` property creates
     // the binding dependency — the wrapped function call alone wouldn't.
     readonly property var registryComponent: {
+      if (isBlockedInOtherTheme) return null
+      if (isMenu) return null
       var w = root.barWidgetRegistry.widgets
       if (customType) return null
       var registryName = root.canonicalWidgetId(moduleName)
-      return w[registryName] ? w[registryName].component : null
+      if (w[registryName]) return w[registryName].component
+      if (moduleName.endsWith(".agents") || moduleName === "omarchy.agents") {
+        for (var k in w) {
+          if ((k.endsWith(".agents") || k === "omarchy.agents") && w[k] && w[k].component)
+            return w[k].component
+        }
+      }
+      return null
     }
-    readonly property bool qmlCustom: customType === "qml"
-    readonly property bool commandCustom: customType === "command"
     readonly property bool registered: registryComponent !== null
     readonly property var activeItem: {
+      if (isBlockedInOtherTheme) return null
+      if (isMenu && menuLoader.item) return menuLoader.item
       if (registered) return registryLoader.item
+      if (isAgents && agentsFallbackLoader.item) return agentsFallbackLoader.item
+      if (isSysHud && sysHudLoader.item) return sysHudLoader.item
+      if (isVisualizer && visualizerLoader.item) return visualizerLoader.item
       if (qmlCustom) return qmlLoader.item
       return componentLoader.item
     }
@@ -2491,10 +2592,11 @@ Item {
       if (hint !== undefined && hint !== null && hint > 0) return Math.round(hint)
       return Math.max(Style.space(10), Math.round(((root.vertical || isLeftPanel) ? slot.height : slot.width) * 0.55))
     }
-    implicitWidth: activeItem && activeItem.visible ? ((root.vertical || isLeftPanel) ? (isLeftPanel ? 35 : root.barSize) : activeItem.implicitWidth) : 0
-    implicitHeight: activeItem && activeItem.visible ? activeItem.implicitHeight : 0
+    implicitWidth: (!isBlockedInOtherTheme && activeItem && activeItem.visible) ? ((root.vertical || isLeftPanel) ? (isLeftPanel ? 35 : root.barSize) : activeItem.implicitWidth) : 0
+    implicitHeight: (!isBlockedInOtherTheme && activeItem && activeItem.visible) ? activeItem.implicitHeight : 0
     width: implicitWidth
     height: implicitHeight
+    visible: !isBlockedInOtherTheme
     z: modulePointer.dragging ? 100 : 0
 
     Component.onCompleted: root.registerModuleSlot(slot)
@@ -2517,8 +2619,8 @@ Item {
 
     Loader {
       id: componentLoader
-      active: !slot.qmlCustom && !slot.registered
-      sourceComponent: slot.commandCustom ? customCommandModuleComponent : emptyModuleComponent
+      active: !slot.isBlockedInOtherTheme && !slot.qmlCustom && !slot.registered
+      sourceComponent: slot.isBlockedInOtherTheme ? emptyModuleComponent : (slot.commandCustom ? customCommandModuleComponent : emptyModuleComponent)
       anchors.fill: parent
       opacity: slot.dragSource ? 0.22 : 1.0
       onLoaded: {
@@ -2529,8 +2631,8 @@ Item {
 
     Loader {
       id: registryLoader
-      active: slot.registered
-      sourceComponent: slot.registered ? slot.registryComponent : null
+      active: !slot.isBlockedInOtherTheme && slot.registered
+      sourceComponent: (!slot.isBlockedInOtherTheme && slot.registered) ? slot.registryComponent : null
       anchors.fill: parent
       opacity: slot.dragSource ? 0.22 : 1.0
       onLoaded: {
@@ -2541,8 +2643,63 @@ Item {
 
     Loader {
       id: qmlLoader
-      active: slot.qmlCustom
-      source: slot.qmlCustom ? root.customModuleSource(slot.entry) : ""
+      active: !slot.isBlockedInOtherTheme && slot.qmlCustom
+      source: (!slot.isBlockedInOtherTheme && slot.qmlCustom) ? root.customModuleSource(slot.entry) : ""
+      anchors.fill: parent
+      opacity: slot.dragSource ? 0.22 : 1.0
+      onLoaded: {
+        slot.injectProps()
+        Qt.callLater(slot.injectProps)
+      }
+    }
+
+    Loader {
+      id: sysHudLoader
+      active: root.isMidnightDoll && slot.isSysHud && !slot.registered
+      sourceComponent: root.isMidnightDoll ? midnightSystemHudComponent : null
+      anchors.fill: parent
+      opacity: slot.dragSource ? 0.22 : 1.0
+      onLoaded: {
+        slot.injectProps()
+        Qt.callLater(slot.injectProps)
+      }
+    }
+
+    Loader {
+      id: visualizerLoader
+      active: root.isMidnightDoll && slot.isVisualizer && !slot.registered
+      sourceComponent: root.isMidnightDoll ? midnightVisualizerComponent : null
+      anchors.fill: parent
+      opacity: slot.dragSource ? 0.22 : 1.0
+      onLoaded: {
+        slot.injectProps()
+        Qt.callLater(slot.injectProps)
+      }
+    }
+
+    Loader {
+      id: agentsFallbackLoader
+      active: slot.isAgents && !slot.registered
+      source: {
+        if (!slot.isAgents || slot.registered) return ""
+        var targetId = slot.moduleName || "omarchy.agents"
+        if (targetId.indexOf(".") !== -1 && targetId !== "omarchy.agents") {
+          return Qt.resolvedUrl("file://" + root.home + "/.config/omarchy/plugins/" + targetId + "/Panel.qml")
+        }
+        return Qt.resolvedUrl("file:///usr/share/omarchy/shell/plugins/agents/Panel.qml")
+      }
+      anchors.fill: parent
+      opacity: slot.dragSource ? 0.22 : 1.0
+      onLoaded: {
+        slot.injectProps()
+        Qt.callLater(slot.injectProps)
+      }
+    }
+
+    Loader {
+      id: menuLoader
+      active: slot.isMenu
+      sourceComponent: midnightMenuComponent
       anchors.fill: parent
       opacity: slot.dragSource ? 0.22 : 1.0
       onLoaded: {
@@ -2560,16 +2717,16 @@ Item {
       opacity: slot.panelOpen && !slot.dragSource ? 0.9 : 0
       color: Color.accent
       radius: Math.min(width, height) / 2
-      width: root.vertical ? Style.space(2) : slot.panelIndicatorExtent
-      height: root.vertical ? slot.panelIndicatorExtent : Style.space(2)
+      width: (root.vertical || slot.isLeftPanel) ? Style.space(2) : slot.panelIndicatorExtent
+      height: (root.vertical || slot.isLeftPanel) ? slot.panelIndicatorExtent : Style.space(2)
       // The mark sits on the module's inner edge — the one facing the
       // desktop — so it underlines a top bar, overlines a bottom one, and
       // points inward from a left or right one. It reads as pointing at the
       // panel that opens on that side.
-      x: root.vertical
-        ? (root.position === "left" ? parent.width - width - inset : inset)
+      x: (root.vertical || slot.isLeftPanel)
+        ? ((root.position === "left" || slot.isLeftPanel) ? parent.width - width - inset : inset)
         : Math.round((parent.width - width) / 2)
-      y: root.vertical
+      y: (root.vertical || slot.isLeftPanel)
         ? Math.round((parent.height - height) / 2)
         : (root.position === "top" ? parent.height - height - inset : inset)
       z: 50
@@ -2677,9 +2834,10 @@ Item {
     onModuleSettingsChanged: injectProps()
 
     function injectProps() {
+      if (typeof root === "undefined" || !root) return
       var target = activeItem
       if (!target) return
-      if ("bar" in target) target.bar = (slot.isLeftPanel ? root.leftBarContext : root)
+      if ("bar" in target) target.bar = (slot.isLeftPanel ? (root.leftBarContext || root) : root)
       if ("moduleName" in target) target.moduleName = moduleName
       if ("settings" in target) target.settings = moduleSettings
     }
@@ -2687,6 +2845,118 @@ Item {
     Component {
       id: customCommandModuleComponent
       CustomCommandModule { entry: slot.entry }
+    }
+
+    Component {
+      id: midnightSystemHudComponent
+      MidnightSystemHud {}
+    }
+
+    Component {
+      id: midnightVisualizerComponent
+      MidnightCavaVisualizer {}
+    }
+
+    Component {
+      id: midnightMenuComponent
+
+      Item {
+        id: menuContainer
+        implicitHeight: root.barSize
+        implicitWidth: menuRow.implicitWidth
+        height: root.barSize
+        width: implicitWidth
+
+        Row {
+          id: menuRow
+          spacing: 0
+          anchors.verticalCenter: parent.verticalCenter
+          height: root.barSize
+
+        WidgetButton {
+          id: menuBtn
+          bar: root
+          text: root.menuIcon
+          fontFamily: "JetBrainsMono Nerd Font"
+          fontSize: 18
+          foreground: Color.accent
+          horizontalMargin: 6
+          fixedWidth: (root.vertical || slot.isLeftPanel) ? root.barSize : 28
+          fixedHeight: (root.vertical || slot.isLeftPanel) ? 28 : root.barSize
+          onPressed: function(button) {
+            if (button === Qt.RightButton) root.run("xdg-terminal-exec")
+            else root.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
+          }
+        }
+
+        Row {
+          id: hudTitleRow
+          visible: !root.vertical && !slot.isLeftPanel && slot.region === "left"
+          spacing: 0
+          anchors.verticalCenter: parent.verticalCenter
+          leftPadding: 6
+          rightPadding: 8
+
+          Text {
+            visible: root.hudTitle !== ""
+            text: root.hudTitle
+            font.family: root.fontFamily
+            font.bold: true
+            font.pixelSize: 12
+            color: root.secondaryColor
+            anchors.verticalCenter: parent.verticalCenter
+          }
+          Text {
+            visible: root.hudTitle !== "" && root.hudSubtitle !== ""
+            text: " // "
+            font.family: root.fontFamily
+            font.bold: true
+            font.pixelSize: 12
+            color: Qt.rgba(1, 1, 1, 0.4)
+            anchors.verticalCenter: parent.verticalCenter
+          }
+          Item {
+            visible: root.hudSubtitle !== ""
+            width: hudSubtitleText.implicitWidth
+            height: hudSubtitleText.implicitHeight
+            anchors.verticalCenter: parent.verticalCenter
+
+            Text {
+              id: hudSubtitleText
+              anchors.fill: parent
+              text: root.hudSubtitle
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: 12
+              color: (hudSubMouse.enabled && hudSubMouse.containsMouse) ? "#ffffff" : Color.accent
+
+              Behavior on color {
+                ColorAnimation { duration: 120 }
+              }
+            }
+
+            MouseArea {
+              id: hudSubMouse
+              anchors.centerIn: parent
+              width: parent.width + 8
+              height: root.barSize
+              enabled: root.hudCommand !== ""
+              hoverEnabled: enabled
+              cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+              property bool tooltipHovered: containsMouse
+              onEntered: {
+                var tip = root.hudTooltipText()
+                if (tip) root.showTooltip(hudSubMouse, tip)
+              }
+              onExited: root.hideTooltip(hudSubMouse)
+              onClicked: {
+                if (root.hudCommand) root.run(root.hudCommand)
+              }
+            }
+          }
+        }
+      }
+    }
     }
   }
 
@@ -2753,12 +3023,18 @@ Item {
     }
   }
 
-  component MidnightSystemHud: Row {
+  component MidnightSystemHud: Item {
     id: sysHudRoot
     visible: root.isMidnightDoll && !root.barHidden
-    spacing: 5
-    anchors.verticalCenter: parent.verticalCenter
     height: root.barSize
+    implicitWidth: sysHudRow.implicitWidth
+    implicitHeight: root.barSize
+    width: implicitWidth
+
+    property bool pressable: true
+    function triggerPress(button) {
+      if (root.hudCommand) root.run(root.hudCommand)
+    }
 
     property int cpuVal: 0
     property int memVal: 0
@@ -2802,6 +3078,11 @@ Item {
       triggeredOnStart: true
       onTriggered: sysProc.running = true
     }
+
+    Row {
+      id: sysHudRow
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: 5
 
     // CPU Gauge (Fixed Width)
     Row {
@@ -2934,14 +3215,16 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
       }
     }
+    }
   }
 
-  component MidnightCavaVisualizer: Row {
+  component MidnightCavaVisualizer: Item {
     id: cavaRoot
     visible: root.isMidnightDoll && !root.barHidden
-    spacing: 2
-    anchors.verticalCenter: parent.verticalCenter
     height: root.barSize
+    implicitWidth: cavaRow.implicitWidth
+    implicitHeight: root.barSize
+    width: implicitWidth
 
     property var spectrum: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     property real bassLevel: 0
@@ -2978,6 +3261,11 @@ Item {
         }
       }
     }
+
+    Row {
+      id: cavaRow
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: 2
 
     // Inverted Stacked Meters: AIR (top), MID (middle), BASS (bottom)
     Column {
@@ -3111,4 +3399,5 @@ Item {
       }
     }
   }
+}
 }

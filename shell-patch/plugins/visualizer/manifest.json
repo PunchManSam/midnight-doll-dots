@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "midnight-doll.visualizer",
+  "name": "Midnight Doll Visualizer",
+  "version": "1.0.0",
+  "author": "Midnight Doll",
+  "description": "Dynamic CAVA LED Dot Matrix Audio Visualizer & Frequency Level Meters",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Visualizer.qml"
+  },
+  "barWidget": {
+    "displayName": "Midnight Doll Visualizer",
+    "description": "Dynamic CAVA LED Dot Matrix Audio Visualizer & Frequency Level Meters",
+    "category": "Media",
+    "allowMultiple": false
+  }
+}

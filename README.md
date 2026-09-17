@@ -61,11 +61,18 @@ midnight-doll-dots/
 └── shell-patch/
     └── plugins/
         ├── bar/
-        │   ├── Bar.qml            # Dual-bar HUD & visualizer core engine
+        │   ├── Bar.qml            # Dual-bar HUD core engine & slot routing
+        │   ├── BarModel.js        # Multi-surface drag-and-drop model extension
         │   └── widgets/
         │       └── Workspaces.qml # Bracketed [1] [2] workspaces
-        └── panels/clock/
-            └── BarWidget.qml      # Military uppercase date-time widget
+        ├── panels/clock/
+        │   └── BarWidget.qml      # Military uppercase date-time widget
+        ├── sys-hud/
+        │   ├── manifest.json      # Modular System HUD manifest
+        │   └── SystemHud.qml      # Modular CPU, RAM, Disk, Net metrics widget
+        └── visualizer/
+            ├── manifest.json      # Modular Audio Visualizer manifest
+            └── Visualizer.qml     # Modular CAVA LED dot-matrix widget
 ```
 
 ---

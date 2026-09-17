@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "midnight-doll.sys-hud",
+  "name": "Midnight Doll System HUD",
+  "version": "1.0.0",
+  "author": "Midnight Doll",
+  "description": "Cyberdeck CPU, RAM, Disk, and Network Activity Monitors",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "SystemHud.qml"
+  },
+  "barWidget": {
+    "displayName": "Midnight Doll System HUD",
+    "description": "Cyberdeck CPU, RAM, Disk, and Network Activity Monitors",
+    "category": "System",
+    "allowMultiple": false
+  }
+}
