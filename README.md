@@ -122,7 +122,7 @@ Edit `~/.config/omarchy/midnight-shortcuts.json` or simply **Right-Click** anywh
   { "glyph": "󰨞", "command": "code" },
   { "glyph": "󰋋", "command": "spotify" },
   { "glyph": "󰉋", "command": "nautilus" },
-  { "glyph": "󰞷", "command": "discord" }
+  { "glyph": "󰞷", "command": "ghostty" }
 ]
 ```
 

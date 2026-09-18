@@ -443,6 +443,22 @@ cp "${DOTS_DIR}/config/omarchy/cava.conf" "${HOME}/.config/omarchy/"
 cp "${DOTS_DIR}/config/omarchy/set-accent.sh" "${HOME}/.config/omarchy/"
 if [ ! -f "${HOME}/.config/omarchy/midnight-shortcuts.json" ]; then
   cp "${DOTS_DIR}/config/omarchy/midnight-shortcuts.json" "${HOME}/.config/omarchy/"
+else
+  # Ensure NovelAI and Discord shortcuts are removed if present in existing configuration
+  python3 - "${HOME}/.config/omarchy/midnight-shortcuts.json" << 'EOF'
+import sys, json
+path = sys.argv[1]
+try:
+    with open(path, 'r', encoding='utf-8') as f:
+        items = json.load(f)
+    filtered = [item for item in items if item.get("name") not in ("Discord", "NovelAI")]
+    if len(filtered) != len(items):
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(filtered, f, indent=2)
+            f.write("\n")
+except Exception:
+    pass
+EOF
 fi
 chmod +x "${HOME}/.config/omarchy/sys-hud.sh"
 chmod +x "${HOME}/.config/omarchy/set-accent.sh"
