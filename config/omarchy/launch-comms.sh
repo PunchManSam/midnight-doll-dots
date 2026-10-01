@@ -1,6 +1,9 @@
 #!/bin/bash
 # omarchy:summary=Launch communicating applications & socket inspector with smart fallback
 
+# Set terminal window title
+printf "\033]0;%s\007" "Midnight Doll // Comms Inspector" 2>/dev/null
+
 if command -v bandwhich &>/dev/null; then
   exec bandwhich "$@"
 elif command -v nethogs &>/dev/null; then

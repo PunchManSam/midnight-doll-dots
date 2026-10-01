@@ -3327,7 +3327,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         property bool pressable: true
         function triggerPress(button) {
-          root.run("omarchy-launch-or-focus-tui " + root.home + "/.config/omarchy/launch-comms.sh")
+          root.run("omarchy-launch-or-focus-tui --app-id=TUI.float " + root.home + "/.config/omarchy/launch-comms.sh")
         }
         Component.onCompleted: if (typeof root.registerClickTarget === "function") root.registerClickTarget(this)
         Component.onDestruction: if (typeof root.unregisterClickTarget === "function") root.unregisterClickTarget(this)

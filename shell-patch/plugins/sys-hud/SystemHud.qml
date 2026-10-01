@@ -313,7 +313,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       property bool pressable: true
       function triggerPress(button) {
-        if (root.bar) root.bar.run("omarchy-launch-or-focus-tui " + root.homeDir + "/.config/omarchy/launch-comms.sh")
+        if (root.bar) root.bar.run("omarchy-launch-or-focus-tui --app-id=TUI.float " + root.homeDir + "/.config/omarchy/launch-comms.sh")
       }
       Component.onCompleted: if (root.bar && typeof root.bar.registerClickTarget === "function") root.bar.registerClickTarget(this)
       Component.onDestruction: if (root.bar && typeof root.bar.unregisterClickTarget === "function") root.bar.unregisterClickTarget(this)
