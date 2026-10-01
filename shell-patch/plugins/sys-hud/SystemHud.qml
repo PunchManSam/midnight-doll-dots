@@ -91,192 +91,207 @@ BarWidget {
     anchors.verticalCenter: parent.verticalCenter
     spacing: 6
 
-    // CPU Gauge
+    // Hardware Telemetry Group (CPU, FAN, RAM, DSK) -> Launches btop
     Row {
-      spacing: 4
+      id: hwGroup
+      spacing: 6
+      width: implicitWidth
+      height: root.barSize
       anchors.verticalCenter: parent.verticalCenter
-      Text {
-        text: "CPU"
-        font.family: root.fontFam
-        font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        rightPadding: 2
-        anchors.verticalCenter: parent.verticalCenter
+      property bool pressable: true
+      function triggerPress(button) {
+        if (root.bar) root.bar.run("omarchy-launch-or-focus-tui btop")
       }
-      Rectangle {
-        width: 20
-        height: 4
-        color: Qt.rgba(1, 1, 1, 0.15)
+      Component.onCompleted: if (root.bar && typeof root.bar.registerClickTarget === "function") root.bar.registerClickTarget(this)
+      Component.onDestruction: if (root.bar && typeof root.bar.unregisterClickTarget === "function") root.bar.unregisterClickTarget(this)
+
+      // CPU Gauge
+      Row {
+        spacing: 4
         anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "CPU"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
         Rectangle {
-          anchors.left: parent.left
-          height: parent.height
-          width: Math.max(1, Math.round(parent.width * (root.cpuVal / 100.0)))
-          color: root.cpuVal > 80 ? root.urgentColor : Color.accent
+          width: 20
+          height: 4
+          color: Qt.rgba(1, 1, 1, 0.15)
+          anchors.verticalCenter: parent.verticalCenter
+          Rectangle {
+            anchors.left: parent.left
+            height: parent.height
+            width: Math.max(1, Math.round(parent.width * (root.cpuVal / 100.0)))
+            color: root.cpuVal > 80 ? root.urgentColor : Color.accent
+          }
+        }
+        Text {
+          text: root.cpuVal + "%"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          color: Color.foreground
+          width: 22
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+          visible: root.cpuTemp > 0
+          text: root.cpuTemp + "°C"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          color: root.cpuTemp > 80 ? root.urgentColor : Color.foreground
+          width: visible ? 24 : 0
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
         }
       }
-      Text {
-        text: root.cpuVal + "%"
-        font.family: root.fontFam
-        font.pixelSize: 8
-        color: Color.foreground
-        width: 22
-        horizontalAlignment: Text.AlignLeft
-        anchors.verticalCenter: parent.verticalCenter
-      }
-      Text {
-        visible: root.cpuTemp > 0
-        text: root.cpuTemp + "°C"
-        font.family: root.fontFam
-        font.pixelSize: 8
-        color: root.cpuTemp > 80 ? root.urgentColor : Color.foreground
-        width: visible ? 24 : 0
-        horizontalAlignment: Text.AlignLeft
-        anchors.verticalCenter: parent.verticalCenter
-      }
-    }
 
-    // Divider
-    Text {
-      text: "|"
-      font.family: root.fontFam
-      font.pixelSize: 8
-      color: Qt.rgba(1, 1, 1, 0.22)
-      anchors.verticalCenter: parent.verticalCenter
-    }
-
-    // FAN Gauge (Vertical Bars per Fan)
-    Row {
-      spacing: 4
-      anchors.verticalCenter: parent.verticalCenter
+      // Divider
       Text {
-        text: "FAN"
+        text: "|"
         font.family: root.fontFam
         font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        rightPadding: 2
+        color: Qt.rgba(1, 1, 1, 0.22)
         anchors.verticalCenter: parent.verticalCenter
       }
+
+      // FAN Gauge (Vertical Bars per Fan)
       Row {
-        spacing: 2
+        spacing: 4
         anchors.verticalCenter: parent.verticalCenter
-        Repeater {
-          model: root.fanList
-          Rectangle {
-            width: 3
-            height: 10
-            color: Qt.rgba(1, 1, 1, 0.15)
-            anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "FAN"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Row {
+          spacing: 2
+          anchors.verticalCenter: parent.verticalCenter
+          Repeater {
+            model: root.fanList
             Rectangle {
-              anchors.bottom: parent.bottom
-              anchors.left: parent.left
-              anchors.right: parent.right
-              height: Math.max(modelData > 0 ? 1 : 0, Math.round(parent.height * (Math.min(100, modelData) / 100.0)))
-              color: modelData > 80 ? root.urgentColor : Color.accent
+              width: 3
+              height: 10
+              color: Qt.rgba(1, 1, 1, 0.15)
+              anchors.verticalCenter: parent.verticalCenter
+              Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: Math.max(modelData > 0 ? 1 : 0, Math.round(parent.height * (Math.min(100, modelData) / 100.0)))
+                color: modelData > 80 ? root.urgentColor : Color.accent
+              }
             }
           }
         }
-      }
-      Text {
-        text: root.fanVal > 0 ? (root.fanVal >= 10000 ? (root.fanVal / 1000).toFixed(1) + "k" : String(root.fanVal)) : "OFF"
-        font.family: root.fontFam
-        font.pixelSize: 8
-        color: root.fanPct > 80 ? root.urgentColor : Color.foreground
-        width: 24
-        horizontalAlignment: Text.AlignLeft
-        anchors.verticalCenter: parent.verticalCenter
-      }
-    }
-
-    // Divider
-    Text {
-      text: "|"
-      font.family: root.fontFam
-      font.pixelSize: 8
-      color: Qt.rgba(1, 1, 1, 0.22)
-      anchors.verticalCenter: parent.verticalCenter
-    }
-
-    // RAM / MEM Gauge
-    Row {
-      spacing: 4
-      anchors.verticalCenter: parent.verticalCenter
-      Text {
-        text: "RAM"
-        font.family: root.fontFam
-        font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        rightPadding: 2
-        anchors.verticalCenter: parent.verticalCenter
-      }
-      Rectangle {
-        width: 20
-        height: 4
-        color: Qt.rgba(1, 1, 1, 0.15)
-        anchors.verticalCenter: parent.verticalCenter
-        Rectangle {
-          anchors.left: parent.left
-          height: parent.height
-          width: Math.max(1, Math.round(parent.width * (root.memVal / 100.0)))
-          color: root.memVal > 85 ? root.urgentColor : Color.accent
+        Text {
+          text: root.fanVal > 0 ? (root.fanVal >= 10000 ? (root.fanVal / 1000).toFixed(1) + "k" : String(root.fanVal)) : "OFF"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          color: root.fanPct > 80 ? root.urgentColor : Color.foreground
+          width: 24
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
         }
       }
+
+      // Divider
       Text {
-        text: root.memVal + "%"
+        text: "|"
         font.family: root.fontFam
         font.pixelSize: 8
-        color: Color.foreground
-        width: 22
-        horizontalAlignment: Text.AlignLeft
+        color: Qt.rgba(1, 1, 1, 0.22)
         anchors.verticalCenter: parent.verticalCenter
       }
-    }
 
-    // Divider
-    Text {
-      text: "|"
-      font.family: root.fontFam
-      font.pixelSize: 8
-      color: Qt.rgba(1, 1, 1, 0.22)
-      anchors.verticalCenter: parent.verticalCenter
-    }
-
-    // DISK Gauge
-    Row {
-      spacing: 4
-      anchors.verticalCenter: parent.verticalCenter
-      Text {
-        text: "DSK"
-        font.family: root.fontFam
-        font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        rightPadding: 2
+      // RAM / MEM Gauge
+      Row {
+        spacing: 4
         anchors.verticalCenter: parent.verticalCenter
-      }
-      Rectangle {
-        width: 20
-        height: 4
-        color: Qt.rgba(1, 1, 1, 0.15)
-        anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "RAM"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
         Rectangle {
-          anchors.left: parent.left
-          height: parent.height
-          width: Math.max(1, Math.round(parent.width * (root.dskVal / 100.0)))
-          color: root.dskVal > 90 ? root.urgentColor : Color.accent
+          width: 20
+          height: 4
+          color: Qt.rgba(1, 1, 1, 0.15)
+          anchors.verticalCenter: parent.verticalCenter
+          Rectangle {
+            anchors.left: parent.left
+            height: parent.height
+            width: Math.max(1, Math.round(parent.width * (root.memVal / 100.0)))
+            color: root.memVal > 85 ? root.urgentColor : Color.accent
+          }
+        }
+        Text {
+          text: root.memVal + "%"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          color: Color.foreground
+          width: 22
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
         }
       }
+
+      // Divider
       Text {
-        text: root.dskVal + "%"
+        text: "|"
         font.family: root.fontFam
         font.pixelSize: 8
-        color: Color.foreground
-        width: 22
-        horizontalAlignment: Text.AlignLeft
+        color: Qt.rgba(1, 1, 1, 0.22)
         anchors.verticalCenter: parent.verticalCenter
+      }
+
+      // DISK Gauge
+      Row {
+        spacing: 4
+        anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "DSK"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Rectangle {
+          width: 20
+          height: 4
+          color: Qt.rgba(1, 1, 1, 0.15)
+          anchors.verticalCenter: parent.verticalCenter
+          Rectangle {
+            anchors.left: parent.left
+            height: parent.height
+            width: Math.max(1, Math.round(parent.width * (root.dskVal / 100.0)))
+            color: root.dskVal > 90 ? root.urgentColor : Color.accent
+          }
+        }
+        Text {
+          text: root.dskVal + "%"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          color: Color.foreground
+          width: 22
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
       }
     }
 
@@ -289,60 +304,75 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
     }
 
-    // NET Rates
+    // Comms Telemetry Group (NET, CONNS) -> Launches smart comms inspector
     Row {
-      spacing: 4
+      id: commsGroup
+      spacing: 6
+      width: implicitWidth
+      height: root.barSize
       anchors.verticalCenter: parent.verticalCenter
-      Text {
-        text: "NET"
-        font.family: root.fontFam
-        font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        rightPadding: 2
-        anchors.verticalCenter: parent.verticalCenter
+      property bool pressable: true
+      function triggerPress(button) {
+        if (root.bar) root.bar.run("omarchy-launch-or-focus-tui " + root.homeDir + "/.config/omarchy/launch-comms.sh")
       }
-      Text {
-        text: "▲" + root.txRate + " ▼" + root.rxRate
-        font.family: root.fontFam
-        font.pixelSize: 8
-        color: Color.accent
-        width: 78
-        horizontalAlignment: Text.AlignLeft
-        anchors.verticalCenter: parent.verticalCenter
-      }
-    }
+      Component.onCompleted: if (root.bar && typeof root.bar.registerClickTarget === "function") root.bar.registerClickTarget(this)
+      Component.onDestruction: if (root.bar && typeof root.bar.unregisterClickTarget === "function") root.bar.unregisterClickTarget(this)
 
-    // Divider
-    Text {
-      text: "|"
-      font.family: root.fontFam
-      font.pixelSize: 8
-      color: Qt.rgba(1, 1, 1, 0.22)
-      anchors.verticalCenter: parent.verticalCenter
-    }
+      // NET Rates
+      Row {
+        spacing: 4
+        anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "NET"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+          text: "▲" + root.txRate + " ▼" + root.rxRate
+          font.family: root.fontFam
+          font.pixelSize: 8
+          color: Color.accent
+          width: 78
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
+      }
 
-    // Connections Indicator
-    Row {
-      spacing: 4
-      anchors.verticalCenter: parent.verticalCenter
+      // Divider
       Text {
-        text: "CONNS"
+        text: "|"
         font.family: root.fontFam
         font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        rightPadding: 2
+        color: Qt.rgba(1, 1, 1, 0.22)
         anchors.verticalCenter: parent.verticalCenter
       }
-      Text {
-        text: String(root.connsVal)
-        font.family: root.fontFam
-        font.pixelSize: 8
-        color: root.connsVal > 100 ? root.urgentColor : Color.accent
-        width: 18
-        horizontalAlignment: Text.AlignLeft
+
+      // Connections Indicator
+      Row {
+        spacing: 4
         anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "CONNS"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+          text: String(root.connsVal)
+          font.family: root.fontFam
+          font.pixelSize: 8
+          color: root.connsVal > 100 ? root.urgentColor : Color.accent
+          width: 18
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
       }
     }
   }
