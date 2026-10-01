@@ -185,4 +185,15 @@ done
 
 disk_pct=$(df -P / | awk 'NR==2 {gsub("%","",$5); print $5}')
 
-echo "CPUTEMP:$cpu_temp;CPU:$cpu_pct;FAN:$primary_fan_rpm;FAN_PCT:$primary_fan_pct;FANS:$fan_rpm_str;FAN_PCTS:$fan_pct_str;MEM:$mem_pct;MEM_GB:$mem_gb;DSK:$disk_pct;RX:$rx_fmt;TX:$tx_fmt"
+# Active Network Connections (TCP in-use sockets)
+conns=0
+if [ -r /proc/net/sockstat ]; then
+  while read -r proto key val rest; do
+    if [ "$proto" = "TCP:" ] && [ "$key" = "inuse" ]; then
+      conns=$val
+      break
+    fi
+  done < /proc/net/sockstat
+fi
+
+echo "CPUTEMP:$cpu_temp;CPU:$cpu_pct;FAN:$primary_fan_rpm;FAN_PCT:$primary_fan_pct;FANS:$fan_rpm_str;FAN_PCTS:$fan_pct_str;MEM:$mem_pct;MEM_GB:$mem_gb;DSK:$disk_pct;RX:$rx_fmt;TX:$tx_fmt;CONNS:$conns"

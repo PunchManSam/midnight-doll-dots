@@ -3046,6 +3046,7 @@ Item {
     property int dskVal: 0
     property string rxRate: "0B"
     property string txRate: "0B"
+    property int connsVal: 0
 
     function updateMetrics(raw) {
       if (!raw) return
@@ -3076,6 +3077,7 @@ Item {
           else if (k === "DSK") dskVal = parseInt(v, 10) || 0
           else if (k === "RX") rxRate = v
           else if (k === "TX") txRate = v
+          else if (k === "CONNS") connsVal = parseInt(v, 10) || 0
         }
       }
     }
@@ -3320,6 +3322,39 @@ Item {
           font.pixelSize: 8
           color: Color.accent
           width: 78
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
+      }
+
+      // Divider
+      Text {
+        text: "|"
+        font.family: root.fontFamily
+        font.pixelSize: 8
+        color: Qt.rgba(1, 1, 1, 0.22)
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      // Connections Indicator
+      Row {
+        spacing: 4
+        anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "CONNS"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+          text: String(sysHudRoot.connsVal)
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          color: sysHudRoot.connsVal > 100 ? root.urgent : Color.accent
+          width: 18
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter
         }

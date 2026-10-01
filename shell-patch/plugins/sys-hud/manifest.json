@@ -4,7 +4,7 @@
   "name": "Midnight Doll System HUD",
   "version": "1.0.0",
   "author": "Midnight Doll",
-  "description": "Cyberdeck CPU, Temperature, Fan, RAM, Disk, and Network Activity Monitors",
+  "description": "Cyberdeck CPU, Temperature, Fan, RAM, Disk, Network, and Socket Connection Monitors",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "Midnight Doll System HUD",
-    "description": "Cyberdeck CPU, Temperature, Fan, RAM, Disk, and Network Activity Monitors",
+    "description": "Cyberdeck CPU, Temperature, Fan, RAM, Disk, Network, and Socket Connection Monitors",
     "category": "System",
     "allowMultiple": false
   }

@@ -27,6 +27,7 @@ BarWidget {
   property int dskVal: 0
   property string rxRate: "0B"
   property string txRate: "0B"
+  property int connsVal: 0
 
   property bool pressable: true
   function triggerPress(button) {
@@ -62,6 +63,7 @@ BarWidget {
         else if (k === "DSK") dskVal = parseInt(v, 10) || 0
         else if (k === "RX") rxRate = v
         else if (k === "TX") txRate = v
+        else if (k === "CONNS") connsVal = parseInt(v, 10) || 0
       }
     }
   }
@@ -306,6 +308,39 @@ BarWidget {
         font.pixelSize: 8
         color: Color.accent
         width: 78
+        horizontalAlignment: Text.AlignLeft
+        anchors.verticalCenter: parent.verticalCenter
+      }
+    }
+
+    // Divider
+    Text {
+      text: "|"
+      font.family: root.fontFam
+      font.pixelSize: 8
+      color: Qt.rgba(1, 1, 1, 0.22)
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
+    // Connections Indicator
+    Row {
+      spacing: 4
+      anchors.verticalCenter: parent.verticalCenter
+      Text {
+        text: "CONNS"
+        font.family: root.fontFam
+        font.pixelSize: 8
+        font.bold: true
+        color: root.secondaryColor
+        rightPadding: 2
+        anchors.verticalCenter: parent.verticalCenter
+      }
+      Text {
+        text: String(root.connsVal)
+        font.family: root.fontFam
+        font.pixelSize: 8
+        color: root.connsVal > 100 ? root.urgentColor : Color.accent
+        width: 18
         horizontalAlignment: Text.AlignLeft
         anchors.verticalCenter: parent.verticalCenter
       }
