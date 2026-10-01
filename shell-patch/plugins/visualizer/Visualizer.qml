@@ -34,10 +34,25 @@ BarWidget {
     waveCanvas.requestPaint()
   }
 
+  property Timer cavaRestartTimer: Timer {
+    interval: 1000
+    onTriggered: {
+      if (root.visible) cavaProc.running = true
+    }
+  }
+
   Process {
     id: cavaProc
     command: ["cava", "-p", root.homeDir + "/.config/omarchy/cava.conf"]
     running: root.visible
+    onExited: function(exitCode, exitStatus) {
+      root.spectrum = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      root.bassLevel = 0
+      root.midLevel = 0
+      root.airLevel = 0
+      waveCanvas.requestPaint()
+      cavaRestartTimer.restart()
+    }
     stdout: SplitParser {
       onRead: function(line) {
         if (!line) return

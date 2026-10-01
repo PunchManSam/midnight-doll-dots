@@ -30,7 +30,7 @@
   - **Top Bar (30px)**: Full-width priority header with solid pitch-black `#010101` backplane and neon accent underline.
   - **Left Launcher Panel (36px)**: Edge-flush vertical app launcher with interactive right-click JSON shortcut editor.
   - **Pixel-Perfect Adaptive Curved Seam**: GPU vector `QtQuick.Shapes` curve integrated natively into the panel surface without standalone overlay windows, scaling flawlessly across fractional monitor scales and adapting its stroke dynamically to active/inactive top-left window borders.
-- 📊 **Real-Time Ultra-Fast System Telemetry & Interactive HUD**: Custom 3ms metrics sampler monitoring **CPU %**, **RAM (Used / Total)**, **Disk %**, and **Live Network TX / RX** rates. The HUD title is fully interactive: click the accent header/subtitle to instantly summon a floating **btop** activity monitor or your own custom command. Supports dual-tone (`TITLE // SUBTITLE`) or single-word accent branding (e.g. `ro0tUser`).
+- 📊 **Real-Time Ultra-Fast System Telemetry & Interactive HUD**: Custom 3ms metrics sampler monitoring **CPU Temp & %**, **Fan Speed**, **RAM (Used / Total)**, **Disk %**, and **Live Network TX / RX** rates. The HUD title is fully interactive: click the accent header/subtitle to instantly summon a floating **btop** activity monitor or your own custom command. Supports dual-tone (`TITLE // SUBTITLE`) or single-word accent branding (e.g. `ro0tUser`).
 - 🎵 **Violet LED Dot-Matrix Audio Visualizer**:
   - Pipewire-driven **CAVA spectrum capture**.
   - **22-column × 5-tier discrete violet LED dot-matrix** (`#bb9af7`) with **neon pink peak indicators** (`#ff51c5`).
@@ -69,7 +69,7 @@ midnight-doll-dots/
         │   └── BarWidget.qml      # Military uppercase date-time widget
         ├── sys-hud/
         │   ├── manifest.json      # Modular System HUD manifest
-        │   └── SystemHud.qml      # Modular CPU, RAM, Disk, Net metrics widget
+        │   └── SystemHud.qml      # Modular CPU, Temp, Fan, RAM, Disk, Net metrics widget
         └── visualizer/
             ├── manifest.json      # Modular Audio Visualizer manifest
             └── Visualizer.qml     # Modular CAVA LED dot-matrix widget

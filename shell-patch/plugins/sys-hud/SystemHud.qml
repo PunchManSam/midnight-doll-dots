@@ -18,6 +18,10 @@ BarWidget {
   implicitHeight: root.barSize
 
   property int cpuVal: 0
+  property int cpuTemp: 0
+  property int fanVal: 0
+  property int fanPct: 0
+  property var fanList: [0]
   property int memVal: 0
   property string memGb: "0G"
   property int dskVal: 0
@@ -38,6 +42,21 @@ BarWidget {
         var k = kv[0]
         var v = kv[1]
         if (k === "CPU") cpuVal = parseInt(v, 10) || 0
+        else if (k === "CPUTEMP" || k === "CPU_TEMP" || k === "TEMP") cpuTemp = parseInt(v, 10) || 0
+        else if (k === "FAN" || k === "FAN_RPM") fanVal = parseInt(v, 10) || 0
+        else if (k === "FAN_PCT") {
+          fanPct = parseInt(v, 10) || 0
+          if (fanList.length <= 1) fanList = [fanPct]
+        }
+        else if (k === "FAN_PCTS") {
+          var arr = v.split(",")
+          var pcts = []
+          for (var j = 0; j < arr.length; j++) {
+            var n = parseInt(arr[j], 10)
+            if (!isNaN(n)) pcts.push(n)
+          }
+          if (pcts.length > 0) fanList = pcts
+        }
         else if (k === "MEM") memVal = parseInt(v, 10) || 0
         else if (k === "MEM_GB") memGb = v
         else if (k === "DSK") dskVal = parseInt(v, 10) || 0
@@ -68,11 +87,11 @@ BarWidget {
   Row {
     id: sysHudRow
     anchors.verticalCenter: parent.verticalCenter
-    spacing: 5
+    spacing: 6
 
     // CPU Gauge
     Row {
-      spacing: 2
+      spacing: 4
       anchors.verticalCenter: parent.verticalCenter
       Text {
         text: "CPU"
@@ -80,7 +99,7 @@ BarWidget {
         font.pixelSize: 8
         font.bold: true
         color: root.secondaryColor
-        width: 17
+        rightPadding: 2
         anchors.verticalCenter: parent.verticalCenter
       }
       Rectangle {
@@ -101,14 +120,86 @@ BarWidget {
         font.pixelSize: 8
         color: Color.foreground
         width: 22
-        horizontalAlignment: Text.AlignRight
+        horizontalAlignment: Text.AlignLeft
+        anchors.verticalCenter: parent.verticalCenter
+      }
+      Text {
+        visible: root.cpuTemp > 0
+        text: root.cpuTemp + "°C"
+        font.family: root.fontFam
+        font.pixelSize: 8
+        color: root.cpuTemp > 80 ? root.urgentColor : Color.foreground
+        width: visible ? 24 : 0
+        horizontalAlignment: Text.AlignLeft
         anchors.verticalCenter: parent.verticalCenter
       }
     }
 
+    // Divider
+    Text {
+      text: "|"
+      font.family: root.fontFam
+      font.pixelSize: 8
+      color: Qt.rgba(1, 1, 1, 0.22)
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
+    // FAN Gauge (Vertical Bars per Fan)
+    Row {
+      spacing: 4
+      anchors.verticalCenter: parent.verticalCenter
+      Text {
+        text: "FAN"
+        font.family: root.fontFam
+        font.pixelSize: 8
+        font.bold: true
+        color: root.secondaryColor
+        rightPadding: 2
+        anchors.verticalCenter: parent.verticalCenter
+      }
+      Row {
+        spacing: 2
+        anchors.verticalCenter: parent.verticalCenter
+        Repeater {
+          model: root.fanList
+          Rectangle {
+            width: 3
+            height: 10
+            color: Qt.rgba(1, 1, 1, 0.15)
+            anchors.verticalCenter: parent.verticalCenter
+            Rectangle {
+              anchors.bottom: parent.bottom
+              anchors.left: parent.left
+              anchors.right: parent.right
+              height: Math.max(modelData > 0 ? 1 : 0, Math.round(parent.height * (Math.min(100, modelData) / 100.0)))
+              color: modelData > 80 ? root.urgentColor : Color.accent
+            }
+          }
+        }
+      }
+      Text {
+        text: root.fanVal > 0 ? (root.fanVal >= 10000 ? (root.fanVal / 1000).toFixed(1) + "k" : String(root.fanVal)) : "OFF"
+        font.family: root.fontFam
+        font.pixelSize: 8
+        color: root.fanPct > 80 ? root.urgentColor : Color.foreground
+        width: 24
+        horizontalAlignment: Text.AlignLeft
+        anchors.verticalCenter: parent.verticalCenter
+      }
+    }
+
+    // Divider
+    Text {
+      text: "|"
+      font.family: root.fontFam
+      font.pixelSize: 8
+      color: Qt.rgba(1, 1, 1, 0.22)
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
     // RAM / MEM Gauge
     Row {
-      spacing: 2
+      spacing: 4
       anchors.verticalCenter: parent.verticalCenter
       Text {
         text: "RAM"
@@ -116,7 +207,7 @@ BarWidget {
         font.pixelSize: 8
         font.bold: true
         color: root.secondaryColor
-        width: 17
+        rightPadding: 2
         anchors.verticalCenter: parent.verticalCenter
       }
       Rectangle {
@@ -132,19 +223,28 @@ BarWidget {
         }
       }
       Text {
-        text: root.memGb
+        text: root.memVal + "%"
         font.family: root.fontFam
         font.pixelSize: 8
         color: Color.foreground
-        width: 28
-        horizontalAlignment: Text.AlignRight
+        width: 22
+        horizontalAlignment: Text.AlignLeft
         anchors.verticalCenter: parent.verticalCenter
       }
     }
 
+    // Divider
+    Text {
+      text: "|"
+      font.family: root.fontFam
+      font.pixelSize: 8
+      color: Qt.rgba(1, 1, 1, 0.22)
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
     // DISK Gauge
     Row {
-      spacing: 2
+      spacing: 4
       anchors.verticalCenter: parent.verticalCenter
       Text {
         text: "DSK"
@@ -152,7 +252,7 @@ BarWidget {
         font.pixelSize: 8
         font.bold: true
         color: root.secondaryColor
-        width: 17
+        rightPadding: 2
         anchors.verticalCenter: parent.verticalCenter
       }
       Rectangle {
@@ -173,14 +273,23 @@ BarWidget {
         font.pixelSize: 8
         color: Color.foreground
         width: 22
-        horizontalAlignment: Text.AlignRight
+        horizontalAlignment: Text.AlignLeft
         anchors.verticalCenter: parent.verticalCenter
       }
     }
 
+    // Divider
+    Text {
+      text: "|"
+      font.family: root.fontFam
+      font.pixelSize: 8
+      color: Qt.rgba(1, 1, 1, 0.22)
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
     // NET Rates
     Row {
-      spacing: 2
+      spacing: 4
       anchors.verticalCenter: parent.verticalCenter
       Text {
         text: "NET"
@@ -188,7 +297,7 @@ BarWidget {
         font.pixelSize: 8
         font.bold: true
         color: root.secondaryColor
-        width: 17
+        rightPadding: 2
         anchors.verticalCenter: parent.verticalCenter
       }
       Text {

@@ -3037,6 +3037,10 @@ Item {
     }
 
     property int cpuVal: 0
+    property int cpuTemp: 0
+    property int fanVal: 0
+    property int fanPct: 0
+    property var fanList: [0]
     property int memVal: 0
     property string memGb: "0G"
     property int dskVal: 0
@@ -3052,6 +3056,21 @@ Item {
           var k = kv[0]
           var v = kv[1]
           if (k === "CPU") cpuVal = parseInt(v, 10) || 0
+          else if (k === "CPUTEMP" || k === "CPU_TEMP" || k === "TEMP") cpuTemp = parseInt(v, 10) || 0
+          else if (k === "FAN" || k === "FAN_RPM") fanVal = parseInt(v, 10) || 0
+          else if (k === "FAN_PCT") {
+            fanPct = parseInt(v, 10) || 0
+            if (fanList.length <= 1) fanList = [fanPct]
+          }
+          else if (k === "FAN_PCTS") {
+            var arr = v.split(",")
+            var pcts = []
+            for (var j = 0; j < arr.length; j++) {
+              var n = parseInt(arr[j], 10)
+              if (!isNaN(n)) pcts.push(n)
+            }
+            if (pcts.length > 0) fanList = pcts
+          }
           else if (k === "MEM") memVal = parseInt(v, 10) || 0
           else if (k === "MEM_GB") memGb = v
           else if (k === "DSK") dskVal = parseInt(v, 10) || 0
@@ -3082,139 +3101,229 @@ Item {
     Row {
       id: sysHudRow
       anchors.verticalCenter: parent.verticalCenter
-      spacing: 5
+      spacing: 6
 
-    // CPU Gauge (Fixed Width)
-    Row {
-      spacing: 2
-      anchors.verticalCenter: parent.verticalCenter
-      Text {
-        text: "CPU"
-        font.family: root.fontFamily
-        font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        width: 17
+      // CPU Gauge
+      Row {
+        spacing: 4
         anchors.verticalCenter: parent.verticalCenter
-      }
-      Rectangle {
-        width: 20
-        height: 4
-        color: Qt.rgba(1, 1, 1, 0.15)
-        anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "CPU"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
         Rectangle {
-          anchors.left: parent.left
-          height: parent.height
-          width: Math.max(1, Math.round(parent.width * (sysHudRoot.cpuVal / 100.0)))
-          color: sysHudRoot.cpuVal > 80 ? root.urgent : Color.accent
+          width: 20
+          height: 4
+          color: Qt.rgba(1, 1, 1, 0.15)
+          anchors.verticalCenter: parent.verticalCenter
+          Rectangle {
+            anchors.left: parent.left
+            height: parent.height
+            width: Math.max(1, Math.round(parent.width * (sysHudRoot.cpuVal / 100.0)))
+            color: sysHudRoot.cpuVal > 80 ? root.urgent : Color.accent
+          }
+        }
+        Text {
+          text: sysHudRoot.cpuVal + "%"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          color: Color.foreground
+          width: 22
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+          visible: sysHudRoot.cpuTemp > 0
+          text: sysHudRoot.cpuTemp + "°C"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          color: sysHudRoot.cpuTemp > 80 ? root.urgent : Color.foreground
+          width: visible ? 24 : 0
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
         }
       }
-      Text {
-        text: sysHudRoot.cpuVal + "%"
-        font.family: root.fontFamily
-        font.pixelSize: 8
-        color: Color.foreground
-        width: 22
-        horizontalAlignment: Text.AlignRight
-        anchors.verticalCenter: parent.verticalCenter
-      }
-    }
 
-    // RAM / MEM Gauge (Fixed Width)
-    Row {
-      spacing: 2
-      anchors.verticalCenter: parent.verticalCenter
+      // Divider
       Text {
-        text: "RAM"
+        text: "|"
         font.family: root.fontFamily
         font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        width: 17
+        color: Qt.rgba(1, 1, 1, 0.22)
         anchors.verticalCenter: parent.verticalCenter
       }
-      Rectangle {
-        width: 20
-        height: 4
-        color: Qt.rgba(1, 1, 1, 0.15)
+
+      // FAN Gauge (Vertical Bars per Fan)
+      Row {
+        spacing: 4
         anchors.verticalCenter: parent.verticalCenter
-        Rectangle {
-          anchors.left: parent.left
-          height: parent.height
-          width: Math.max(1, Math.round(parent.width * (sysHudRoot.memVal / 100.0)))
-          color: sysHudRoot.memVal > 85 ? root.urgent : Color.accent
+        Text {
+          text: "FAN"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Row {
+          spacing: 2
+          anchors.verticalCenter: parent.verticalCenter
+          Repeater {
+            model: sysHudRoot.fanList
+            Rectangle {
+              width: 3
+              height: 10
+              color: Qt.rgba(1, 1, 1, 0.15)
+              anchors.verticalCenter: parent.verticalCenter
+              Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: Math.max(modelData > 0 ? 1 : 0, Math.round(parent.height * (Math.min(100, modelData) / 100.0)))
+                color: modelData > 80 ? root.urgent : Color.accent
+              }
+            }
+          }
+        }
+        Text {
+          text: sysHudRoot.fanVal > 0 ? (sysHudRoot.fanVal >= 10000 ? (sysHudRoot.fanVal / 1000).toFixed(1) + "k" : String(sysHudRoot.fanVal)) : "OFF"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          color: sysHudRoot.fanPct > 80 ? root.urgent : Color.foreground
+          width: 24
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
         }
       }
-      Text {
-        text: sysHudRoot.memGb
-        font.family: root.fontFamily
-        font.pixelSize: 8
-        color: Color.foreground
-        width: 28
-        horizontalAlignment: Text.AlignRight
-        anchors.verticalCenter: parent.verticalCenter
-      }
-    }
 
-    // DISK Gauge (Fixed Width)
-    Row {
-      spacing: 2
-      anchors.verticalCenter: parent.verticalCenter
+      // Divider
       Text {
-        text: "DSK"
+        text: "|"
         font.family: root.fontFamily
         font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        width: 17
+        color: Qt.rgba(1, 1, 1, 0.22)
         anchors.verticalCenter: parent.verticalCenter
       }
-      Rectangle {
-        width: 20
-        height: 4
-        color: Qt.rgba(1, 1, 1, 0.15)
+
+      // RAM / MEM Gauge
+      Row {
+        spacing: 4
         anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "RAM"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
         Rectangle {
-          anchors.left: parent.left
-          height: parent.height
-          width: Math.max(1, Math.round(parent.width * (sysHudRoot.dskVal / 100.0)))
-          color: sysHudRoot.dskVal > 90 ? root.urgent : Color.accent
+          width: 20
+          height: 4
+          color: Qt.rgba(1, 1, 1, 0.15)
+          anchors.verticalCenter: parent.verticalCenter
+          Rectangle {
+            anchors.left: parent.left
+            height: parent.height
+            width: Math.max(1, Math.round(parent.width * (sysHudRoot.memVal / 100.0)))
+            color: sysHudRoot.memVal > 85 ? root.urgent : Color.accent
+          }
+        }
+        Text {
+          text: sysHudRoot.memVal + "%"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          color: Color.foreground
+          width: 22
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
         }
       }
-      Text {
-        text: sysHudRoot.dskVal + "%"
-        font.family: root.fontFamily
-        font.pixelSize: 8
-        color: Color.foreground
-        width: 22
-        horizontalAlignment: Text.AlignRight
-        anchors.verticalCenter: parent.verticalCenter
-      }
-    }
 
-    // NET Rates (Fixed Width)
-    Row {
-      spacing: 2
-      anchors.verticalCenter: parent.verticalCenter
+      // Divider
       Text {
-        text: "NET"
+        text: "|"
         font.family: root.fontFamily
         font.pixelSize: 8
-        font.bold: true
-        color: root.secondaryColor
-        width: 17
+        color: Qt.rgba(1, 1, 1, 0.22)
         anchors.verticalCenter: parent.verticalCenter
       }
+
+      // DISK Gauge
+      Row {
+        spacing: 4
+        anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "DSK"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Rectangle {
+          width: 20
+          height: 4
+          color: Qt.rgba(1, 1, 1, 0.15)
+          anchors.verticalCenter: parent.verticalCenter
+          Rectangle {
+            anchors.left: parent.left
+            height: parent.height
+            width: Math.max(1, Math.round(parent.width * (sysHudRoot.dskVal / 100.0)))
+            color: sysHudRoot.dskVal > 90 ? root.urgent : Color.accent
+          }
+        }
+        Text {
+          text: sysHudRoot.dskVal + "%"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          color: Color.foreground
+          width: 22
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
+      }
+
+      // Divider
       Text {
-        text: "▲" + sysHudRoot.txRate + " ▼" + sysHudRoot.rxRate
+        text: "|"
         font.family: root.fontFamily
         font.pixelSize: 8
-        color: Color.accent
-        width: 78
-        horizontalAlignment: Text.AlignLeft
+        color: Qt.rgba(1, 1, 1, 0.22)
         anchors.verticalCenter: parent.verticalCenter
       }
-    }
+
+      // NET Rates
+      Row {
+        spacing: 4
+        anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "NET"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+          text: "▲" + sysHudRoot.txRate + " ▼" + sysHudRoot.rxRate
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          color: Color.accent
+          width: 78
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
+      }
     }
   }
 
@@ -3243,10 +3352,25 @@ Item {
       waveCanvas.requestPaint()
     }
 
+    property Timer cavaRestartTimer: Timer {
+      interval: 1000
+      onTriggered: {
+        if (cavaRoot.visible) cavaProc.running = true
+      }
+    }
+
     Process {
       id: cavaProc
       command: ["cava", "-p", root.home + "/.config/omarchy/cava.conf"]
       running: cavaRoot.visible
+      onExited: function(exitCode, exitStatus) {
+        cavaRoot.spectrum = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        cavaRoot.bassLevel = 0
+        cavaRoot.midLevel = 0
+        cavaRoot.airLevel = 0
+        waveCanvas.requestPaint()
+        cavaRestartTimer.restart()
+      }
       stdout: SplitParser {
         onRead: function(line) {
           if (!line) return
