@@ -75,12 +75,12 @@ fi
 if command -v omarchy &> /dev/null; then
   echo -e "${VIOLET}[*] Resetting bar and disabling Midnight-Doll plugins...${RESET}"
   omarchy bar reset >/dev/null 2>&1 || true
-  omarchy plugin disable midnight-doll.workspaces >/dev/null 2>&1 || true
   omarchy plugin disable midnight-doll.menu >/dev/null 2>&1 || true
   omarchy plugin disable midnight-doll.clock >/dev/null 2>&1 || true
   omarchy plugin disable midnight-doll.sys-hud >/dev/null 2>&1 || true
   omarchy plugin disable midnight-doll.visualizer >/dev/null 2>&1 || true
   omarchy plugin enable omarchy.menu >/dev/null 2>&1 || true
+  omarchy plugin enable omarchy.workspaces >/dev/null 2>&1 || true
 fi
 rm -rf "${HOME}/.config/omarchy/plugins/midnight-doll."*
 

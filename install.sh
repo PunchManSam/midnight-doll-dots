@@ -527,7 +527,6 @@ cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.b
 if [ -f "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" ]; then
   cp "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" "${PLUGINS_DIR}/midnight-doll.bar/"
 fi
-cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.bar/widgets/"
 python3 - "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${HUD_CMD}" "${CHOSEN_SECONDARY}" "${MENU_GLYPH}" << 'EOF'
 import sys, re
 target_bar, title, subtitle, cmd, sec_color, glyph = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]
@@ -563,36 +562,8 @@ cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.bar/manifest.json"
 }
 EOF
 
-# 2. Workspaces widget (bracketed workspaces)
-mkdir -p "${PLUGINS_DIR}/midnight-doll.workspaces"
-cp "${DOTS_DIR}/shell-patch/plugins/bar/widgets/Workspaces.qml" "${PLUGINS_DIR}/midnight-doll.workspaces/"
-cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.workspaces/manifest.json"
-{
-  "schemaVersion": 1,
-  "id": "midnight-doll.workspaces",
-  "name": "Midnight Doll Workspaces",
-  "version": "1.0.0",
-  "author": "Midnight Doll",
-  "description": "Retro bracketed workspace switcher",
-  "kinds": [
-    "bar-widget"
-  ],
-  "entryPoints": {
-    "barWidget": "Workspaces.qml"
-  },
-  "barWidget": {
-    "displayName": "Midnight Doll Workspaces",
-    "description": "Retro bracketed workspace switcher",
-    "category": "Compositor",
-    "allowMultiple": false
-  },
-  "omarchy": {
-    "clonedFrom": "omarchy.workspaces"
-  }
-}
-EOF
-
-# Remove legacy midnight-doll.menu if present
+# Remove legacy cloned widgets if present
+rm -rf "${PLUGINS_DIR}/midnight-doll.workspaces"
 rm -rf "${PLUGINS_DIR}/midnight-doll.menu"
 
 # 3. Clock widget (military uppercase format)
@@ -645,14 +616,18 @@ try:
         data = json.load(f)
     bar = data.setdefault("bar", {})
     layout = bar.setdefault("layout", {})
+    left = layout.setdefault("left", [])
+    for item in left:
+        if isinstance(item, dict) and item.get("id") == "midnight-doll.workspaces":
+            item["id"] = "omarchy.workspaces"
     if "midnightRight" not in layout or not layout["midnightRight"]:
         layout["midnightRight"] = [
             {"id": "midnight-doll.sys-hud"},
             {"id": "midnight-doll.visualizer"}
         ]
-        with open(shell_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
-            f.write("\n")
+    with open(shell_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
 except Exception:
     pass
 EOF
@@ -664,7 +639,7 @@ if command -v omarchy &> /dev/null; then
   omarchy theme set "Midnight Doll" || true
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
   omarchy bar use midnight-doll.bar || true
-  omarchy plugin enable midnight-doll.workspaces || true
+  omarchy plugin enable omarchy.workspaces || true
   omarchy plugin enable midnight-doll.clock || true
   omarchy plugin enable midnight-doll.sys-hud || true
   omarchy plugin enable midnight-doll.visualizer || true

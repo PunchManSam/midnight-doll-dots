@@ -192,15 +192,114 @@ Item {
     root.fullscreenModeActive = isFs
   }
 
+  property var urgentAddresses: ({})
+  property int urgentTick: 0
+  readonly property var notificationService: root.shell ? root.shell.firstPartyServiceFor("omarchy.notifications") : null
+
+  function getUrgentWorkspacesInfo() {
+    var _ = root.urgentTick
+    if (!root.isMidnightDoll) return { workspaces: [], totalCount: 0 }
+
+    var focusedId = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : null
+    var wsList = Hyprland.workspaces ? Hyprland.workspaces.values : []
+    var urgentWs = []
+    var totalCount = 0
+
+    for (var w = 0; w < wsList.length; w++) {
+      var ws = wsList[w]
+      if (!ws || ws.id === focusedId || ws.id <= 0) continue
+
+      var toplevels = (ws.toplevels && ws.toplevels.values) ? ws.toplevels.values : []
+      var wsCount = 0
+
+      for (var t = 0; t < toplevels.length; t++) {
+        var top = toplevels[t]
+        if (!top) continue
+        var winCount = 0
+        var ipc = top.lastIpcObject
+
+        // 1. Native Wayland / X11 window urgency or Hyprland urgent event
+        var isUrgent = (top.urgent === true) || (ipc && ipc.address && root.urgentAddresses && root.urgentAddresses[ipc.address])
+
+        // 2. Explicit numeric counts in title (e.g. (1) or [2]). Ambient bullets/asterisks are intentionally IGNORED.
+        if (ipc && ipc.title) {
+          var numMatch = String(ipc.title).trim().match(/^(?:[\u2022\u25CF\*]\s*)?(?:\(([0-9]+)[\+\!]?\)|\[([0-9]+)[\+\!]?\])/)
+          if (numMatch) {
+            winCount = parseInt(numMatch[1] || numMatch[2], 10)
+          }
+        }
+
+        if (isUrgent && winCount === 0) {
+          winCount = 1
+        }
+        wsCount += winCount
+      }
+
+      // 3. Desktop notification popups matching windows on this workspace
+      if (root.notificationService && root.notificationService.popupModel) {
+        var pCount = root.notificationService.popupModel.count
+        if (pCount > 0 && toplevels.length > 0) {
+          var matchedPopups = 0
+          for (var p = 0; p < pCount; p++) {
+            var popup = root.notificationService.popupModel.get(p)
+            if (!popup) continue
+            var app = String(popup.app || "").toLowerCase().trim()
+            if (!app) continue
+            for (var i = 0; i < toplevels.length; i++) {
+              var tipc = toplevels[i] ? toplevels[i].lastIpcObject : null
+              if (!tipc) continue
+              var cClass = String(tipc.class || "").toLowerCase()
+              var cTitle = String(tipc.title || "").toLowerCase()
+              if (cClass.indexOf(app) !== -1 || app.indexOf(cClass) !== -1 || cTitle.indexOf(app) !== -1) {
+                matchedPopups++
+                break
+              }
+            }
+          }
+          if (matchedPopups > wsCount) {
+            wsCount = matchedPopups
+          }
+        }
+      }
+
+      if (wsCount > 0) {
+        urgentWs.push(ws.id)
+        totalCount += wsCount
+      }
+    }
+
+    urgentWs.sort(function(a, b) { return a - b })
+    return { workspaces: urgentWs, totalCount: totalCount }
+  }
+
   Connections {
     target: Hyprland
     function onActiveToplevelChanged() { root.updateTopLeftWindowState(); root.updateFullscreenState() }
     function onFocusedWorkspaceChanged() { root.updateTopLeftWindowState(); root.updateFullscreenState() }
     function onRawEvent(event) {
-      if (event && (event.name === "fullscreen" || event.name === "activewindow" || event.name === "activewindowv2" || event.name === "workspace")) {
+      if (!event) return
+      if (event.name === "fullscreen" || event.name === "activewindow" || event.name === "activewindowv2" || event.name === "workspace") {
         root.updateFullscreenState()
         if (!fullscreenBarSyncProc.running) {
           fullscreenBarSyncProc.running = true
+        }
+      }
+      if (event.name === "urgent") {
+        var addr = String(event.data || "").trim()
+        if (addr) {
+          var map = Object.assign({}, root.urgentAddresses)
+          map[addr] = true
+          root.urgentAddresses = map
+          root.urgentTick = (root.urgentTick + 1) % 1000
+        }
+      } else if (event.name === "activewindow" || event.name === "activewindowv2") {
+        var activeTop = Hyprland.activeToplevel
+        var activeAddr = (activeTop && activeTop.lastIpcObject) ? activeTop.lastIpcObject.address : null
+        if (activeAddr && root.urgentAddresses[activeAddr]) {
+          var map = Object.assign({}, root.urgentAddresses)
+          delete map[activeAddr]
+          root.urgentAddresses = map
+          root.urgentTick = (root.urgentTick + 1) % 1000
         }
       }
     }
@@ -213,6 +312,7 @@ Item {
     onTriggered: {
       root.updateTopLeftWindowState()
       root.updateFullscreenState()
+      root.urgentTick = (root.urgentTick + 1) % 1000
     }
   }
   property QtObject leftBarContext: QtObject {
@@ -2175,6 +2275,8 @@ Item {
           LeftModules {}
 
           FullscreenModeBadge {}
+
+          WorkspaceNotificationBadge {}
         }
 
         Row {
@@ -2205,6 +2307,8 @@ Item {
           LeftModules {}
 
           FullscreenModeBadge {}
+
+          WorkspaceNotificationBadge {}
         }
 
         RightModules {
@@ -2401,6 +2505,69 @@ Item {
           root.showTooltip(badgeRoot, "Fullscreen Mode Active (Click to restore window)")
         } else {
           root.hideTooltip(badgeRoot)
+        }
+      }
+    }
+  }
+
+  component WorkspaceNotificationBadge: Rectangle {
+    id: wsBadgeRoot
+    readonly property var info: root.getUrgentWorkspacesInfo()
+    readonly property var urgentWs: info.workspaces
+    readonly property int count: info.totalCount
+    visible: root.isMidnightDoll && urgentWs.length > 0
+    height: 20
+    width: visible ? (wsBadgeRow.implicitWidth + 14) : 0
+    radius: 3
+    color: wsBadgeMouse.containsMouse ? Qt.rgba(1, 0.32, 0.77, 0.28) : Qt.rgba(1, 0.32, 0.77, 0.14)
+    border.color: Color.accent
+    border.width: 1
+    anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+
+    Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.InOutCubic } }
+
+    Row {
+      id: wsBadgeRow
+      anchors.centerIn: parent
+      spacing: 5
+
+      Text {
+        text: "󰂚"
+        font.family: root.fontFamily
+        font.pixelSize: 11
+        color: Color.accent
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Text {
+        text: urgentWs.length === 1 ? ("WS " + urgentWs[0] + (count > 1 ? " (" + count + ")" : "")) : ("WS " + urgentWs.join(",") + " (" + count + ")")
+        font.family: root.fontFamily
+        font.pixelSize: 9
+        font.bold: true
+        font.letterSpacing: 0.8
+        color: Color.accent
+        anchors.verticalCenter: parent.verticalCenter
+      }
+    }
+
+    MouseArea {
+      id: wsBadgeMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: {
+        if (urgentWs.length > 0) {
+          root.run("hyprctl dispatch workspace " + urgentWs[0])
+        }
+      }
+    }
+
+    HoverHandler {
+      onHoveredChanged: {
+        if (hovered) {
+          root.showTooltip(wsBadgeRoot, "Workspace " + urgentWs.join(", ") + " has pending notifications — click to focus")
+        } else {
+          root.hideTooltip(wsBadgeRoot)
         }
       }
     }

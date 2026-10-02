@@ -35,7 +35,7 @@
   - Pipewire-driven **CAVA spectrum capture**.
   - **22-column × 5-tier discrete violet LED dot-matrix** (`#bb9af7`) with **neon pink peak indicators** (`#ff51c5`).
   - **Inverted Stacked Audio Gauges**: Pinched `AIR` (top), `MID` (middle), and `BASS` (bottom) level meters.
-- 📟 **Bracketed Workspaces**: Retro `[1] [2] [3] [4] [5]` workspace switcher with neon pink active pill fill and inverted black typography.
+- 📟 **Native Workspaces & Urgent Alerts**: Seamless integration with canonical upstream Omarchy workspaces, complemented by an additive cyberdeck notification alert badge with native two-tier heuristics.
 - 🕒 **Military Monospace Header Clock**: `[ MMM DD YYYY / DDDD / HHMM ]` format centered on the top bar.
 - 🔒 **Total Theme Isolation**: Zero style leak. Switching to standard Omarchy themes (e.g. *Kanagawa*, *Catppuccin*) instantly unloads the left bar, HUD, and custom visualizer, reverting 100% cleanly to stock settings.
 
@@ -62,9 +62,7 @@ midnight-doll-dots/
     └── plugins/
         ├── bar/
         │   ├── Bar.qml            # Dual-bar HUD core engine & slot routing
-        │   ├── BarModel.js        # Multi-surface drag-and-drop model extension
-        │   └── widgets/
-        │       └── Workspaces.qml # Bracketed [1] [2] workspaces
+        │   └── BarModel.js        # Multi-surface drag-and-drop model extension
         ├── panels/clock/
         │   └── BarWidget.qml      # Military uppercase date-time widget
         ├── sys-hud/
