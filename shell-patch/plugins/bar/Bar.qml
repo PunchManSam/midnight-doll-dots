@@ -2750,6 +2750,7 @@ Item {
     readonly property bool isAgents: moduleName === "omarchy.agents" || moduleName.endsWith(".agents")
     readonly property bool isMenu: root.isMidnightDoll && (moduleName === "omarchy.menu" || moduleName === "omarchy-menu")
     readonly property bool isWorkspaces: root.isMidnightDoll && (moduleName === "omarchy.workspaces" || moduleName === "omarchy-workspaces")
+    readonly property bool isClock: root.isMidnightDoll && (moduleName === "omarchy.clock" || moduleName === "omarchy-clock")
     readonly property bool qmlCustom: customType === "qml"
     readonly property bool commandCustom: customType === "command"
 
@@ -2776,6 +2777,7 @@ Item {
       if (isBlockedInOtherTheme) return null
       if (isMenu && menuLoader.item) return menuLoader.item
       if (isWorkspaces && workspacesOverlayLoader.item) return workspacesOverlayLoader.item
+      if (isClock && clockOverlayLoader.item) return clockOverlayLoader.item
       if (registered) return registryLoader.item
       if (isAgents && agentsFallbackLoader.item) return agentsFallbackLoader.item
       if (isSysHud && sysHudLoader.item) return sysHudLoader.item
@@ -2785,7 +2787,8 @@ Item {
     }
     readonly property bool hovered: moduleHover.hovered
     readonly property bool dragSource: root.barDragSource === slot
-    readonly property bool panelOpen: root.activePopout === slot.activeItem
+    readonly property var hostItem: registryLoader ? registryLoader.item : null
+    readonly property bool panelOpen: root.activePopout === slot.activeItem || (hostItem && root.activePopout === hostItem)
     // Modules bigger than the mark they want (a text label in a padded slot,
     // a multi-line stack on a vertical bar) can say how long the open-panel
     // dot should be along the bar, so it tracks what the module paints
@@ -2838,8 +2841,9 @@ Item {
       active: !slot.isBlockedInOtherTheme && slot.registered
       sourceComponent: (!slot.isBlockedInOtherTheme && slot.registered) ? slot.registryComponent : null
       anchors.fill: parent
-      visible: !slot.isWorkspaces
-      opacity: slot.dragSource ? 0.22 : 1.0
+      visible: true
+      opacity: (slot.isWorkspaces || slot.isClock) ? 0 : (slot.dragSource ? 0.22 : 1.0)
+      enabled: !slot.isWorkspaces && !slot.isClock
       onLoaded: {
         slot.injectProps()
         Qt.callLater(slot.injectProps)
@@ -2917,6 +2921,18 @@ Item {
       id: workspacesOverlayLoader
       active: slot.isWorkspaces
       sourceComponent: midnightWorkspacesOverlayComponent
+      anchors.fill: parent
+      opacity: slot.dragSource ? 0.22 : 1.0
+      onLoaded: {
+        slot.injectProps()
+        Qt.callLater(slot.injectProps)
+      }
+    }
+
+    Loader {
+      id: clockOverlayLoader
+      active: slot.isClock
+      sourceComponent: midnightClockOverlayComponent
       anchors.fill: parent
       opacity: slot.dragSource ? 0.22 : 1.0
       onLoaded: {
@@ -3057,6 +3073,9 @@ Item {
       if ("bar" in target) target.bar = (slot.isLeftPanel ? (root.leftBarContext || root) : root)
       if ("moduleName" in target) target.moduleName = moduleName
       if ("settings" in target) target.settings = moduleSettings
+      if (slot.isClock && hostItem && hostItem.panelLoader && hostItem.panelLoader.item) {
+        hostItem.panelLoader.item.anchorItem = target
+      }
     }
 
     Component {
@@ -3072,6 +3091,120 @@ Item {
     Component {
       id: midnightVisualizerComponent
       MidnightCavaVisualizer {}
+    }
+
+    Component {
+      id: midnightClockOverlayComponent
+
+      Item {
+        id: clockOverlayRoot
+        property var bar: (slot.isLeftPanel ? (root.leftBarContext || root) : root)
+        readonly property var hostItem: slot.hostItem
+        readonly property bool opened: hostItem ? hostItem.opened === true : false
+        readonly property real openPanelIndicatorWidth: clockBtn.labelWidth
+        readonly property bool popoutSwitchClosing: hostItem ? hostItem.popoutSwitchClosing === true : false
+
+        function open() {
+          if (hostItem && typeof hostItem.open === "function") hostItem.open()
+        }
+        function close() {
+          if (hostItem && typeof hostItem.close === "function") hostItem.close()
+        }
+        function togglePanel() {
+          if (hostItem && typeof hostItem.togglePanel === "function") hostItem.togglePanel()
+        }
+        function toggleWeekStart() {
+          if (hostItem && typeof hostItem.toggleWeekStart === "function") hostItem.toggleWeekStart()
+        }
+        function cycleFormat() {
+          if (hostItem && typeof hostItem.cycleFormat === "function") hostItem.cycleFormat()
+        }
+        function closeForPopoutSwitch() {
+          if (hostItem && typeof hostItem.closeForPopoutSwitch === "function") hostItem.closeForPopoutSwitch()
+        }
+
+        property date currentDate: new Date()
+        Timer {
+          interval: 1000
+          running: true
+          repeat: true
+          onTriggered: clockOverlayRoot.currentDate = new Date()
+        }
+
+        readonly property string displayText: {
+          var d = clockOverlayRoot.currentDate
+          var months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+          var days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+          var mon = months[d.getMonth()]
+          var dayNum = String(d.getDate()).padStart(2, "0")
+          var yr = d.getFullYear()
+          var dayName = days[d.getDay()]
+          var hh = String(d.getHours()).padStart(2, "0")
+          var mm = String(d.getMinutes()).padStart(2, "0")
+          return "[ " + mon + " " + dayNum + " " + yr + " / " + dayName + " / " + hh + mm + " ]"
+        }
+
+        readonly property var verticalLines: {
+          var d = clockOverlayRoot.currentDate
+          var hh = String(d.getHours()).padStart(2, "0")
+          var mm = String(d.getMinutes()).padStart(2, "0")
+          return [hh, "—", mm]
+        }
+
+        readonly property bool isVertical: root.vertical || slot.isLeftPanel
+
+        implicitWidth: clockBtn.implicitWidth
+        implicitHeight: isVertical ? (verticalLines.length * Style.bar.iconSlot) : root.barSize
+
+        WidgetButton {
+          id: clockBtn
+          anchors.fill: parent
+          bar: clockOverlayRoot.bar
+          fontFamily: root.fontFamily
+          fontSize: Style.font.body
+          foreground: Color.accent
+          text: clockOverlayRoot.isVertical ? "" : clockOverlayRoot.displayText
+          labelVisible: !clockOverlayRoot.isVertical
+          hasVisualContent: true
+          horizontalMargin: 8.75
+          verticalPadding: 8.75
+          fixedWidth: -1
+          fixedHeight: clockOverlayRoot.isVertical ? (clockOverlayRoot.verticalLines.length * Style.bar.iconSlot) : root.barSize
+          tooltipText: "Left-click: Calendar · Right-click: Cycle format · Middle-click: Timezone"
+
+          onPressed: function(b) {
+            if (b === Qt.RightButton) {
+              if (hostItem && typeof hostItem.cycleFormat === "function") hostItem.cycleFormat()
+            } else if (b === Qt.MiddleButton) {
+              if (root.bar) root.bar.run("omarchy-menu-timezone")
+              else root.run("omarchy-menu-timezone")
+            } else {
+              if (hostItem && typeof hostItem.togglePanel === "function") hostItem.togglePanel()
+              else root.run("omarchy-shell shell toggle omarchy.clock")
+            }
+          }
+
+          Column {
+            visible: clockOverlayRoot.isVertical
+            anchors.centerIn: parent
+            spacing: 0
+
+            Repeater {
+              model: clockOverlayRoot.verticalLines
+
+              Text {
+                required property string modelData
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: modelData
+                color: Color.accent
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                renderType: Text.NativeRendering
+              }
+            }
+          }
+        }
+      }
     }
 
     Component {

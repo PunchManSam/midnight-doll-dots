@@ -63,8 +63,6 @@ midnight-doll-dots/
         ├── bar/
         │   ├── Bar.qml            # Dual-bar HUD core engine & slot routing
         │   └── BarModel.js        # Multi-surface drag-and-drop model extension
-        ├── panels/clock/
-        │   └── BarWidget.qml      # Military uppercase date-time widget
         ├── sys-hud/
         │   ├── manifest.json      # Modular System HUD manifest
         │   └── SystemHud.qml      # Modular CPU, Temp, Fan, RAM, Disk, Net metrics widget

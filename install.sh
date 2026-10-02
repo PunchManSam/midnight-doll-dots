@@ -519,10 +519,8 @@ PLUGINS_DIR="${HOME}/.config/omarchy/plugins"
 OMARCHY_SYS_PLUGINS="${OMARCHY_PATH:-/usr/share/omarchy}/shell/plugins"
 
 # 1. Bar plugin (Dual-bar HUD, CAVA visualizer, live telemetry)
-mkdir -p "${PLUGINS_DIR}/midnight-doll.bar/widgets"
-if [ -d "${OMARCHY_SYS_PLUGINS}/bar" ]; then
-  cp -r "${OMARCHY_SYS_PLUGINS}/bar/"* "${PLUGINS_DIR}/midnight-doll.bar/" 2>/dev/null || true
-fi
+mkdir -p "${PLUGINS_DIR}/midnight-doll.bar"
+rm -rf "${PLUGINS_DIR}/midnight-doll.bar/widgets" "${PLUGINS_DIR}/midnight-doll.bar/indicators"
 cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.bar/"
 if [ -f "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" ]; then
   cp "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" "${PLUGINS_DIR}/midnight-doll.bar/"
@@ -565,44 +563,13 @@ EOF
 # Remove legacy cloned widgets if present
 rm -rf "${PLUGINS_DIR}/midnight-doll.workspaces"
 rm -rf "${PLUGINS_DIR}/midnight-doll.menu"
+rm -rf "${PLUGINS_DIR}/midnight-doll.clock"
 
-# 3. Clock widget (military uppercase format)
-mkdir -p "${PLUGINS_DIR}/midnight-doll.clock"
-if [ -d "${OMARCHY_SYS_PLUGINS}/panels/clock" ]; then
-  cp -r "${OMARCHY_SYS_PLUGINS}/panels/clock/"* "${PLUGINS_DIR}/midnight-doll.clock/" 2>/dev/null || true
-fi
-cp "${DOTS_DIR}/shell-patch/plugins/panels/clock/BarWidget.qml" "${PLUGINS_DIR}/midnight-doll.clock/"
-cat << 'EOF' > "${PLUGINS_DIR}/midnight-doll.clock/manifest.json"
-{
-  "schemaVersion": 1,
-  "id": "midnight-doll.clock",
-  "name": "Midnight Doll Clock",
-  "version": "1.0.0",
-  "author": "Midnight Doll",
-  "description": "Military Monospace Header Clock",
-  "kinds": [
-    "bar-widget"
-  ],
-  "entryPoints": {
-    "barWidget": "BarWidget.qml"
-  },
-  "barWidget": {
-    "displayName": "Midnight Doll Clock",
-    "description": "Military Monospace Header Clock",
-    "category": "Time",
-    "allowMultiple": false
-  },
-  "omarchy": {
-    "clonedFrom": "omarchy.clock"
-  }
-}
-EOF
-
-# 4. System HUD widget (modular CPU, RAM, Disk, Network monitors)
+# 2. System HUD widget (modular CPU, RAM, Disk, Network monitors)
 mkdir -p "${PLUGINS_DIR}/midnight-doll.sys-hud"
 cp -r "${DOTS_DIR}/shell-patch/plugins/sys-hud/"* "${PLUGINS_DIR}/midnight-doll.sys-hud/"
 
-# 5. Visualizer widget (modular CAVA audio LED dot-matrix)
+# 3. Visualizer widget (modular CAVA audio LED dot-matrix)
 mkdir -p "${PLUGINS_DIR}/midnight-doll.visualizer"
 cp -r "${DOTS_DIR}/shell-patch/plugins/visualizer/"* "${PLUGINS_DIR}/midnight-doll.visualizer/"
 
@@ -620,6 +587,12 @@ try:
     for item in left:
         if isinstance(item, dict) and item.get("id") == "midnight-doll.workspaces":
             item["id"] = "omarchy.workspaces"
+    center = layout.setdefault("center", [])
+    for item in center:
+        if isinstance(item, dict) and item.get("id") == "midnight-doll.clock":
+            item["id"] = "omarchy.clock"
+    if bar.get("centerAnchor") == "midnight-doll.clock":
+        bar["centerAnchor"] = "omarchy.clock"
     if "midnightRight" not in layout or not layout["midnightRight"]:
         layout["midnightRight"] = [
             {"id": "midnight-doll.sys-hud"},
@@ -640,7 +613,7 @@ if command -v omarchy &> /dev/null; then
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
   omarchy bar use midnight-doll.bar || true
   omarchy plugin enable omarchy.workspaces || true
-  omarchy plugin enable midnight-doll.clock || true
+  omarchy plugin enable omarchy.clock || true
   omarchy plugin enable midnight-doll.sys-hud || true
   omarchy plugin enable midnight-doll.visualizer || true
   omarchy plugin enable omarchy.menu || true
