@@ -50,13 +50,15 @@ def load_fs_state():
                 return json.load(f)
         except Exception:
             pass
-    return {"desktop_bar_hidden": False, "manual_override_windows": []}
+    return {"desktop_bar_hidden": False, "manual_override_windows": [], "fullscreen_active": False}
 
 def save_fs_state(state):
     os.makedirs(os.path.dirname(FS_STATE_FILE), exist_ok=True)
     try:
-        with open(FS_STATE_FILE, "w") as f:
+        tmp_file = FS_STATE_FILE + ".tmp"
+        with open(tmp_file, "w") as f:
             json.dump(state, f)
+        os.replace(tmp_file, FS_STATE_FILE)
     except Exception:
         pass
 
@@ -92,6 +94,11 @@ def sync():
     state["manual_override_windows"] = list(manual_windows)
 
     fs_win = get_fullscreen_window_on_active_ws(clients, active_ws)
+
+    state["fullscreen_active"] = (fs_win is not None)
+    state["fullscreen_address"] = fs_win.get("address", "") if fs_win else ""
+    state["fullscreen_title"] = fs_win.get("title", "") if fs_win else ""
+    state["fullscreen_workspace"] = active_ws.get("id") if active_ws else None
 
     if fs_win:
         addr = fs_win.get("address", "")
@@ -142,6 +149,10 @@ def toggle_window():
 
         desktop_hidden = state.get("desktop_bar_hidden", False)
         state["desktop_bar_hidden"] = False
+        state["fullscreen_active"] = False
+        state["fullscreen_address"] = ""
+        state["fullscreen_title"] = ""
+        state["fullscreen_workspace"] = active_ws.get("id") if active_ws else None
         save_fs_state(state)
 
         run_dispatch(f"hl.dsp.window.fullscreen_state({{ window = 'address:{addr}', internal = 0, client = 0 }})")
@@ -161,6 +172,10 @@ def toggle_window():
 
         already_hidden = is_bar_hidden()
         state["desktop_bar_hidden"] = already_hidden
+        state["fullscreen_active"] = True
+        state["fullscreen_address"] = addr
+        state["fullscreen_title"] = active_win.get("title", "")
+        state["fullscreen_workspace"] = active_ws.get("id") if active_ws else None
         save_fs_state(state)
 
         if not already_hidden:
@@ -177,6 +192,11 @@ def toggle_bar():
     manual_windows = set(state.get("manual_override_windows", []))
 
     new_hidden = not is_bar_hidden()
+
+    state["fullscreen_active"] = (fs_win is not None)
+    state["fullscreen_address"] = fs_win.get("address", "") if fs_win else ""
+    state["fullscreen_title"] = fs_win.get("title", "") if fs_win else ""
+    state["fullscreen_workspace"] = active_ws.get("id") if active_ws else None
 
     if fs_win:
         addr = fs_win.get("address", "")

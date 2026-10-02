@@ -32,14 +32,61 @@ Item {
   // without an exclusion zone; updated by the FileView watcher further down.
   property bool barHidden: false
   onBarHiddenChanged: {
-    fullscreenBarSyncProc.running = true
+    root.triggerFullscreenSync()
   }
+
+  property string home: Quickshell.env("HOME")
+  property bool fullscreenSyncPending: false
 
   Process {
     id: fullscreenBarSyncProc
     command: ["/home/punch/.local/bin/omarchy-fullscreen-bar-sync"]
+    onExited: {
+      if (root.fullscreenSyncPending) {
+        root.fullscreenSyncPending = false
+        running = true
+      }
+    }
   }
-  property string home: Quickshell.env("HOME")
+
+  function triggerFullscreenSync() {
+    if (fullscreenBarSyncProc.running) {
+      root.fullscreenSyncPending = true
+    } else {
+      fullscreenBarSyncProc.running = true
+    }
+  }
+
+  FileView {
+    id: fullscreenStateFile
+    path: root.home + "/.local/state/omarchy/fullscreen-bars.json"
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.syncFullscreenFromStateFile()
+    onFileChanged: reload()
+    onTextChanged: root.syncFullscreenFromStateFile()
+  }
+
+  function syncFullscreenFromStateFile() {
+    try {
+      var raw = fullscreenStateFile.text()
+      if (raw && raw.trim().length > 0) {
+        var parsed = JSON.parse(raw)
+        if (typeof parsed.fullscreen_active === "boolean") {
+          var ws = Hyprland.focusedWorkspace
+          var wsId = ws ? ws.id : null
+          var active = parsed.fullscreen_active
+          if (active && parsed.fullscreen_workspace !== undefined && wsId !== null && parsed.fullscreen_workspace !== wsId) {
+            active = false
+          }
+          if (root.fullscreenModeActive !== active) {
+            root.fullscreenModeActive = active
+          }
+          return
+        }
+      }
+    } catch (e) {}
+  }
   FileView {
     id: currentThemeFile
     path: root.home + "/.local/state/omarchy/current/theme.name"
@@ -156,40 +203,10 @@ Item {
   }
 
   property bool fullscreenModeActive: false
-  onFullscreenModeActiveChanged: {
-    if (!fullscreenBarSyncProc.running) {
-      fullscreenBarSyncProc.running = true
-    }
-  }
 
   function updateFullscreenState() {
-    var isFs = false
-    var activeTop = Hyprland.activeToplevel
-    if (activeTop && activeTop.lastIpcObject) {
-      var ipc = activeTop.lastIpcObject
-      if (ipc.fullscreenClient === 2 || ipc.fullscreen === 2 || (ipc.fullscreen === 1 && ipc.fullscreenClient === 2)) {
-        isFs = true
-      }
-    }
-    if (!isFs) {
-      var ws = Hyprland.focusedWorkspace
-      if (ws) {
-        if (ws.lastIpcObject && ws.lastIpcObject.hasfullscreen) {
-          isFs = true
-        } else if (ws.toplevels && ws.toplevels.values) {
-          var list = ws.toplevels.values
-          for (var i = 0; i < list.length; i++) {
-            var top = list[i]
-            var tipc = top ? top.lastIpcObject : null
-            if (tipc && (tipc.fullscreenClient === 2 || tipc.fullscreen === 2 || (tipc.fullscreen === 1 && tipc.fullscreenClient === 2))) {
-              isFs = true
-              break
-            }
-          }
-        }
-      }
-    }
-    root.fullscreenModeActive = isFs
+    root.syncFullscreenFromStateFile()
+    root.triggerFullscreenSync()
   }
 
   property var urgentAddresses: ({})
@@ -256,15 +273,30 @@ Item {
 
   Connections {
     target: Hyprland
-    function onActiveToplevelChanged() { root.updateTopLeftWindowState(); root.updateFullscreenState() }
-    function onFocusedWorkspaceChanged() { root.updateTopLeftWindowState(); root.updateFullscreenState() }
+    function onActiveToplevelChanged() {
+      root.updateTopLeftWindowState()
+      root.triggerFullscreenSync()
+    }
+    function onFocusedWorkspaceChanged() {
+      root.updateTopLeftWindowState()
+      root.syncFullscreenFromStateFile()
+      root.triggerFullscreenSync()
+    }
     function onRawEvent(event) {
       if (!event) return
-      if (event.name === "fullscreen" || event.name === "activewindow" || event.name === "activewindowv2" || event.name === "workspace") {
-        root.updateFullscreenState()
-        if (!fullscreenBarSyncProc.running) {
-          fullscreenBarSyncProc.running = true
+      if (event.name === "fullscreen") {
+        var val = String(event.data || "").trim()
+        if (val === "0" || val === "false") {
+          root.fullscreenModeActive = false
         }
+        root.triggerFullscreenSync()
+        Hyprland.refreshWorkspaces()
+        Hyprland.refreshToplevels()
+      } else if (event.name === "activewindow" || event.name === "activewindowv2" ||
+                 event.name === "workspace" || event.name === "closewindow" ||
+                 event.name === "openwindow" || event.name === "movewindow" ||
+                 event.name === "focusedmon") {
+        root.triggerFullscreenSync()
       }
       if (event.name === "urgent") {
         var addr = String(event.data || "").trim()
@@ -288,12 +320,15 @@ Item {
   }
 
   Timer {
-    interval: 500
+    interval: 1000
     running: true
     repeat: true
     onTriggered: {
       root.updateTopLeftWindowState()
-      root.updateFullscreenState()
+      root.syncFullscreenFromStateFile()
+      if (root.fullscreenModeActive) {
+        root.triggerFullscreenSync()
+      }
       root.urgentTick = (root.urgentTick + 1) % 1000
     }
   }
@@ -940,7 +975,10 @@ Item {
     return source ? Util.fileUrl(source) : ""
   }
 
-  Component.onCompleted: applyBarConfig()
+  Component.onCompleted: {
+    applyBarConfig()
+    root.triggerFullscreenSync()
+  }
 
   // Revealing the indicators widens their section, which can slide a neighbour
   // under a stationary pointer. Collapsing on that un-hover would move it back
