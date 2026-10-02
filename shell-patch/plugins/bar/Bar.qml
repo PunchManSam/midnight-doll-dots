@@ -3143,7 +3143,9 @@ Item {
         property var bar: (slot.isLeftPanel ? (root.leftBarContext || root) : root)
         readonly property var hostItem: slot.hostItem
         readonly property bool opened: hostItem ? hostItem.opened === true : false
-        readonly property real openPanelIndicatorWidth: clockBtn.labelWidth
+        readonly property bool isVertical: root.vertical || slot.isLeftPanel
+        readonly property real openPanelIndicatorWidth: isVertical ? Style.bar.iconSlot : Math.max(20, clockContentRow.implicitWidth + 8)
+        readonly property real openPanelIndicatorHeight: Math.max(Style.space(10), Math.round(Style.bar.iconSlot * 0.55))
         readonly property bool popoutSwitchClosing: hostItem ? hostItem.popoutSwitchClosing === true : false
 
         function open() {
@@ -3158,76 +3160,348 @@ Item {
         function toggleWeekStart() {
           if (hostItem && typeof hostItem.toggleWeekStart === "function") hostItem.toggleWeekStart()
         }
-        function cycleFormat() {
-          if (hostItem && typeof hostItem.cycleFormat === "function") hostItem.cycleFormat()
-        }
         function closeForPopoutSwitch() {
           if (hostItem && typeof hostItem.closeForPopoutSwitch === "function") hostItem.closeForPopoutSwitch()
         }
 
+        // Settings resolution from hostItem or slot
+        property var clockSettings: (hostItem && hostItem.settings) ? hostItem.settings : (slot.moduleSettings || ({}))
+
+        property string dateFormat: {
+          if (clockSettings && clockSettings.dateFormat) return clockSettings.dateFormat
+          return "full"
+        }
+
+        property bool is12h: {
+          if (clockSettings && clockSettings.timeFormat) return clockSettings.timeFormat === "12h"
+          if (clockSettings && clockSettings.format) {
+            var f = String(clockSettings.format)
+            if (f.indexOf("AP") !== -1 || f.indexOf("ap") !== -1 || f.indexOf("h:") !== -1) return true
+          }
+          return false
+        }
+
+        property bool precision: {
+          if (clockSettings && clockSettings.precision !== undefined) return clockSettings.precision === true
+          if (clockSettings && clockSettings.format) {
+            if (String(clockSettings.format).indexOf(":ss") !== -1) return true
+          }
+          return false
+        }
+
+        function saveSettings(newDateFormat, newIs12h, newPrecision) {
+          var entry = { id: "omarchy.clock" }
+          if (clockSettings) {
+            for (var k in clockSettings) if (k !== "id") entry[k] = clockSettings[k]
+          }
+          entry.dateFormat = newDateFormat
+          entry.timeFormat = newIs12h ? "12h" : "24h"
+          entry.precision = newPrecision
+
+          // Keep format synced with canonical omarchy.clock presets
+          if (newIs12h) {
+            entry.format = newPrecision ? "dddd h:mm:ss AP" : "dddd h:mm AP"
+            entry.verticalFormat = "h\n—\nmm\nAP"
+          } else {
+            entry.format = newPrecision ? "dddd HH:mm:ss" : "dddd HH:mm"
+            entry.verticalFormat = "HH\n—\nmm"
+          }
+
+          if (hostItem) hostItem.settings = entry
+          if (root.shell && typeof root.shell.updateEntryInline === "function") {
+            root.shell.updateEntryInline("omarchy.clock", entry)
+          }
+        }
+
+        function cycleDateFormat() {
+          var next = "full"
+          if (dateFormat === "full") next = "compact"
+          else if (dateFormat === "compact") next = "iso"
+          else next = "full"
+          saveSettings(next, is12h, precision)
+        }
+
+        function toggleTimeFormat() {
+          saveSettings(dateFormat, !is12h, precision)
+        }
+
+        function togglePrecision() {
+          saveSettings(dateFormat, is12h, !precision)
+        }
+
+        function dateFormatName() {
+          if (dateFormat === "compact") return "Compact"
+          if (dateFormat === "iso") return "YYYY-MM-DD"
+          return "Full"
+        }
+
         property date currentDate: new Date()
         Timer {
-          interval: 1000
+          interval: clockOverlayRoot.precision ? 250 : 1000
           running: true
           repeat: true
           onTriggered: clockOverlayRoot.currentDate = new Date()
         }
 
-        readonly property string displayText: {
+        readonly property string dateString: {
           var d = clockOverlayRoot.currentDate
           var months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
           var days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+          var shortDays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+
           var mon = months[d.getMonth()]
           var dayNum = String(d.getDate()).padStart(2, "0")
           var yr = d.getFullYear()
           var dayName = days[d.getDay()]
-          var hh = String(d.getHours()).padStart(2, "0")
-          var mm = String(d.getMinutes()).padStart(2, "0")
-          return "[ " + mon + " " + dayNum + " " + yr + " / " + dayName + " / " + hh + mm + " ]"
+          var shortDayName = shortDays[d.getDay()]
+
+          if (dateFormat === "compact") {
+            return shortDayName + " " + dayNum + " " + mon
+          } else if (dateFormat === "iso") {
+            var mNum = String(d.getMonth() + 1).padStart(2, "0")
+            return yr + "-" + mNum + "-" + dayNum
+          } else {
+            return mon + " " + dayNum + " " + yr + " / " + dayName
+          }
+        }
+
+        readonly property string timeString: {
+          var d = clockOverlayRoot.currentDate
+          var h = d.getHours()
+          var m = String(d.getMinutes()).padStart(2, "0")
+          var s = String(d.getSeconds()).padStart(2, "0")
+
+          if (is12h) {
+            var ap = h >= 12 ? "PM" : "AM"
+            var h12 = h % 12
+            if (h12 === 0) h12 = 12
+            var hStr = String(h12)
+            if (precision) {
+              return hStr + ":" + m + ":" + s + " " + ap
+            } else {
+              return hStr + ":" + m + " " + ap
+            }
+          } else {
+            var hh = String(h).padStart(2, "0")
+            if (precision) {
+              return hh + ":" + m + ":" + s
+            } else {
+              return hh + ":" + m
+            }
+          }
         }
 
         readonly property var verticalLines: {
           var d = clockOverlayRoot.currentDate
-          var hh = String(d.getHours()).padStart(2, "0")
-          var mm = String(d.getMinutes()).padStart(2, "0")
-          return [hh, "—", mm]
+          var h = d.getHours()
+          var m = String(d.getMinutes()).padStart(2, "0")
+          var s = String(d.getSeconds()).padStart(2, "0")
+
+          if (is12h) {
+            var ap = h >= 12 ? "PM" : "AM"
+            var h12 = h % 12
+            if (h12 === 0) h12 = 12
+            if (precision) {
+              return [String(h12), m, s, ap]
+            } else {
+              return [String(h12), "—", m, ap]
+            }
+          } else {
+            var hh = String(h).padStart(2, "0")
+            if (precision) {
+              return [hh, m, s]
+            } else {
+              return [hh, "—", m]
+            }
+          }
         }
 
-        readonly property bool isVertical: root.vertical || slot.isLeftPanel
-
-        implicitWidth: clockBtn.implicitWidth
+        implicitWidth: isVertical ? root.barSize : (clockContentRow.implicitWidth + 18)
         implicitHeight: isVertical ? (verticalLines.length * Style.bar.iconSlot) : root.barSize
 
-        WidgetButton {
-          id: clockBtn
+        Item {
+          id: horizontalContainer
+          visible: !clockOverlayRoot.isVertical
           anchors.fill: parent
-          bar: clockOverlayRoot.bar
-          fontFamily: root.fontFamily
-          fontSize: Style.font.body
-          foreground: Color.accent
-          text: clockOverlayRoot.isVertical ? "" : clockOverlayRoot.displayText
-          labelVisible: !clockOverlayRoot.isVertical
-          hasVisualContent: true
-          horizontalMargin: 8.75
-          verticalPadding: 8.75
-          fixedWidth: -1
-          fixedHeight: clockOverlayRoot.isVertical ? (clockOverlayRoot.verticalLines.length * Style.bar.iconSlot) : root.barSize
-          tooltipText: "Left-click: Calendar · Right-click: Cycle format · Middle-click: Timezone"
 
-          onPressed: function(b) {
-            if (b === Qt.RightButton) {
-              if (hostItem && typeof hostItem.cycleFormat === "function") hostItem.cycleFormat()
-            } else if (b === Qt.MiddleButton) {
-              if (root.bar) root.bar.run("omarchy-menu-timezone")
-              else root.run("omarchy-menu-timezone")
-            } else {
-              if (hostItem && typeof hostItem.togglePanel === "function") hostItem.togglePanel()
-              else root.run("omarchy-shell shell toggle omarchy.clock")
+          MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            onEntered: root.showTooltip(horizontalContainer, "Left-click: Calendar · Middle-click: Timezone")
+            onExited: root.hideTooltip(horizontalContainer)
+            onClicked: function(mouse) {
+              if (mouse.button === Qt.MiddleButton) {
+                root.run("omarchy-menu-timezone")
+              } else {
+                clockOverlayRoot.togglePanel()
+              }
+            }
+          }
+
+          Row {
+            id: clockContentRow
+            anchors.centerIn: parent
+            spacing: 5
+
+            Text {
+              text: "["
+              color: Color.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              renderType: Text.NativeRendering
+              anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Rectangle {
+              id: dateBox
+              height: 22
+              width: dateLabel.implicitWidth + 8
+              radius: 3
+              color: dateMouse.containsMouse ? Qt.rgba(1, 0.32, 0.77, 0.16) : "transparent"
+              anchors.verticalCenter: parent.verticalCenter
+
+              Behavior on color { ColorAnimation { duration: 120 } }
+
+              Text {
+                id: dateLabel
+                anchors.centerIn: parent
+                text: clockOverlayRoot.dateString
+                color: Color.accent
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                renderType: Text.NativeRendering
+              }
+
+              MouseArea {
+                id: dateMouse
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onEntered: {
+                  root.showTooltip(dateBox, "Date (" + clockOverlayRoot.dateFormatName() + ") · Right-click: Cycle format (Full / Compact / YYYY-MM-DD)")
+                }
+                onExited: root.hideTooltip(dateBox)
+                onClicked: function(mouse) {
+                  if (mouse.button === Qt.RightButton) {
+                    clockOverlayRoot.cycleDateFormat()
+                  } else if (mouse.button === Qt.MiddleButton) {
+                    root.run("omarchy-menu-timezone")
+                  } else {
+                    clockOverlayRoot.togglePanel()
+                  }
+                }
+              }
+            }
+
+            Text {
+              text: "/"
+              color: Color.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              renderType: Text.NativeRendering
+              anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Rectangle {
+              id: timeBox
+              height: 22
+              width: timeLabel.implicitWidth + 8
+              radius: 3
+              color: timeMouse.containsMouse ? Qt.rgba(1, 0.32, 0.77, 0.16) : "transparent"
+              anchors.verticalCenter: parent.verticalCenter
+
+              Behavior on color { ColorAnimation { duration: 120 } }
+
+              Text {
+                id: timeLabel
+                anchors.centerIn: parent
+                text: clockOverlayRoot.timeString
+                color: Color.accent
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                renderType: Text.NativeRendering
+              }
+
+              MouseArea {
+                id: timeMouse
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onEntered: {
+                  var modeStr = clockOverlayRoot.is12h ? "12-hr" : "24-hr"
+                  var secStr = clockOverlayRoot.precision ? "Seconds: ON" : "Seconds: OFF"
+                  root.showTooltip(timeBox, "Time (" + modeStr + ") · Right-click: Swap 12h/24h · Middle-click / Double-click: Toggle seconds (" + secStr + ")")
+                }
+                onExited: root.hideTooltip(timeBox)
+                onDoubleClicked: function(mouse) {
+                  if (mouse.button === Qt.LeftButton) {
+                    clockOverlayRoot.togglePrecision()
+                  }
+                }
+                onClicked: function(mouse) {
+                  if (mouse.button === Qt.RightButton) {
+                    clockOverlayRoot.toggleTimeFormat()
+                  } else if (mouse.button === Qt.MiddleButton) {
+                    clockOverlayRoot.togglePrecision()
+                  } else {
+                    clockOverlayRoot.togglePanel()
+                  }
+                }
+                onWheel: function(wheel) {
+                  clockOverlayRoot.togglePrecision()
+                }
+              }
+            }
+
+            Text {
+              text: "]"
+              color: Color.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              renderType: Text.NativeRendering
+              anchors.verticalCenter: parent.verticalCenter
+            }
+          }
+        }
+
+        Item {
+          id: verticalContent
+          visible: clockOverlayRoot.isVertical
+          anchors.fill: parent
+
+          MouseArea {
+            id: vertMouse
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onEntered: {
+              var modeStr = clockOverlayRoot.is12h ? "12-hr" : "24-hr"
+              var secStr = clockOverlayRoot.precision ? "Seconds: ON" : "Seconds: OFF"
+              root.showTooltip(verticalContent, "Left-click: Calendar · Right-click: Swap 12h/24h (" + modeStr + ") · Middle-click / Double-click: Toggle seconds (" + secStr + ")")
+            }
+            onExited: root.hideTooltip(verticalContent)
+            onClicked: function(mouse) {
+              if (mouse.button === Qt.RightButton) {
+                clockOverlayRoot.toggleTimeFormat()
+              } else if (mouse.button === Qt.MiddleButton) {
+                clockOverlayRoot.togglePrecision()
+              } else {
+                clockOverlayRoot.togglePanel()
+              }
+            }
+            onDoubleClicked: function(mouse) {
+              if (mouse.button === Qt.LeftButton) {
+                clockOverlayRoot.togglePrecision()
+              }
             }
           }
 
           Column {
-            visible: clockOverlayRoot.isVertical
             anchors.centerIn: parent
             spacing: 0
 
