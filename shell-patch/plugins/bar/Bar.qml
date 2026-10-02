@@ -3068,13 +3068,17 @@ Item {
 
     function injectProps() {
       if (typeof root === "undefined" || !root) return
+      var barCtx = (slot.isLeftPanel ? (root.leftBarContext || root) : root)
       var target = activeItem
-      if (!target) return
-      if ("bar" in target) target.bar = (slot.isLeftPanel ? (root.leftBarContext || root) : root)
-      if ("moduleName" in target) target.moduleName = moduleName
-      if ("settings" in target) target.settings = moduleSettings
-      if (slot.isClock && hostItem && hostItem.panelLoader && hostItem.panelLoader.item) {
-        hostItem.panelLoader.item.anchorItem = target
+      if (target) {
+        if ("bar" in target) target.bar = barCtx
+        if ("moduleName" in target) target.moduleName = moduleName
+        if ("settings" in target) target.settings = moduleSettings
+      }
+      if (hostItem && hostItem !== target) {
+        if ("bar" in hostItem) hostItem.bar = barCtx
+        if ("moduleName" in hostItem) hostItem.moduleName = moduleName
+        if ("settings" in hostItem) hostItem.settings = moduleSettings
       }
     }
 
