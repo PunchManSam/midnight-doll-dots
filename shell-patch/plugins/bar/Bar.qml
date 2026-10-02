@@ -3284,9 +3284,9 @@ Item {
           } else {
             var hh = String(h).padStart(2, "0")
             if (precision) {
-              return hh + ":" + m + ":" + s
+              return hh + m + s
             } else {
-              return hh + ":" + m
+              return hh + m
             }
           }
         }
