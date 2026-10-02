@@ -31,6 +31,14 @@ Item {
   // killing the entire shell. Hidden panels stay mapped but park off-screen
   // without an exclusion zone; updated by the FileView watcher further down.
   property bool barHidden: false
+  onBarHiddenChanged: {
+    fullscreenBarSyncProc.running = true
+  }
+
+  Process {
+    id: fullscreenBarSyncProc
+    command: ["/home/punch/.local/bin/omarchy-fullscreen-bar-sync"]
+  }
   property string home: Quickshell.env("HOME")
   FileView {
     id: currentThemeFile
@@ -147,17 +155,65 @@ Item {
     root.topLeftWindowPresent = isPresentInTopLeft || isActiveInTopLeft
   }
 
+  property bool fullscreenModeActive: false
+  onFullscreenModeActiveChanged: {
+    if (!fullscreenBarSyncProc.running) {
+      fullscreenBarSyncProc.running = true
+    }
+  }
+
+  function updateFullscreenState() {
+    var isFs = false
+    var activeTop = Hyprland.activeToplevel
+    if (activeTop && activeTop.lastIpcObject) {
+      var ipc = activeTop.lastIpcObject
+      if (ipc.fullscreenClient === 2 || ipc.fullscreen === 2 || (ipc.fullscreen === 1 && ipc.fullscreenClient === 2)) {
+        isFs = true
+      }
+    }
+    if (!isFs) {
+      var ws = Hyprland.focusedWorkspace
+      if (ws) {
+        if (ws.lastIpcObject && ws.lastIpcObject.hasfullscreen) {
+          isFs = true
+        } else if (ws.toplevels && ws.toplevels.values) {
+          var list = ws.toplevels.values
+          for (var i = 0; i < list.length; i++) {
+            var top = list[i]
+            var tipc = top ? top.lastIpcObject : null
+            if (tipc && (tipc.fullscreenClient === 2 || tipc.fullscreen === 2 || (tipc.fullscreen === 1 && tipc.fullscreenClient === 2))) {
+              isFs = true
+              break
+            }
+          }
+        }
+      }
+    }
+    root.fullscreenModeActive = isFs
+  }
+
   Connections {
     target: Hyprland
-    function onActiveToplevelChanged() { root.updateTopLeftWindowState() }
-    function onFocusedWorkspaceChanged() { root.updateTopLeftWindowState() }
+    function onActiveToplevelChanged() { root.updateTopLeftWindowState(); root.updateFullscreenState() }
+    function onFocusedWorkspaceChanged() { root.updateTopLeftWindowState(); root.updateFullscreenState() }
+    function onRawEvent(event) {
+      if (event && (event.name === "fullscreen" || event.name === "activewindow" || event.name === "activewindowv2" || event.name === "workspace")) {
+        root.updateFullscreenState()
+        if (!fullscreenBarSyncProc.running) {
+          fullscreenBarSyncProc.running = true
+        }
+      }
+    }
   }
 
   Timer {
-    interval: 600
-    running: root.isMidnightDoll
+    interval: 500
+    running: true
     repeat: true
-    onTriggered: root.updateTopLeftWindowState()
+    onTriggered: {
+      root.updateTopLeftWindowState()
+      root.updateFullscreenState()
+    }
   }
   property QtObject leftBarContext: QtObject {
     id: leftBarCtx
@@ -1875,12 +1931,10 @@ Item {
   component BarPanel: PanelWindow {
     id: barWindow
 
-    // Hiding parks the bar just past its screen edge instead of unmapping it.
-    // Unmapping frees the layer surface and the whole scene graph, so every
-    // reveal has to rebuild them — new surface, re-shaped glyphs, re-uploaded
-    // textures — which measures ~150ms against ~20ms to tear down. Parking
-    // keeps the surface alive, so showing is only a margin change.
-    visible: !remapGuard.remapping
+    // Unmap the layer surface while hidden so that revealing it (via
+    // Super+Shift+Space) remaps a fresh surface that draws over active
+    // fullscreen windows in Hyprland, matching the sidebar behavior.
+    visible: !root.barHidden && !remapGuard.remapping
     exclusionMode: root.barHidden ? ExclusionMode.Ignore : ExclusionMode.Normal
     exclusiveZone: root.barHidden ? 0 : root.barSize
 
@@ -2112,10 +2166,15 @@ Item {
 
         CenterModules { anchors.fill: parent }
 
-        LeftModules {
+        Row {
           anchors.left: parent.left
           anchors.leftMargin: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.space(8)
+
+          LeftModules {}
+
+          FullscreenModeBadge {}
         }
 
         Row {
@@ -2137,10 +2196,15 @@ Item {
 
         CenterModules { anchors.fill: parent }
 
-        LeftModules {
+        Column {
           anchors.top: parent.top
           anchors.topMargin: Style.space(8)
           anchors.horizontalCenter: parent.horizontalCenter
+          spacing: Style.space(8)
+
+          LeftModules {}
+
+          FullscreenModeBadge {}
         }
 
         RightModules {
@@ -2284,6 +2348,62 @@ Item {
   component LeftModules: ModuleList {
     entries: root.layoutEntries("left")
     region: "left"
+  }
+
+  component FullscreenModeBadge: Rectangle {
+    id: badgeRoot
+    visible: root.fullscreenModeActive
+    height: 20
+    width: visible ? (badgeRow.implicitWidth + 14) : 0
+    radius: 3
+    color: badgeMouse.containsMouse ? Qt.rgba(1, 0.32, 0.77, 0.28) : Qt.rgba(1, 0.32, 0.77, 0.14)
+    border.color: Color.accent
+    border.width: 1
+    anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+
+    Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.InOutCubic } }
+
+    Row {
+      id: badgeRow
+      anchors.centerIn: parent
+      spacing: 5
+
+      Text {
+        text: "󰊓"
+        font.family: root.fontFamily
+        font.pixelSize: 11
+        color: Color.accent
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Text {
+        text: "FULLSCREEN"
+        font.family: root.fontFamily
+        font.pixelSize: 9
+        font.bold: true
+        font.letterSpacing: 1.0
+        color: Color.accent
+        anchors.verticalCenter: parent.verticalCenter
+      }
+    }
+
+    MouseArea {
+      id: badgeMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: root.run("/home/punch/.local/bin/omarchy-fullscreen-bar-sync --toggle-window")
+    }
+
+    HoverHandler {
+      onHoveredChanged: {
+        if (hovered) {
+          root.showTooltip(badgeRoot, "Fullscreen Mode Active (Click to restore window)")
+        } else {
+          root.hideTooltip(badgeRoot)
+        }
+      }
+    }
   }
 
   component RightModules: ModuleList {

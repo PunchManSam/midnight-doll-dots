@@ -55,7 +55,7 @@ else
 fi
 
 # 4. Restore or clean configs
-for cfg in "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "set-accent.sh"; do
+for cfg in "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "set-accent.sh" "launch-comms.sh"; do
   if [ -f "${LATEST_BACKUP}/${cfg}" ]; then
     cp "${LATEST_BACKUP}/${cfg}" "${HOME}/.config/omarchy/"
     echo -e "    ✓ Restored ~/.config/omarchy/${cfg}"
@@ -64,6 +64,7 @@ for cfg in "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "set-accent.sh"; d
     echo -e "    ✓ Removed ~/.config/omarchy/${cfg}"
   fi
 done
+rm -f "${HOME}/.local/bin/omarchy-fullscreen-bar-sync"
 
 if [ -f "${LATEST_BACKUP}/shell.json" ]; then
   cp "${LATEST_BACKUP}/shell.json" "${HOME}/.config/omarchy/"

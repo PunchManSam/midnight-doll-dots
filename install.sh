@@ -446,6 +446,15 @@ if [ ! -f "${HOME}/.config/omarchy/midnight-shortcuts.json" ]; then
 fi
 chmod +x "${HOME}/.config/omarchy/sys-hud.sh"
 chmod +x "${HOME}/.config/omarchy/set-accent.sh"
+if [ -f "${DOTS_DIR}/config/omarchy/launch-comms.sh" ]; then
+  cp "${DOTS_DIR}/config/omarchy/launch-comms.sh" "${HOME}/.config/omarchy/"
+  chmod +x "${HOME}/.config/omarchy/launch-comms.sh"
+fi
+if [ -f "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" ]; then
+  mkdir -p "${HOME}/.local/bin"
+  cp "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" "${HOME}/.local/bin/"
+  chmod +x "${HOME}/.local/bin/omarchy-fullscreen-bar-sync"
+fi
 
 # Apply customized accent & complimentary colors to theme configs
 echo -e "    ✓ Applying dual-tone color scheme (${CHOSEN_PRIMARY} / ${CHOSEN_SECONDARY}) to theme configs..."
