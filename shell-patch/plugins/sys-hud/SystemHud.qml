@@ -304,7 +304,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
     }
 
-    // Comms Telemetry Group (NET, CONNS) -> Launches smart comms inspector
+    // Comms Telemetry Group (CONNS, NET) -> Launches smart comms inspector
     Row {
       id: commsGroup
       spacing: 6
@@ -317,39 +317,6 @@ BarWidget {
       }
       Component.onCompleted: if (root.bar && typeof root.bar.registerClickTarget === "function") root.bar.registerClickTarget(this)
       Component.onDestruction: if (root.bar && typeof root.bar.unregisterClickTarget === "function") root.bar.unregisterClickTarget(this)
-
-      // NET Rates
-      Row {
-        spacing: 4
-        anchors.verticalCenter: parent.verticalCenter
-        Text {
-          text: "NET"
-          font.family: root.fontFam
-          font.pixelSize: 8
-          font.bold: true
-          color: root.secondaryColor
-          rightPadding: 2
-          anchors.verticalCenter: parent.verticalCenter
-        }
-        Text {
-          text: "▲" + root.txRate + " ▼" + root.rxRate
-          font.family: root.fontFam
-          font.pixelSize: 8
-          color: Color.accent
-          width: 78
-          horizontalAlignment: Text.AlignLeft
-          anchors.verticalCenter: parent.verticalCenter
-        }
-      }
-
-      // Divider
-      Text {
-        text: "|"
-        font.family: root.fontFam
-        font.pixelSize: 8
-        color: Qt.rgba(1, 1, 1, 0.22)
-        anchors.verticalCenter: parent.verticalCenter
-      }
 
       // Connections Indicator
       Row {
@@ -370,6 +337,39 @@ BarWidget {
           font.pixelSize: 8
           color: root.connsVal > 100 ? root.urgentColor : Color.accent
           width: 18
+          horizontalAlignment: Text.AlignLeft
+          anchors.verticalCenter: parent.verticalCenter
+        }
+      }
+
+      // Divider
+      Text {
+        text: "|"
+        font.family: root.fontFam
+        font.pixelSize: 8
+        color: Qt.rgba(1, 1, 1, 0.22)
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      // NET Rates
+      Row {
+        spacing: 4
+        anchors.verticalCenter: parent.verticalCenter
+        Text {
+          text: "NET"
+          font.family: root.fontFam
+          font.pixelSize: 8
+          font.bold: true
+          color: root.secondaryColor
+          rightPadding: 2
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+          text: "▲" + root.txRate + " ▼" + root.rxRate
+          font.family: root.fontFam
+          font.pixelSize: 8
+          color: Color.accent
+          width: 78
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter
         }

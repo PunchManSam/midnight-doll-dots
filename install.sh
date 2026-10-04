@@ -573,6 +573,13 @@ cp -r "${DOTS_DIR}/shell-patch/plugins/sys-hud/"* "${PLUGINS_DIR}/midnight-doll.
 mkdir -p "${PLUGINS_DIR}/midnight-doll.visualizer"
 cp -r "${DOTS_DIR}/shell-patch/plugins/visualizer/"* "${PLUGINS_DIR}/midnight-doll.visualizer/"
 
+# 4. Notifications widget
+if [ -d "${DOTS_DIR}/shell-patch/plugins/notifications" ]; then
+  mkdir -p "${PLUGINS_DIR}/midnight-doll.notifications"
+  cp -r "${DOTS_DIR}/shell-patch/plugins/notifications/"* "${PLUGINS_DIR}/midnight-doll.notifications/"
+  chmod +x "${PLUGINS_DIR}/midnight-doll.notifications/helper.py" 2>/dev/null || true
+fi
+
 # Configure default midnightRight slot in shell.json if present
 if [ -f "${HOME}/.config/omarchy/shell.json" ]; then
   python3 - "${HOME}/.config/omarchy/shell.json" << 'EOF'
@@ -616,6 +623,7 @@ if command -v omarchy &> /dev/null; then
   omarchy plugin enable omarchy.clock || true
   omarchy plugin enable midnight-doll.sys-hud || true
   omarchy plugin enable midnight-doll.visualizer || true
+  omarchy plugin enable midnight-doll.notifications || true
   omarchy plugin enable omarchy.menu || true
   omarchy restart shell || true
 fi

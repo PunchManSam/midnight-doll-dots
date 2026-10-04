@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "midnight-doll.notifications",
+  "name": "Notification Center",
+  "version": "1.0.0",
+  "author": "Midnight Doll",
+  "description": "Scrollable Notification Center drawer with live history, individual dismiss, and clear-all",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Notification Center",
+    "description": "Scrollable Notification Center drawer",
+    "category": "System",
+    "allowMultiple": false
+  }
+}

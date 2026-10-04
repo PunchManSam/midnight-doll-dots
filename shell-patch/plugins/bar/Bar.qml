@@ -160,12 +160,25 @@ Item {
     }
   }
 
-  readonly property real cornerStrokeWidth: 1.0
-  readonly property color cornerStrokeColor: {
-    if (topLeftWindowPresent) {
-      return topLeftWindowActive ? Color.accent : root.inactiveBorderColor
+  property real activeCornerStrokeWidth: 3.0
+  readonly property real cornerStrokeWidth: root.topLeftWindowActive ? root.activeCornerStrokeWidth : 1.0
+  readonly property color cornerStrokeColor: Color.accent
+
+  Process {
+    id: hyprBorderSizeProc
+    command: ["hyprctl", "getoption", "general:border_size", "-j"]
+    running: root.isMidnightDoll
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var parsed = JSON.parse(String(text || "").trim())
+          if (parsed && typeof parsed.int === "number" && parsed.int > 0) {
+            root.activeCornerStrokeWidth = parsed.int
+          }
+        } catch (e) {}
+      }
     }
-    return Color.accent
   }
 
   function updateTopLeftWindowState() {
@@ -173,8 +186,10 @@ Item {
     var activeTop = Hyprland.activeToplevel
     var activeAt = (activeTop && activeTop.lastIpcObject) ? activeTop.lastIpcObject.at : null
     var isActiveInTopLeft = false
-    if (activeAt && Array.isArray(activeAt) && activeAt.length >= 2) {
-      if (activeAt[0] <= 45 && activeAt[1] <= 40) {
+    if (activeAt && activeAt.length >= 2 && !(activeTop.lastIpcObject && activeTop.lastIpcObject.floating)) {
+      var ax = Number(activeAt[0])
+      var ay = Number(activeAt[1])
+      if (!isNaN(ax) && !isNaN(ay) && ax <= 45 && ay <= 40) {
         isActiveInTopLeft = true
       }
     }
@@ -186,8 +201,10 @@ Item {
       for (var i = 0; i < list.length; i++) {
         var top = list[i]
         var ipc = top ? top.lastIpcObject : null
-        if (ipc && !ipc.floating && ipc.at && Array.isArray(ipc.at) && ipc.at.length >= 2) {
-          if (ipc.at[0] <= 45 && ipc.at[1] <= 40) {
+        if (ipc && !ipc.floating && ipc.at && ipc.at.length >= 2) {
+          var px = Number(ipc.at[0])
+          var py = Number(ipc.at[1])
+          if (!isNaN(px) && !isNaN(py) && px <= 45 && py <= 40) {
             isPresentInTopLeft = true
             if (top.activated || top === activeTop) {
               isActiveInTopLeft = true
@@ -211,64 +228,130 @@ Item {
 
   property var urgentAddresses: ({})
   property int urgentTick: 0
-  readonly property var notificationService: root.shell ? root.shell.firstPartyServiceFor("omarchy.notifications") : null
+  property var rawNotifications: []
+  property var workspaceVisitedTimes: ({})
+
+  function markWorkspaceVisited(wsId) {
+    var id = parseInt(wsId, 10)
+    if (isNaN(id) || id <= 0) return
+    var visited = Object.assign({}, root.workspaceVisitedTimes)
+    visited[id] = Date.now()
+    root.workspaceVisitedTimes = visited
+    root.urgentTick = (root.urgentTick + 1) % 1000
+  }
+
+  function matchesApp(app, ipc) {
+    if (!app || !ipc) return false
+    var a = String(app).toLowerCase().trim()
+    if (!a || a === "notify-send") return false
+    var c = String(ipc.class || "").toLowerCase().trim()
+    var ic = String(ipc.initialClass || "").toLowerCase().trim()
+    if (c === a || ic === a) return true
+    if (c && (c.indexOf(a) !== -1 || a.indexOf(c) !== -1)) return true
+    if (ic && (ic.indexOf(a) !== -1 || a.indexOf(ic) !== -1)) return true
+    var cParts = c.split(".")
+    var cLast = cParts[cParts.length - 1]
+    if (cLast && (cLast === a || cLast.indexOf(a) !== -1 || a.indexOf(cLast) !== -1)) return true
+    var icParts = ic.split(".")
+    var icLast = icParts[icParts.length - 1]
+    if (icLast && (icLast === a || icLast.indexOf(a) !== -1 || a.indexOf(icLast) !== -1)) return true
+    return false
+  }
+
+  Process {
+    id: notifProc
+    command: ["python3", "-c", "import glob, json, os\nnotifs = []\nfor p in glob.glob(os.path.expanduser('~/.local/state/omarchy/notifications/*.json')):\n    try:\n        with open(p) as f:\n            d = json.load(f)\n            notifs.append({'app': str(d.get('app','')).lower(), 'ts': int(d.get('timestamp',0)), 'active': True})\n    except: pass\nfor p in glob.glob(os.path.expanduser('~/.local/state/omarchy/notifications/history/*.json')):\n    try:\n        with open(p) as f:\n            d = json.load(f)\n            notifs.append({'app': str(d.get('app','')).lower(), 'ts': int(d.get('timestamp',0)), 'active': False})\n    except: pass\nprint(json.dumps(notifs))"]
+    running: false
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var str = String(text || "").trim()
+        if (!str) {
+          root.rawNotifications = []
+          return
+        }
+        try {
+          var parsed = JSON.parse(str)
+          if (Array.isArray(parsed)) {
+            root.rawNotifications = parsed
+            root.urgentTick = (root.urgentTick + 1) % 1000
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  Timer {
+    id: notifTimer
+    interval: 800
+    running: true
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: {
+      if (!notifProc.running) {
+        notifProc.running = true
+      }
+    }
+  }
 
   function workspaceNotificationCount(workspaceId, workspaceObj) {
     if (!workspaceObj) return 0
     var total = 0
-    var toplevels = (workspaceObj.toplevels && workspaceObj.toplevels.values) ? workspaceObj.toplevels.values : []
 
+    var toplevels = (workspaceObj.toplevels && workspaceObj.toplevels.values) ? workspaceObj.toplevels.values : []
+    var visitedTime = (root.workspaceVisitedTimes && root.workspaceVisitedTimes[workspaceId]) || 0
+
+    // 1. Native Wayland / X11 window urgency or Hyprland urgent event
     for (var i = 0; i < toplevels.length; i++) {
       var top = toplevels[i]
       if (!top) continue
-      var winCount = 0
       var ipc = top.lastIpcObject
-
-      // 1. Native Wayland / X11 window urgency or Hyprland urgent event
       var isUrgent = (top.urgent === true) || (ipc && ipc.address && root.urgentAddresses && root.urgentAddresses[ipc.address])
-
-      // 2. Explicit numeric counts in title (e.g. (1) or [2]). Ambient bullets/asterisks are intentionally IGNORED.
-      if (ipc && ipc.title) {
-        var numMatch = String(ipc.title).trim().match(/^(?:[\u2022\u25CF\*]\s*)?(?:\(([0-9]+)[\+\!]?\)|\[([0-9]+)[\+\!]?\])/)
-        if (numMatch) {
-          winCount = parseInt(numMatch[1] || numMatch[2], 10)
-        }
+      if (isUrgent) {
+        total += 1
       }
-
-      if (isUrgent && winCount === 0) {
-        winCount = 1
-      }
-      total += winCount
     }
 
-    // 3. Desktop notification popups matching windows on this workspace
-    if (root.notificationService && root.notificationService.popupModel) {
-      var pCount = root.notificationService.popupModel.count
-      if (pCount > 0 && toplevels.length > 0) {
-        var matchedPopups = 0
-        for (var p = 0; p < pCount; p++) {
-          var popup = root.notificationService.popupModel.get(p)
-          if (!popup) continue
-          var app = String(popup.app || "").toLowerCase().trim()
-          if (!app) continue
-          for (var t = 0; t < toplevels.length; t++) {
-            var tipc = toplevels[t] ? toplevels[t].lastIpcObject : null
-            if (!tipc) continue
-            var cClass = String(tipc.class || "").toLowerCase()
-            var cTitle = String(tipc.title || "").toLowerCase()
-            if (cClass.indexOf(app) !== -1 || app.indexOf(cClass) !== -1 || cTitle.indexOf(app) !== -1) {
-              matchedPopups++
-              break
-            }
+    // 2. Desktop notification popups & unread notifications matching windows on this workspace
+    // (NO window title scraping - matches exclusively against window application identity)
+    if (root.rawNotifications && root.rawNotifications.length > 0 && toplevels.length > 0) {
+      for (var n = 0; n < root.rawNotifications.length; n++) {
+        var notif = root.rawNotifications[n]
+        if (!notif || !notif.app) continue
+
+        var isUnread = notif.active === true || (notif.ts && notif.ts > visitedTime)
+
+        if (!isUnread) continue
+
+        for (var t = 0; t < toplevels.length; t++) {
+          var tipc = toplevels[t] ? toplevels[t].lastIpcObject : null
+          if (!tipc) continue
+          if (root.matchesApp(notif.app, tipc)) {
+            total += 1
+            break
           }
-        }
-        if (matchedPopups > total) {
-          total = matchedPopups
         }
       }
     }
 
     return total
+  }
+
+  function hasAnyUrgentWorkspaces() {
+    var _ = root.urgentTick
+    var focusedId = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : null
+    var wsList = Hyprland.workspaces ? Hyprland.workspaces.values : []
+    for (var i = 0; i < wsList.length; i++) {
+      var ws = wsList[i]
+      if (!ws || ws.id === focusedId || ws.id <= 0) continue
+      if (root.workspaceNotificationCount(ws.id, ws) > 0) return true
+    }
+    return false
+  }
+
+  readonly property bool hasUrgentWorkspaceNotification: {
+    var _ = root.urgentTick
+    return root.hasAnyUrgentWorkspaces()
   }
 
   Connections {
@@ -278,6 +361,10 @@ Item {
       root.triggerFullscreenSync()
     }
     function onFocusedWorkspaceChanged() {
+      var ws = Hyprland.focusedWorkspace
+      if (ws && ws.id) {
+        root.markWorkspaceVisited(ws.id)
+      }
       root.updateTopLeftWindowState()
       root.syncFullscreenFromStateFile()
       root.triggerFullscreenSync()
@@ -296,7 +383,15 @@ Item {
                  event.name === "workspace" || event.name === "closewindow" ||
                  event.name === "openwindow" || event.name === "movewindow" ||
                  event.name === "focusedmon") {
+        if (event.name === "workspace") {
+          root.markWorkspaceVisited(event.data)
+        }
+        root.updateTopLeftWindowState()
         root.triggerFullscreenSync()
+      } else if (event.name === "configreloaded") {
+        if (!hyprBorderSizeProc.running) {
+          hyprBorderSizeProc.running = true
+        }
       }
       if (event.name === "urgent") {
         var addr = String(event.data || "").trim()
@@ -978,6 +1073,11 @@ Item {
   Component.onCompleted: {
     applyBarConfig()
     root.triggerFullscreenSync()
+    var currentWs = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1
+    var initVisited = {}
+    initVisited[currentWs] = Date.now()
+    root.workspaceVisitedTimes = initVisited
+    notifProc.running = true
   }
 
   // Revealing the indicators widens their section, which can slide a neighbour
@@ -1402,6 +1502,14 @@ Item {
     // killing it here can swallow the result entirely.
     function syncHidden(): void {
       barHiddenProbe.running = true
+    }
+  }
+
+  IpcHandler {
+    target: "midnight-doll.bar"
+
+    function toggleTransparency(): void {
+      root.toggleTransparency()
     }
   }
 
@@ -2078,7 +2186,7 @@ Item {
     }
 
     implicitWidth: root.vertical ? root.barSize : 0
-    implicitHeight: (root.isMidnightDoll && root.position === "top" && !root.barHidden) ? (root.barSize + root.midnightCornerRadius) : (root.vertical ? 0 : root.barSize)
+    implicitHeight: (root.isMidnightDoll && root.position === "top" && !root.barHidden) ? (root.barSize + root.midnightCornerRadius + 6) : (root.vertical ? 0 : root.barSize)
     color: "transparent"
     surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-bar"
@@ -2090,6 +2198,9 @@ Item {
       }
       Region {
         item: (root.isMidnightDoll && !root.transparent && root.position === "top") ? midnightCornerFillet : null
+      }
+      Region {
+        item: (root.isMidnightDoll && root.position === "top" && midnightWorkspacesChamferStrip.visible) ? midnightWorkspacesChamferStrip : null
       }
     }
 
@@ -2110,9 +2221,18 @@ Item {
       id: midnightCornerFillet
       x: 34
       y: root.barSize
-      width: root.midnightCornerRadius + 2
-      height: root.midnightCornerRadius
+      width: root.midnightCornerRadius + 6
+      height: root.midnightCornerRadius + 6
       visible: root.isMidnightDoll && !root.barHidden && root.position === "top"
+    }
+
+    Item {
+      id: midnightWorkspacesChamferStrip
+      x: 34
+      y: root.barSize
+      width: 400
+      height: 16
+      visible: root.isMidnightDoll && !root.barHidden && root.position === "top" && root.hasUrgentWorkspaceNotification
     }
 
     Shape {
@@ -2120,7 +2240,7 @@ Item {
       anchors.top: parent.top
       anchors.left: parent.left
       anchors.right: parent.right
-      height: root.barSize + root.midnightCornerRadius
+      height: root.barSize + root.midnightCornerRadius + 6
       visible: root.isMidnightDoll && !root.barHidden && root.position === "top"
       opacity: root.transparent ? 0.0 : 1.0
       Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
@@ -2149,17 +2269,23 @@ Item {
       }
 
       ShapePath {
-        strokeWidth: 1.0
+        strokeWidth: root.topLeftWindowActive ? (root.activeCornerStrokeWidth + 1.0) : 1.0
         strokeColor: Color.accent
         fillColor: "transparent"
         joinStyle: ShapePath.RoundJoin
-        capStyle: ShapePath.FlatCap
+        capStyle: ShapePath.RoundCap
 
-        startX: 35.5
-        startY: root.barSize - 0.5 + root.midnightCornerRadius
+        startX: root.topLeftWindowActive ? 36.0 : 35.5
+        startY: root.topLeftWindowActive ? (root.barSize + root.midnightCornerRadius + 4) : (root.barSize - 0.5 + root.midnightCornerRadius)
+
+        PathLine {
+          x: root.topLeftWindowActive ? 36.0 : 35.5
+          y: root.topLeftWindowActive ? (root.barSize + root.midnightCornerRadius) : (root.barSize - 0.5 + root.midnightCornerRadius)
+        }
+
         PathAngleArc {
-          centerX: 35.5 + root.midnightCornerRadius
-          centerY: root.barSize - 0.5 + root.midnightCornerRadius
+          centerX: (root.topLeftWindowActive ? 36.0 : 35.5) + root.midnightCornerRadius
+          centerY: (root.topLeftWindowActive ? (root.barSize + 0.0) : (root.barSize - 0.5)) + root.midnightCornerRadius
           radiusX: root.midnightCornerRadius
           radiusY: root.midnightCornerRadius
           startAngle: -180
@@ -2196,12 +2322,14 @@ Item {
     }
 
     Loader {
+      id: barLoader
       anchors.top: root.position === "bottom" ? undefined : parent.top
       anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
       anchors.left: parent.left
       anchors.right: parent.right
       height: root.barSize
       sourceComponent: root.vertical ? verticalBar : horizontalBar
+      z: 1000
 
       // A child of the loader, not a sibling of the sections: an ancestor stays
       // hovered while the pointer is over a widget, where a sibling would lose
@@ -3593,28 +3721,140 @@ Item {
                 radius: 0
               }
 
-              // Subtle accent notification count badge positioned below workspace number (NO flashing)
-              Rectangle {
-                id: countBadge
-                visible: hasNotification && !focused
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: 1
+              // Cyber chamfer notification tab hanging just below the bar border (visible in normal non-transparent mode)
+              Item {
+                id: chamferTab
+                visible: hasNotification && !focused && !root.vertical && !root.transparent
+                z: 1000
+                anchors.top: parent.bottom
+                anchors.topMargin: -1
                 anchors.horizontalCenter: parent.horizontalCenter
-                height: 8
-                width: Math.max(8, countText.implicitWidth + 4)
-                radius: 2
-                color: Color.accent
-                z: 10
+                width: Math.max(20, chamferCountText.implicitWidth + 10)
+                height: 10
+
+                readonly property real chamfer: 3.5
+
+                Shape {
+                  anchors.fill: parent
+                  asynchronous: false
+                  preferredRendererType: Shape.CurveRenderer
+
+                  // 1. Dark fill matching the bar background, extending slightly upward to seamlessly mask the bar's bottom border
+                  ShapePath {
+                    strokeWidth: 0
+                    strokeColor: "transparent"
+                    fillColor: "#010101"
+
+                    startX: 0
+                    startY: -2
+                    PathLine { x: chamferTab.width; y: -2 }
+                    PathLine { x: chamferTab.width; y: 0.5 }
+                    PathLine { x: chamferTab.width - chamferTab.chamfer; y: chamferTab.height }
+                    PathLine { x: chamferTab.chamfer; y: chamferTab.height }
+                    PathLine { x: 0; y: 0.5 }
+                    PathLine { x: 0; y: -2 }
+                  }
+
+                  // 2. Accent border outline on angled sides and bottom (top remains open to flow seamlessly from the bar)
+                  ShapePath {
+                    strokeWidth: 1.0
+                    strokeColor: Color.accent
+                    fillColor: "transparent"
+                    capStyle: ShapePath.FlatCap
+                    joinStyle: ShapePath.MiterJoin
+
+                    startX: 0
+                    startY: 0.5
+                    PathLine { x: chamferTab.chamfer; y: chamferTab.height }
+                    PathLine { x: chamferTab.width - chamferTab.chamfer; y: chamferTab.height }
+                    PathLine { x: chamferTab.width; y: 0.5 }
+                  }
+                }
 
                 Text {
-                  id: countText
+                  id: chamferCountText
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.verticalCenterOffset: 0.5
+                  text: notificationCount > 99 ? "99+" : String(notificationCount)
+                  font.family: root.fontFamily
+                  font.pixelSize: 8
+                  font.bold: true
+                  color: Color.accent
+                  renderType: Text.NativeRendering
+                }
+
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: {
+                    root.markWorkspaceVisited(modelData)
+                    if (hostItem && typeof hostItem.focusWorkspace === "function") {
+                      hostItem.focusWorkspace(modelData)
+                    } else {
+                      root.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + modelData + "\" })"))
+                    }
+                  }
+                }
+
+                HoverHandler {
+                  onHoveredChanged: {
+                    if (hovered && root.bar) {
+                      root.bar.showTooltip(chamferTab, "Workspace " + modelData + " (" + notificationCount + (notificationCount === 1 ? " notification)" : " notifications)") + " — click to focus")
+                    } else if (!hovered && root.bar) {
+                      root.bar.hideTooltip(chamferTab)
+                    }
+                  }
+                }
+              }
+
+              // Notification count badge directly under workspace with a small 1-px bordered circle (visible when bar background is transparent)
+              Rectangle {
+                id: circleBadge
+                visible: hasNotification && !focused && !root.vertical && root.transparent
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.bottom
+                anchors.topMargin: 1
+                height: 12
+                width: Math.max(height, circleCountText.implicitWidth + 6)
+                radius: height / 2
+                color: "#010101"
+                border.width: 1
+                border.color: Color.accent
+                z: 1000
+
+                Text {
+                  id: circleCountText
                   anchors.centerIn: parent
                   text: notificationCount > 99 ? "99+" : String(notificationCount)
                   font.family: root.fontFamily
-                  font.pixelSize: 7
+                  font.pixelSize: 8
                   font.bold: true
-                  color: "#010101"
+                  color: Color.accent
                   renderType: Text.NativeRendering
+                }
+
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: {
+                    root.markWorkspaceVisited(modelData)
+                    if (hostItem && typeof hostItem.focusWorkspace === "function") {
+                      hostItem.focusWorkspace(modelData)
+                    } else {
+                      root.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + modelData + "\" })"))
+                    }
+                  }
+                }
+
+                HoverHandler {
+                  onHoveredChanged: {
+                    if (hovered && root.bar) {
+                      root.bar.showTooltip(circleBadge, "Workspace " + modelData + " (" + notificationCount + (notificationCount === 1 ? " notification)" : " notifications)") + " — click to focus")
+                    } else if (!hovered && root.bar) {
+                      root.bar.hideTooltip(circleBadge)
+                    }
+                  }
                 }
               }
 
@@ -3633,6 +3873,7 @@ Item {
                 fixedWidth: -1
                 fixedHeight: root.barSize
                 onPressed: function() {
+                  root.markWorkspaceVisited(modelData)
                   if (hostItem && typeof hostItem.focusWorkspace === "function") {
                     hostItem.focusWorkspace(modelData)
                   } else {
@@ -4117,7 +4358,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
       }
 
-      // Comms Telemetry Group (NET, CONNS) -> Launches smart comms inspector
+      // Comms Telemetry Group (CONNS, NET) -> Launches smart comms inspector
       Row {
         id: commsGroup
         spacing: 6
@@ -4130,39 +4371,6 @@ Item {
         }
         Component.onCompleted: if (typeof root.registerClickTarget === "function") root.registerClickTarget(this)
         Component.onDestruction: if (typeof root.unregisterClickTarget === "function") root.unregisterClickTarget(this)
-
-        // NET Rates
-        Row {
-          spacing: 4
-          anchors.verticalCenter: parent.verticalCenter
-          Text {
-            text: "NET"
-            font.family: root.fontFamily
-            font.pixelSize: 8
-            font.bold: true
-            color: root.secondaryColor
-            rightPadding: 2
-            anchors.verticalCenter: parent.verticalCenter
-          }
-          Text {
-            text: "▲" + sysHudRoot.txRate + " ▼" + sysHudRoot.rxRate
-            font.family: root.fontFamily
-            font.pixelSize: 8
-            color: Color.accent
-            width: 78
-            horizontalAlignment: Text.AlignLeft
-            anchors.verticalCenter: parent.verticalCenter
-          }
-        }
-
-        // Divider
-        Text {
-          text: "|"
-          font.family: root.fontFamily
-          font.pixelSize: 8
-          color: Qt.rgba(1, 1, 1, 0.22)
-          anchors.verticalCenter: parent.verticalCenter
-        }
 
         // Connections Indicator
         Row {
@@ -4183,6 +4391,39 @@ Item {
             font.pixelSize: 8
             color: sysHudRoot.connsVal > 100 ? root.urgent : Color.accent
             width: 18
+            horizontalAlignment: Text.AlignLeft
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+
+        // Divider
+        Text {
+          text: "|"
+          font.family: root.fontFamily
+          font.pixelSize: 8
+          color: Qt.rgba(1, 1, 1, 0.22)
+          anchors.verticalCenter: parent.verticalCenter
+        }
+
+        // NET Rates
+        Row {
+          spacing: 4
+          anchors.verticalCenter: parent.verticalCenter
+          Text {
+            text: "NET"
+            font.family: root.fontFamily
+            font.pixelSize: 8
+            font.bold: true
+            color: root.secondaryColor
+            rightPadding: 2
+            anchors.verticalCenter: parent.verticalCenter
+          }
+          Text {
+            text: "▲" + sysHudRoot.txRate + " ▼" + sysHudRoot.rxRate
+            font.family: root.fontFamily
+            font.pixelSize: 8
+            color: Color.accent
+            width: 78
             horizontalAlignment: Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
           }
