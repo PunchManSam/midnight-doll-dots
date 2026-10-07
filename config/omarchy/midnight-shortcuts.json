@@ -23,11 +23,6 @@
     "command": "omarchy-launch-editor"
   },
   {
-    "name": "Tintin++",
-    "glyph": "",
-    "command": "ghostty -e \"tt++\""
-  },
-  {
     "name": "Chess.com",
     "glyph": "",
     "command": "omarchy-launch-webapp \"https://chess.com/\""
