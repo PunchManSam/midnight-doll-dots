@@ -44,17 +44,26 @@ Item {
     onExited: {
       if (root.fullscreenSyncPending) {
         root.fullscreenSyncPending = false
-        running = true
+        fullscreenSyncDebounceTimer.restart()
+      }
+    }
+  }
+
+  Timer {
+    id: fullscreenSyncDebounceTimer
+    interval: 50
+    repeat: false
+    onTriggered: {
+      if (fullscreenBarSyncProc.running) {
+        root.fullscreenSyncPending = true
+      } else {
+        fullscreenBarSyncProc.running = true
       }
     }
   }
 
   function triggerFullscreenSync() {
-    if (fullscreenBarSyncProc.running) {
-      root.fullscreenSyncPending = true
-    } else {
-      fullscreenBarSyncProc.running = true
-    }
+    fullscreenSyncDebounceTimer.restart()
   }
 
   FileView {
@@ -563,9 +572,6 @@ Item {
       }
       root.updateTopLeftWindowState()
       root.syncFullscreenFromStateFile()
-      if (root.fullscreenModeActive) {
-        root.triggerFullscreenSync()
-      }
       root.urgentTick = (root.urgentTick + 1) % 1000
     }
   }
