@@ -14,7 +14,7 @@
  | |\/| | |/ _` | '_ \| |/ _` | '_ \| __|_____| | | |/ _ \| | |
  | |  | | | (_| | | | | | (_| | | | | |_|_____| |_| | (_) | | |
  |_|  |_|_|\__,_|_| |_|_|\__, |_| |_|\__|     |____/ \___/|_|_|
-                    |___/      // CYBERDECK HUD
+                         |___/      // CYBERDECK HUD
 ```
 
 *Ultra-dense, claustrophobic, retro-futuristic hacker cyberdeck interface featuring custom audio visualizers, live telemetry, dual-bar sequencing, attached shelf drawers, and solid pitch-black aesthetics.*
