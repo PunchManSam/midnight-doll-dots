@@ -14,10 +14,10 @@
  | |\/| | |/ _` | '_ \| |/ _` | '_ \| __|_____| | | |/ _ \| | |
  | |  | | | (_| | | | | | (_| | | | | |_|_____| |_| | (_) | | |
  |_|  |_|_|\__,_|_| |_|_|\__, |_| |_|\__|     |____/ \___/|_|_|
-                         |___/      // CYBERDECK HUD
+                    |___/      // CYBERDECK HUD
 ```
 
-*Ultra-dense, claustrophobic, retro-futuristic hacker cyberdeck interface featuring custom audio visualizers, live telemetry, dual-bar sequencing, and solid pitch-black aesthetics.*
+*Ultra-dense, claustrophobic, retro-futuristic hacker cyberdeck interface featuring custom audio visualizers, live telemetry, dual-bar sequencing, attached shelf drawers, and solid pitch-black aesthetics.*
 
 </div>
 
@@ -46,14 +46,46 @@
   - **Top Bar (30px)**: Full-width priority header with solid pitch-black `#010101` backplane and neon accent underline.
   - **Left Launcher Panel (36px)**: Edge-flush vertical app launcher with interactive right-click JSON shortcut editor.
   - **Pixel-Perfect Adaptive Curved Seam**: GPU vector `QtQuick.Shapes` curve integrated natively into the panel surface without standalone overlay windows, scaling flawlessly across fractional monitor scales and adapting its stroke dynamically to active/inactive top-left window borders.
-- 📊 **Real-Time Ultra-Fast System Telemetry & Interactive HUD**: Custom 3ms metrics sampler monitoring **CPU Temp & %**, **Fan Speed**, **RAM (Used / Total)**, **Disk %**, **Live Network TX / RX** rates, and **Active Socket Connections**. The HUD title is fully interactive: click the accent header/subtitle to instantly summon a floating **btop** activity monitor or your own custom command. Supports dual-tone (`TITLE // SUBTITLE`) or single-word accent branding (e.g. `ro0tUser`).
+- 📑 **Attached Cyberdeck Shelf Drawers & Popouts**:
+  - All widget popups and drawer menus (Notification Center, Calendar, System HUD, Power, Audio, Network, AI Usage, etc.) project outwards as **seamless attached shelves** rather than detached floating popups.
+  - Continuous vector pink accent borders wrap around the panel with **0px divider** against the chassis.
+  - **Multi-Edge Perimeter Snapping**: Top-bar drawers (such as Notification Center) automatically snap flush to the left bar seam ($x = 35$), while left-bar drawers snap flush to the bottom screen edge.
+  - **Adaptive Floating Mode**: Double-clicking to toggle transparent bar mode seamlessly converts shelves into standalone `#010101` floating cards with 4-corner rounded borders to preserve readability against arbitrary wallpapers or open windows.
+- 🎬 **Fluid Bar Summon & Dismiss Animations (`Super+Shift+Space`)**:
+  - Smooth cubic sliding and opacity animations when toggling bars on/off via `Super+Shift+Space`.
+  - Top bar slides vertically off-screen, left bar slides horizontally off-screen.
+  - Immediate pointer input release: the input mask drops to zero immediately upon dismiss so games and full-screen windows are never blocked while animating.
+- 🖥️ **Intelligent Fullscreen Sync (`omarchy-fullscreen-bar-sync`)**:
+  - Automatically hides bars when launching fullscreen games, media, or applications.
+  - Preserves user preferences: remembers whether bars were explicitly hidden on the desktop, ensuring they only restore if they were auto-hidden by fullscreen.
+- 📊 **Real-Time Ultra-Fast System Telemetry & Interactive HUD**:
+  - Custom 3ms metrics sampler monitoring **CPU Temp & %**, **Fan Speed**, **RAM (Used / Total)**, **Disk %**, **Live Network TX / RX** rates, and **Active Socket Connections**.
+  - Interactive click action: click the accent header/subtitle to instantly summon a floating **btop** activity monitor or your own custom command.
+  - Supports dual-tone (`TITLE // SUBTITLE`) or single-word accent branding (e.g. `ro0tUser`).
 - 🎵 **Violet LED Dot-Matrix Audio Visualizer**:
   - Pipewire-driven **CAVA spectrum capture**.
   - **22-column × 5-tier discrete violet LED dot-matrix** (`#bb9af7`) with **neon pink peak indicators** (`#ff51c5`).
   - **Inverted Stacked Audio Gauges**: Pinched `AIR` (top), `MID` (middle), and `BASS` (bottom) level meters.
-- 📟 **Native Workspaces & Urgent Alerts**: Seamless integration with canonical upstream Omarchy workspaces, complemented by an additive cyberdeck notification alert badge with native two-tier heuristics.
-- 🕒 **Military Monospace Header Clock**: `[ MMM DD YYYY / DDDD / HHMM ]` format centered on the top bar.
-- 🔒 **Total Theme Isolation**: Zero style leak. Switching to standard Omarchy themes (e.g. *Kanagawa*, *Catppuccin*) instantly unloads the left bar, HUD, and custom visualizer, reverting 100% cleanly to stock settings.
+- 🕒 **Interactive Military Monospace Header Clock**:
+  - Centered monospace date & time display with independent, clickable sections.
+  - Click to cycle display formats: 12-hour, 24-hour colonless, and precision seconds toggle.
+- 📟 **Integrated Notification Center (`midnight-doll.notifications`)**:
+  - Cyberdeck notification drawer with multi-edge shelf geometry, action controls, and an alert badge featuring native two-tier heuristics.
+- 🔒 **Total Theme Isolation**:
+  - Zero style leak. Switching to standard Omarchy themes (e.g. *Kanagawa*, *Catppuccin*) instantly unloads the left bar, HUD, visualizer, and QML overrides, reverting 100% cleanly to stock settings.
+
+---
+
+## 🎮 Controls & Interactions
+
+| Shortcut / Gesture | Target | Action |
+| :--- | :--- | :--- |
+| `Super + Shift + Space` | Entire Suite | Smoothly summon or dismiss top and left bars with slide transitions |
+| `Double-Click` | Bar Background | Toggle solid pitch-black (`#010101`) vs transparent bar backplane |
+| `Right-Click` | Left Launcher Panel | Open graphical launcher shortcut manager (add, reorder, delete items) |
+| `Click` | HUD Title / Subtitle | Launch configured activity monitor (Default: floating `btop`) |
+| `Click` | Header Date / Time | Cycle time format (12-hour / 24-hour / toggle precision seconds) |
+| `Click` | Bar Widgets & Icons | Open attached cyberpunk shelf drawers with continuous borders |
 
 ---
 
@@ -61,10 +93,17 @@
 
 ```text
 midnight-doll-dots/
-├── README.md                      # Documentation & showcase
+├── README.md                      # Documentation, showcase & architecture
 ├── Example Screenshots/           # Visual desktop showcase previews
+│   ├── image1.png
+│   ├── image2.png
+│   ├── image3.png
+│   ├── image4.png
+│   └── image5.png
 ├── install.sh                     # Automated 1-click installer & backup generator
 ├── uninstall.sh                   # Instant rollback script
+├── bin/
+│   └── omarchy-fullscreen-bar-sync# Fullscreen bar state & auto-hide sync engine
 ├── config/
 │   └── omarchy/
 │       ├── sys-hud.sh             # Fast real-time system metrics engine
@@ -72,14 +111,25 @@ midnight-doll-dots/
 │       ├── midnight-shortcuts.json# Left bar launcher shortcuts store
 │       └── themes/
 │           └── midnight-doll/     # Colors, Hyprland rules, and terminal profiles
-│               ├── colors.toml
-│               ├── hyprland.lua
-│               └── ghostty.conf
+│               ├── colors.toml    # Theme color definitions
+│               ├── hyprland.lua   # Border, gaps, and window decorations
+│               ├── ghostty.conf   # Ghostty terminal palette configuration
+│               └── backgrounds/   # Curated Midnight Doll retro-cyberpunk wallpapers
 └── shell-patch/
+    ├── qml/                       # QML shell overrides for attached shelf drawers
+    │   └── qs/
+    │       └── Ui/
+    │           ├── KeyboardPanel.qml # Attached shelf drawers with edge snapping
+    │           ├── PopupCard.qml     # Attached popup cards & transparent adaptation
+    │           └── qmldir            # QML module registry
     └── plugins/
         ├── bar/
-        │   ├── Bar.qml            # Dual-bar HUD core engine & slot routing
+        │   ├── Bar.qml            # Dual-bar HUD core engine, transitions & slot routing
         │   └── BarModel.js        # Multi-surface drag-and-drop model extension
+        ├── notifications/         # Cyberdeck Notification Center plugin
+        │   ├── manifest.json      # Notification plugin manifest
+        │   ├── Panel.qml          # Attached notification drawer & action controls
+        │   └── helper.py          # Notification daemon & history helper
         ├── sys-hud/
         │   ├── manifest.json      # Modular System HUD manifest
         │   └── SystemHud.qml      # Modular CPU, Temp, Fan, RAM, Disk, Net metrics widget
@@ -119,8 +169,10 @@ The interactive installer will guide you through configuration steps:
 
 After configuration, the installer will:
 1. Automatically create a timestamped backup in `~/.config/omarchy/backups/`.
-2. Deploy the theme, scripts, and user plugins.
-3. Activate **Midnight-Doll** and reload your shell live.
+2. Deploy the theme, wallpapers, scripts, and modular user plugins.
+3. Deploy QML shell overrides to `~/.config/omarchy/qml/` and set `QML_IMPORT_PATH`.
+4. Clean up any obsolete shortcuts or stock wallpapers.
+5. Activate **Midnight-Doll** and reload your shell live.
 
 ---
 
@@ -131,11 +183,11 @@ Edit `~/.config/omarchy/midnight-shortcuts.json` or simply **Right-Click** anywh
 
 ```json
 [
-  { "glyph": "󰈹", "command": "firefox" },
-  { "glyph": "󰨞", "command": "code" },
-  { "glyph": "󰋋", "command": "spotify" },
-  { "glyph": "󰉋", "command": "nautilus" },
-  { "glyph": "󰞷", "command": "ghostty" }
+  { "glyph": "󰞷", "command": "omarchy-launch-terminal" },
+  { "glyph": "󰇧", "command": "omarchy-launch-browser" },
+  { "glyph": "󰉋", "command": "omarchy-launch-nautilus" },
+  { "glyph": "", "command": "omarchy-launch-editor" },
+  { "glyph": "", "command": "omarchy-launch-webapp \"https://chess.com/\"" }
 ]
 ```
 
@@ -165,6 +217,8 @@ cd midnight-doll-dots
 ./uninstall.sh
 ```
 
+The uninstaller restores your original `shell.json`, removes deployed plugins and QML overrides, cleans up environment configurations, and safely resets your bar.
+
 ---
 
 ## ⚠️ Disclaimer
@@ -178,4 +232,3 @@ cd midnight-doll-dots
 
 ## 📜 License
 Released under the [MIT License](LICENSE). Designed for the Omarchy community.
-
