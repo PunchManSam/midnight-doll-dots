@@ -198,14 +198,26 @@ Item {
       return
     }
 
+    var ws = Hyprland.focusedWorkspace
     var activeIpc = activeTop.lastIpcObject
-    if (activeIpc && (activeIpc.floating || (activeIpc.fullscreen && activeIpc.fullscreen !== 0))) {
-      root.topLeftWindowActive = false
-      root.topLeftWindowPresent = false
-      return
+
+    // Fullscreen window active on the focused workspace always occupies the top-left corner
+    var isFullscreen = Boolean(activeTop.fullscreen || (activeIpc && activeIpc.fullscreen && activeIpc.fullscreen !== 0))
+    if (isFullscreen) {
+      var actWsId = (activeTop.workspace && activeTop.workspace.id) || (activeIpc && activeIpc.workspace && activeIpc.workspace.id)
+      var curWsId = ws ? ws.id : null
+      if (curWsId === null || actWsId === undefined || actWsId === null || actWsId === curWsId) {
+        root.topLeftWindowActive = true
+        root.topLeftWindowPresent = true
+        return
+      }
     }
 
-    var ws = Hyprland.focusedWorkspace
+    var isFloating = Boolean(activeTop.floating || (activeIpc && activeIpc.floating && (!activeIpc.fullscreen || activeIpc.fullscreen === 0)))
+    if (isFloating) {
+      root.topLeftWindowActive = false
+    }
+
     var toplevels = (ws && ws.toplevels && ws.toplevels.values) ? ws.toplevels.values : []
     if (toplevels.length === 0) {
       root.topLeftWindowActive = false
@@ -220,7 +232,8 @@ Item {
     for (var i = 0; i < toplevels.length; i++) {
       var top = toplevels[i]
       var ipc = top ? top.lastIpcObject : null
-      if (ipc && !ipc.floating && (!ipc.fullscreen || ipc.fullscreen === 0) && ipc.at && ipc.at.length >= 2) {
+      var ipcFloating = Boolean((top && top.floating) || (ipc && ipc.floating && (!ipc.fullscreen || ipc.fullscreen === 0)))
+      if (ipc && !ipcFloating && ipc.at && ipc.at.length >= 2) {
         var x = Number(ipc.at[0])
         var y = Number(ipc.at[1])
         if (!isNaN(x) && !isNaN(y)) {
@@ -239,7 +252,7 @@ Item {
 
     root.topLeftWindowPresent = true
 
-    if (activeIpc && activeIpc.at && activeIpc.at.length >= 2) {
+    if (!isFloating && activeIpc && activeIpc.at && activeIpc.at.length >= 2) {
       var ax = Number(activeIpc.at[0])
       var ay = Number(activeIpc.at[1])
       if (!isNaN(ax) && !isNaN(ay)) {
@@ -272,12 +285,81 @@ Item {
     root.urgentTick = (root.urgentTick + 1) % 1000
   }
 
-  function matchesApp(app, ipc) {
-    if (!app || !ipc) return false
+  function isBrowserClass(cls) {
+    if (!cls) return false
+    var c = String(cls).toLowerCase().trim()
+    return c === "chromium" || c === "google-chrome" || c === "chrome" ||
+           c === "brave" || c === "brave-browser" || c === "firefox" ||
+           c === "vivaldi" || c === "opera" || c === "microsoft-edge" ||
+           c.indexOf("chrome-") === 0
+  }
+
+  function matchesApp(notifOrApp, ipc) {
+    if (!notifOrApp || !ipc) return false
+    var isObj = (typeof notifOrApp === "object" && notifOrApp !== null)
+    var app = isObj ? (notifOrApp.app || "") : notifOrApp
     var a = String(app).toLowerCase().trim()
     if (!a || a === "notify-send") return false
+
     var c = String(ipc.class || "").toLowerCase().trim()
     var ic = String(ipc.initialClass || "").toLowerCase().trim()
+
+    // Browser notification discrimination:
+    // When notification comes from a browser, only match browser windows whose
+    // webapp class, domain, or title specifically corresponds to the site/content.
+    if (root.isBrowserClass(a)) {
+      if (!root.isBrowserClass(c) && !root.isBrowserClass(ic)) return false
+
+      var body = isObj ? String(notifOrApp.body || "") : ""
+      var summary = isObj ? String(notifOrApp.summary || "") : ""
+      var title = String(ipc.title || "").toLowerCase()
+      var initialTitle = String(ipc.initialTitle || "").toLowerCase()
+
+      // 1. Direct class match for PWAs/WebApps (e.g. chrome-teams.microsoft.com__-Default or chrome-chess.com__-Default)
+      var urlMatch = body.match(/https?:\/\/([^\/\s"'>]+)/i)
+      var host = urlMatch ? urlMatch[1].toLowerCase() : ""
+      if (host && (c.indexOf(host) !== -1 || ic.indexOf(host) !== -1)) return true
+
+      // 2. Extract significant domain keywords from notification body URL/anchor
+      var keywords = []
+      var generic = ["com", "org", "net", "edu", "gov", "cloud", "app", "io", "co", "uk", "de", "ca", "www", "web", "https", "http"]
+
+      if (host) {
+        var hostParts = host.split(".")
+        for (var i = 0; i < hostParts.length; i++) {
+          var hp = hostParts[i].trim()
+          if (hp.length > 2 && generic.indexOf(hp) === -1) keywords.push(hp)
+        }
+      }
+
+      var anchorMatch = body.match(/<a\b[^>]*>([^<]+)<\/a>/i)
+      if (anchorMatch && anchorMatch[1]) {
+        var anchorParts = anchorMatch[1].toLowerCase().split(/[.\s\-_/]+/)
+        for (var j = 0; j < anchorParts.length; j++) {
+          var ap = anchorParts[j].trim()
+          if (ap.length > 2 && generic.indexOf(ap) === -1 && keywords.indexOf(ap) === -1) keywords.push(ap)
+        }
+      }
+
+      // Check keywords against window title or PWA class
+      for (var k = 0; k < keywords.length; k++) {
+        var kw = keywords[k]
+        if (title.indexOf(kw) !== -1 || initialTitle.indexOf(kw) !== -1 || c.indexOf(kw) !== -1 || ic.indexOf(kw) !== -1) {
+          return true
+        }
+      }
+
+      // Also check summary if specific enough (e.g. sender name or channel)
+      var sumLower = summary.trim().toLowerCase()
+      if (sumLower.length > 3 && (title.indexOf(sumLower) !== -1 || initialTitle.indexOf(sumLower) !== -1)) {
+        return true
+      }
+
+      // If notification came from a browser and didn't match this browser window's web app, REJECT.
+      return false
+    }
+
+    // Standard non-browser desktop application identity matching
     if (c === a || ic === a) return true
     if (c && (c.indexOf(a) !== -1 || a.indexOf(c) !== -1)) return true
     if (ic && (ic.indexOf(a) !== -1 || a.indexOf(ic) !== -1)) return true
@@ -292,7 +374,7 @@ Item {
 
   Process {
     id: notifProc
-    command: ["python3", "-c", "import glob, json, os\nnotifs = []\nfor p in glob.glob(os.path.expanduser('~/.local/state/omarchy/notifications/*.json')):\n    try:\n        with open(p) as f:\n            d = json.load(f)\n            notifs.append({'app': str(d.get('app','')).lower(), 'ts': int(d.get('timestamp',0)), 'active': True})\n    except: pass\nfor p in glob.glob(os.path.expanduser('~/.local/state/omarchy/notifications/history/*.json')):\n    try:\n        with open(p) as f:\n            d = json.load(f)\n            notifs.append({'app': str(d.get('app','')).lower(), 'ts': int(d.get('timestamp',0)), 'active': False})\n    except: pass\nprint(json.dumps(notifs))"]
+    command: ["python3", "-c", "import glob, json, os\nnotifs = []\nfor p in glob.glob(os.path.expanduser('~/.local/state/omarchy/notifications/*.json')):\n    try:\n        with open(p) as f:\n            d = json.load(f)\n            notifs.append({'app': str(d.get('app','')).lower(), 'ts': int(d.get('timestamp',0)), 'active': True, 'summary': str(d.get('summary','')), 'body': str(d.get('body',''))})\n    except: pass\nfor p in glob.glob(os.path.expanduser('~/.local/state/omarchy/notifications/history/*.json')):\n    try:\n        with open(p) as f:\n            d = json.load(f)\n            notifs.append({'app': str(d.get('app','')).lower(), 'ts': int(d.get('timestamp',0)), 'active': False, 'summary': str(d.get('summary','')), 'body': str(d.get('body',''))})\n    except: pass\nprint(json.dumps(notifs))"]
     running: false
     stdout: StdioCollector {
       waitForEnd: true
@@ -345,20 +427,19 @@ Item {
     }
 
     // 2. Desktop notification popups & unread notifications matching windows on this workspace
-    // (NO window title scraping - matches exclusively against window application identity)
     if (root.rawNotifications && root.rawNotifications.length > 0 && toplevels.length > 0) {
       for (var n = 0; n < root.rawNotifications.length; n++) {
         var notif = root.rawNotifications[n]
         if (!notif || !notif.app) continue
 
-        var isUnread = notif.active === true || (notif.ts && notif.ts > visitedTime)
+        var isUnread = notif.ts && notif.ts > visitedTime
 
         if (!isUnread) continue
 
         for (var t = 0; t < toplevels.length; t++) {
           var tipc = toplevels[t] ? toplevels[t].lastIpcObject : null
           if (!tipc) continue
-          if (root.matchesApp(notif.app, tipc)) {
+          if (root.matchesApp(notif, tipc)) {
             total += 1
             break
           }
