@@ -116,7 +116,7 @@ def sync():
         else:
             # Default behavior: fullscreen hides bars!
             if not is_bar_hidden():
-                state["desktop_bar_hidden"] = False
+                state["auto_hidden"] = True
                 save_fs_state(state)
                 set_bar_hidden(True)
             else:
@@ -126,11 +126,12 @@ def sync():
                 run_dispatch(f"hl.dsp.window.fullscreen_state({{ window = 'address:{addr}', internal = 2, client = 2 }})")
     else:
         # No fullscreen window on the active workspace
+        was_auto_hidden = state.get("auto_hidden", False)
         desktop_hidden = state.get("desktop_bar_hidden", False)
-        state["desktop_bar_hidden"] = False
+        state["auto_hidden"] = False
         save_fs_state(state)
-        # Restore bars if they weren't originally hidden on the desktop
-        if not desktop_hidden and is_bar_hidden():
+        # Restore bars only if they were auto-hidden by fullscreen and not explicitly hidden on desktop
+        if was_auto_hidden and not desktop_hidden and is_bar_hidden():
             set_bar_hidden(False)
 
 def toggle_window():
@@ -147,8 +148,9 @@ def toggle_window():
             manual_windows.remove(addr)
         state["manual_override_windows"] = list(manual_windows)
 
+        was_auto_hidden = state.get("auto_hidden", False)
         desktop_hidden = state.get("desktop_bar_hidden", False)
-        state["desktop_bar_hidden"] = False
+        state["auto_hidden"] = False
         state["fullscreen_active"] = False
         state["fullscreen_address"] = ""
         state["fullscreen_title"] = ""
@@ -157,8 +159,8 @@ def toggle_window():
 
         run_dispatch(f"hl.dsp.window.fullscreen_state({{ window = 'address:{addr}', internal = 0, client = 0 }})")
 
-        # Restore bars if they weren't originally hidden on the desktop
-        if not desktop_hidden and is_bar_hidden():
+        # Restore bars if they were auto-hidden by fullscreen and not explicitly hidden on desktop
+        if was_auto_hidden and not desktop_hidden and is_bar_hidden():
             set_bar_hidden(False)
     else:
         # No window is fullscreen on this workspace -> ENTER fullscreen on active_win!
@@ -172,6 +174,7 @@ def toggle_window():
 
         already_hidden = is_bar_hidden()
         state["desktop_bar_hidden"] = already_hidden
+        state["auto_hidden"] = not already_hidden
         state["fullscreen_active"] = True
         state["fullscreen_address"] = addr
         state["fullscreen_title"] = active_win.get("title", "")
@@ -197,12 +200,15 @@ def toggle_bar():
     state["fullscreen_address"] = fs_win.get("address", "") if fs_win else ""
     state["fullscreen_title"] = fs_win.get("title", "") if fs_win else ""
     state["fullscreen_workspace"] = active_ws.get("id") if active_ws else None
+    state["auto_hidden"] = False
 
     if fs_win:
         addr = fs_win.get("address", "")
         if addr:
             manual_windows.add(addr)
             state["manual_override_windows"] = list(manual_windows)
+    else:
+        state["desktop_bar_hidden"] = new_hidden
 
     save_fs_state(state)
     set_bar_hidden(new_hidden)

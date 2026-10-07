@@ -71,6 +71,15 @@ if [ -f "${LATEST_BACKUP}/shell.json" ]; then
   echo -e "    ✓ Restored ~/.config/omarchy/shell.json"
 fi
 
+# Clean up QML overrides and environment config
+rm -rf "${HOME}/.config/omarchy/qml"
+rm -f "${HOME}/.config/environment.d/qml.conf"
+if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
+  sed -i '/QML_IMPORT_PATH/d' "${HOME}/.config/hypr/autostart.lua"
+fi
+echo -e "    ✓ Removed QML overrides and QML_IMPORT_PATH configuration"
+
+
 # 5. Clean up Midnight-Doll plugins and reset bar
 if command -v omarchy &> /dev/null; then
   echo -e "${VIOLET}[*] Resetting bar and disabling Midnight-Doll plugins...${RESET}"

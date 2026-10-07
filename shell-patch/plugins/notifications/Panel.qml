@@ -118,15 +118,6 @@ Panel {
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(420))
     contentHeight: panel.fittedContentHeight(Style.space(520))
-    margin: {
-      var isLeft = panel.screenW > 0 ? (panel.anchorScreenPos.x < panel.screenW / 2) : true
-      var hasLeftBar = root.bar && (root.bar.isMidnightDoll || root.bar.leftBarContext)
-      var leftBarWidth = (hasLeftBar && root.bar && root.bar.leftBarContext) ? root.bar.leftBarContext.barSize : (hasLeftBar ? 36 : 0)
-      if (isLeft && hasLeftBar) {
-        return leftBarWidth + (Style && Style.gapsOut > 0 ? Style.gapsOut : 2)
-      }
-      return Style && Style.gapsOut > 0 ? Style.gapsOut : 2
-    }
 
     PanelKeyCatcher {
       id: keyCatcher

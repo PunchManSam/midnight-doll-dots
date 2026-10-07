@@ -161,7 +161,14 @@ Item {
   }
 
   property real activeCornerStrokeWidth: 3.0
-  readonly property real cornerStrokeWidth: root.topLeftWindowActive ? root.activeCornerStrokeWidth : 1.0
+  property real cornerStrokeWidth: root.topLeftWindowActive ? (root.activeCornerStrokeWidth + 1.0) : 1.0
+  Behavior on cornerStrokeWidth {
+    NumberAnimation {
+      duration: 200
+      easing.type: Easing.OutQuint
+    }
+  }
+  readonly property real cornerStrokeOffset: (root.cornerStrokeWidth - 1.0) / 2
   readonly property color cornerStrokeColor: Color.accent
 
   Process {
@@ -183,40 +190,65 @@ Item {
 
   function updateTopLeftWindowState() {
     if (!root.isMidnightDoll) return
+
     var activeTop = Hyprland.activeToplevel
-    var activeAt = (activeTop && activeTop.lastIpcObject) ? activeTop.lastIpcObject.at : null
-    var isActiveInTopLeft = false
-    if (activeAt && activeAt.length >= 2 && !(activeTop.lastIpcObject && activeTop.lastIpcObject.floating)) {
-      var ax = Number(activeAt[0])
-      var ay = Number(activeAt[1])
-      if (!isNaN(ax) && !isNaN(ay) && ax <= 45 && ay <= 40) {
-        isActiveInTopLeft = true
-      }
+    if (!activeTop) {
+      root.topLeftWindowActive = false
+      root.topLeftWindowPresent = false
+      return
     }
 
-    var isPresentInTopLeft = false
+    var activeIpc = activeTop.lastIpcObject
+    if (activeIpc && (activeIpc.floating || (activeIpc.fullscreen && activeIpc.fullscreen !== 0))) {
+      root.topLeftWindowActive = false
+      root.topLeftWindowPresent = false
+      return
+    }
+
     var ws = Hyprland.focusedWorkspace
-    if (ws && ws.toplevels && ws.toplevels.values) {
-      var list = ws.toplevels.values
-      for (var i = 0; i < list.length; i++) {
-        var top = list[i]
-        var ipc = top ? top.lastIpcObject : null
-        if (ipc && !ipc.floating && ipc.at && ipc.at.length >= 2) {
-          var px = Number(ipc.at[0])
-          var py = Number(ipc.at[1])
-          if (!isNaN(px) && !isNaN(py) && px <= 45 && py <= 40) {
-            isPresentInTopLeft = true
-            if (top.activated || top === activeTop) {
-              isActiveInTopLeft = true
-            }
-            break
-          }
+    var toplevels = (ws && ws.toplevels && ws.toplevels.values) ? ws.toplevels.values : []
+    if (toplevels.length === 0) {
+      root.topLeftWindowActive = false
+      root.topLeftWindowPresent = false
+      return
+    }
+
+    var minX = Infinity
+    var minY = Infinity
+    var hasTiled = false
+
+    for (var i = 0; i < toplevels.length; i++) {
+      var top = toplevels[i]
+      var ipc = top ? top.lastIpcObject : null
+      if (ipc && !ipc.floating && (!ipc.fullscreen || ipc.fullscreen === 0) && ipc.at && ipc.at.length >= 2) {
+        var x = Number(ipc.at[0])
+        var y = Number(ipc.at[1])
+        if (!isNaN(x) && !isNaN(y)) {
+          if (x < minX) minX = x
+          if (y < minY) minY = y
+          hasTiled = true
         }
       }
     }
 
-    root.topLeftWindowActive = isActiveInTopLeft
-    root.topLeftWindowPresent = isPresentInTopLeft || isActiveInTopLeft
+    if (!hasTiled || minX === Infinity || minY === Infinity) {
+      root.topLeftWindowActive = false
+      root.topLeftWindowPresent = false
+      return
+    }
+
+    root.topLeftWindowPresent = true
+
+    if (activeIpc && activeIpc.at && activeIpc.at.length >= 2) {
+      var ax = Number(activeIpc.at[0])
+      var ay = Number(activeIpc.at[1])
+      if (!isNaN(ax) && !isNaN(ay)) {
+        root.topLeftWindowActive = (Math.abs(ax - minX) <= 3 && Math.abs(ay - minY) <= 3)
+        return
+      }
+    }
+
+    root.topLeftWindowActive = false
   }
 
   property bool fullscreenModeActive: false
@@ -365,6 +397,7 @@ Item {
       if (ws && ws.id) {
         root.markWorkspaceVisited(ws.id)
       }
+      Hyprland.refreshToplevels()
       root.updateTopLeftWindowState()
       root.syncFullscreenFromStateFile()
       root.triggerFullscreenSync()
@@ -379,13 +412,31 @@ Item {
         root.triggerFullscreenSync()
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
+        root.updateTopLeftWindowState()
+      } else if (event.name === "openwindow" || event.name === "closewindow" ||
+                 event.name === "movewindow" || event.name === "changefloatingmode") {
+        if (event.name === "changefloatingmode") {
+          var fData = String(event.data || "")
+          var fParts = fData.split(",")
+          if (fParts.length >= 2 && fParts[1].trim() === "1") {
+            var act = Hyprland.activeToplevel
+            var actAddr = (act && act.lastIpcObject) ? act.lastIpcObject.address : ""
+            if (!actAddr || actAddr === fParts[0].trim() || root.topLeftWindowActive) {
+              root.topLeftWindowActive = false
+            }
+          }
+        }
+        Hyprland.refreshWorkspaces()
+        Hyprland.refreshToplevels()
+        root.updateTopLeftWindowState()
+        root.triggerFullscreenSync()
       } else if (event.name === "activewindow" || event.name === "activewindowv2" ||
-                 event.name === "workspace" || event.name === "closewindow" ||
-                 event.name === "openwindow" || event.name === "movewindow" ||
-                 event.name === "focusedmon") {
+                 event.name === "workspace" || event.name === "focusedmon") {
         if (event.name === "workspace") {
           root.markWorkspaceVisited(event.data)
         }
+        Hyprland.refreshWorkspaces()
+        Hyprland.refreshToplevels()
         root.updateTopLeftWindowState()
         root.triggerFullscreenSync()
       } else if (event.name === "configreloaded") {
@@ -414,11 +465,21 @@ Item {
     }
   }
 
+  Connections {
+    target: Hyprland.activeToplevel
+    function onLastIpcObjectChanged() {
+      root.updateTopLeftWindowState()
+    }
+  }
+
   Timer {
-    interval: 1000
+    interval: (root.isMidnightDoll && (root.topLeftWindowActive || root.topLeftWindowPresent)) ? 150 : 1000
     running: true
     repeat: true
     onTriggered: {
+      if (root.isMidnightDoll && (root.topLeftWindowActive || root.topLeftWindowPresent)) {
+        Hyprland.refreshToplevels()
+      }
       root.updateTopLeftWindowState()
       root.syncFullscreenFromStateFile()
       if (root.fullscreenModeActive) {
@@ -432,6 +493,7 @@ Item {
     property string position: "left"
     property bool vertical: true
     property int barSize: 36
+    property bool isMidnightDoll: root.isMidnightDoll
     property color foreground: root.foreground
     property color background: root.background
     property color urgent: root.urgent
@@ -442,6 +504,7 @@ Item {
     property bool barHovered: root.barHovered
     property var activePopout: root.activePopout
     property var shell: root.shell
+    property bool transparent: root.transparent
 
     function run(cmd) { root.run(cmd) }
     function requestPopout(owner) { root.requestPopout(owner) }
@@ -467,6 +530,14 @@ Item {
   property bool requestedTransparent: false
   property bool useTransparentForeground: false
   property bool transparent: false
+
+  property real barAnimProgress: root.barHidden ? 0.0 : 1.0
+  Behavior on barAnimProgress {
+    NumberAnimation {
+      duration: root.barHidden ? Style.duration(200) : Style.duration(260)
+      easing.type: root.barHidden ? Easing.InCubic : Easing.OutCubic
+    }
+  }
   property bool centerSectionHovered: false
   // One bar surface exists per monitor and each reports into this count, so a
   // pointer crossing from one monitor's bar to another's stays counted however
@@ -1078,6 +1149,10 @@ Item {
     initVisited[currentWs] = Date.now()
     root.workspaceVisitedTimes = initVisited
     notifProc.running = true
+    if (root.isMidnightDoll) {
+      Hyprland.refreshToplevels()
+      root.updateTopLeftWindowState()
+    }
   }
 
   // Revealing the indicators widens their section, which can slide a neighbour
@@ -1494,7 +1569,7 @@ Item {
   // changes land in quick succession, stranding the bar off screen until the
   // shell restarts. `omarchy-toggle-bar` nudges this after flipping the flag
   // so the probe re-reads it even when the watch has gone quiet.
-  IpcHandler {
+  ShellIpc {
     target: "omarchy.bar"
 
     // Start rather than restart: a probe already in flight was launched by the
@@ -1505,11 +1580,81 @@ Item {
     }
   }
 
-  IpcHandler {
+  ShellIpc {
     target: "midnight-doll.bar"
 
     function toggleTransparency(): void {
       root.toggleTransparency()
+    }
+
+    function triggerWidget(id: string): string {
+      for (var i = 0; i < moduleSlots.length; i++) {
+        var slot = moduleSlots[i]
+        if (slot && slot.moduleName === id) {
+          var ai = slot.activeItem
+          var hi = slot.hostItem
+          var res = "slot: ai=" + (ai ? "yes" : "no") + " hi=" + (hi ? "yes" : "no")
+          if (ai) {
+            res += " ai.open=" + typeof ai.open + " ai.opened=" + ai.opened + " ai.visible=" + ai.visible
+          }
+          if (hi) {
+            res += " hi.open=" + typeof hi.open + " hi.opened=" + hi.opened
+          }
+          if (ai && typeof ai.open === "function") {
+            ai.open()
+            res += " -> called ai.open()"
+          } else if (ai && typeof ai.togglePanel === "function") {
+            ai.togglePanel()
+            res += " -> called ai.togglePanel()"
+          } else if (hi && typeof hi.open === "function") {
+            hi.open()
+            res += " -> called hi.open()"
+          }
+          return res
+        }
+      }
+      return "not found"
+    }
+
+    function closeWidget(id: string): string {
+      for (var i = 0; i < moduleSlots.length; i++) {
+        var slot = moduleSlots[i]
+        if (slot && slot.moduleName === id) {
+          var ai = slot.activeItem
+          if (ai && typeof ai.close === "function") {
+            ai.close()
+            return "closed"
+          }
+        }
+      }
+      return "not found"
+    }
+
+    function toggleWidget(id: string): string {
+      for (var i = 0; i < moduleSlots.length; i++) {
+        var slot = moduleSlots[i]
+        if (slot && slot.moduleName === id) {
+          var ai = slot.activeItem
+          if (ai) {
+            if (ai.opened) {
+              if (typeof ai.close === "function") ai.close()
+              return "closed"
+            } else {
+              if (typeof ai.open === "function") ai.open()
+              return "opened"
+            }
+          }
+        }
+      }
+      return "not found"
+    }
+
+    function getBarGeometry(): string {
+      return JSON.stringify(root.debugBarGeometry())
+    }
+
+    function getTransparencyState(): string {
+      return "transparent=" + root.transparent + " requested=" + root.requestedTransparent
     }
   }
 
@@ -1853,7 +1998,7 @@ Item {
   component MidnightLeftPanel: PanelWindow {
     id: leftBarWindow
 
-    visible: root.isMidnightDoll && !root.barHidden && !remapGuardLeft.remapping
+    visible: root.isMidnightDoll && (!root.barHidden || root.barAnimProgress > 0.001) && !remapGuardLeft.remapping
     exclusionMode: (root.isMidnightDoll && !root.barHidden) ? ExclusionMode.Normal : ExclusionMode.Ignore
     exclusiveZone: (root.isMidnightDoll && !root.barHidden) ? 36 : 0
 
@@ -1865,7 +2010,7 @@ Item {
     margins {
       top: 0
       bottom: 0
-      left: root.barHidden ? -36 : 0
+      left: 0
       right: 0
     }
 
@@ -1885,12 +2030,20 @@ Item {
 
     mask: Region {
       Region {
-        item: leftBarBody
+        x: 0
+        y: 0
+        width: root.barHidden ? 0 : 36
+        height: root.barHidden ? 0 : Math.max(leftBarWindow.height, modelData ? modelData.height : 1080)
       }
     }
 
     Item {
+      id: leftBarContentHolder
       anchors.fill: parent
+      transform: Translate {
+        x: Math.round(-36 * (1.0 - root.barAnimProgress))
+      }
+      opacity: root.barAnimProgress
 
       Item {
         id: leftBarBody
@@ -2162,7 +2315,7 @@ Item {
     // Unmap the layer surface while hidden so that revealing it (via
     // Super+Shift+Space) remaps a fresh surface that draws over active
     // fullscreen windows in Hyprland, matching the sidebar behavior.
-    visible: !root.barHidden && !remapGuard.remapping
+    visible: (!root.barHidden || root.barAnimProgress > 0.001) && !remapGuard.remapping
     exclusionMode: root.barHidden ? ExclusionMode.Ignore : ExclusionMode.Normal
     exclusiveZone: root.barHidden ? 0 : root.barSize
 
@@ -2172,10 +2325,10 @@ Item {
     }
 
     margins {
-      top: root.barHidden && root.position === "top" ? -root.barSize : 0
-      bottom: root.barHidden && root.position === "bottom" ? -root.barSize : 0
-      left: root.barHidden && root.position === "left" ? -root.barSize : 0
-      right: root.barHidden && root.position === "right" ? -root.barSize : 0
+      top: 0
+      bottom: 0
+      left: 0
+      right: 0
     }
 
     anchors {
@@ -2186,7 +2339,7 @@ Item {
     }
 
     implicitWidth: root.vertical ? root.barSize : 0
-    implicitHeight: (root.isMidnightDoll && root.position === "top" && !root.barHidden) ? (root.barSize + root.midnightCornerRadius + 6) : (root.vertical ? 0 : root.barSize)
+    implicitHeight: (root.isMidnightDoll && root.position === "top") ? (root.barSize + root.midnightCornerRadius + 6) : (root.vertical ? 0 : root.barSize)
     color: "transparent"
     surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-bar"
@@ -2194,18 +2347,29 @@ Item {
 
     mask: Region {
       Region {
-        item: barBackgroundRect
+        x: 0
+        y: root.position === "bottom" ? (barWindow.height - root.barSize) : 0
+        width: root.barHidden ? 0 : Math.max(barWindow.width, modelData ? modelData.width : 1920)
+        height: root.barHidden ? 0 : root.barSize
       }
       Region {
-        item: (root.isMidnightDoll && !root.transparent && root.position === "top") ? midnightCornerFillet : null
+        item: (root.isMidnightDoll && !root.transparent && root.position === "top" && !root.barHidden) ? midnightCornerFillet : null
       }
       Region {
-        item: (root.isMidnightDoll && root.position === "top" && midnightWorkspacesChamferStrip.visible) ? midnightWorkspacesChamferStrip : null
+        item: (root.isMidnightDoll && root.position === "top" && midnightWorkspacesChamferStrip.visible && !root.barHidden) ? midnightWorkspacesChamferStrip : null
       }
     }
 
-    Rectangle {
-      id: barBackgroundRect
+    Item {
+      id: barContentHolder
+      anchors.fill: parent
+      transform: Translate {
+        y: Math.round(-(root.barSize + (root.isMidnightDoll ? (root.midnightCornerRadius + 6) : 0)) * (1.0 - root.barAnimProgress))
+      }
+      opacity: root.barAnimProgress
+
+      Rectangle {
+        id: barBackgroundRect
       anchors.top: root.position === "bottom" ? undefined : parent.top
       anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
       anchors.left: parent.left
@@ -2268,29 +2432,37 @@ Item {
         PathLine { x: 34; y: root.barSize }
       }
 
+      // Corner fillet outline: adapts to active window border width when top-left window is active
       ShapePath {
-        strokeWidth: root.topLeftWindowActive ? (root.activeCornerStrokeWidth + 1.0) : 1.0
+        strokeWidth: root.cornerStrokeWidth
         strokeColor: Color.accent
         fillColor: "transparent"
         joinStyle: ShapePath.RoundJoin
-        capStyle: ShapePath.RoundCap
+        capStyle: ShapePath.FlatCap
 
-        startX: root.topLeftWindowActive ? 36.0 : 35.5
-        startY: root.topLeftWindowActive ? (root.barSize + root.midnightCornerRadius + 4) : (root.barSize - 0.5 + root.midnightCornerRadius)
-
-        PathLine {
-          x: root.topLeftWindowActive ? 36.0 : 35.5
-          y: root.topLeftWindowActive ? (root.barSize + root.midnightCornerRadius) : (root.barSize - 0.5 + root.midnightCornerRadius)
-        }
+        startX: 35.5 + root.cornerStrokeOffset
+        startY: root.barSize - 0.5 + root.midnightCornerRadius
 
         PathAngleArc {
-          centerX: (root.topLeftWindowActive ? 36.0 : 35.5) + root.midnightCornerRadius
-          centerY: (root.topLeftWindowActive ? (root.barSize + 0.0) : (root.barSize - 0.5)) + root.midnightCornerRadius
-          radiusX: root.midnightCornerRadius
-          radiusY: root.midnightCornerRadius
+          centerX: 35.5 + root.midnightCornerRadius
+          centerY: root.barSize - 0.5 + root.midnightCornerRadius
+          radiusX: root.midnightCornerRadius - root.cornerStrokeOffset
+          radiusY: root.midnightCornerRadius - root.cornerStrokeOffset
           startAngle: -180
           sweepAngle: 90
         }
+      }
+
+      // Top bar bottom border: decoupled from fillet and always 1px
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Color.accent
+        fillColor: "transparent"
+        joinStyle: ShapePath.MiterJoin
+        capStyle: ShapePath.FlatCap
+
+        startX: 35.5 + root.midnightCornerRadius
+        startY: root.barSize - 0.5
         PathLine { x: barWindow.width; y: root.barSize - 0.5 }
       }
     }
@@ -2341,6 +2513,7 @@ Item {
         Component.onDestruction: if (hovered) root.setBarHovered(false)
       }
     }
+  }
 
     PopupWindow {
       id: tooltipWindow

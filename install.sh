@@ -580,6 +580,33 @@ if [ -d "${DOTS_DIR}/shell-patch/plugins/notifications" ]; then
   chmod +x "${PLUGINS_DIR}/midnight-doll.notifications/helper.py" 2>/dev/null || true
 fi
 
+# 5. Shell QML overrides (attached shelf popouts for KeyboardPanel and PopupCard)
+echo -e "${VIOLET}[*] Deploying QML shell overrides to ~/.config/omarchy/qml/...${RESET}"
+QML_OVERRIDE_DIR="${HOME}/.config/omarchy/qml"
+mkdir -p "${QML_OVERRIDE_DIR}/qs/Ui"
+ln -sfn "/usr/share/omarchy/shell/Commons" "${QML_OVERRIDE_DIR}/qs/Commons"
+if [ -d "/usr/share/omarchy/shell/Ui" ]; then
+  for f in /usr/share/omarchy/shell/Ui/*.qml; do
+    base="$(basename "$f")"
+    if [ "$base" != "KeyboardPanel.qml" ] && [ "$base" != "PopupCard.qml" ]; then
+      ln -sfn "$f" "${QML_OVERRIDE_DIR}/qs/Ui/${base}"
+    fi
+  done
+fi
+cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
+cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/KeyboardPanel.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
+cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/PopupCard.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
+
+# Ensure QML_IMPORT_PATH is set in environment.d and hyprland autostart
+mkdir -p "${HOME}/.config/environment.d"
+echo "QML_IMPORT_PATH=${HOME}/.config/omarchy/qml" > "${HOME}/.config/environment.d/qml.conf"
+if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
+  if ! grep -q "QML_IMPORT_PATH" "${HOME}/.config/hypr/autostart.lua"; then
+    sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "'"${HOME}"'") .. "/.config/omarchy/qml")' "${HOME}/.config/hypr/autostart.lua"
+  fi
+fi
+
+
 # Configure default midnightRight slot in shell.json if present
 if [ -f "${HOME}/.config/omarchy/shell.json" ]; then
   python3 - "${HOME}/.config/omarchy/shell.json" << 'EOF'
