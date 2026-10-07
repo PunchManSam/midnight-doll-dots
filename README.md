@@ -23,6 +23,22 @@
 
 ---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="Example Screenshots/image1.png" alt="Midnight Doll Desktop Overview" width="49%">
+  <img src="Example Screenshots/image2.png" alt="Midnight Doll Shell In Action" width="49%">
+</p>
+<p align="center">
+  <img src="Example Screenshots/image3.png" alt="Midnight Doll Workspace & Terminal" width="49%">
+  <img src="Example Screenshots/image4.png" alt="Midnight Doll Attached Shelves & Drawers" width="49%">
+</p>
+<p align="center">
+  <img src="Example Screenshots/image5.png" alt="Midnight Doll Minimal Setup" width="99%">
+</p>
+
+---
+
 ## ⚡ Key Features
 
 - 💀 **Cyberdeck Skull Menu Launcher**: Dedicated **18px Neon Pink Nerd Font Skull (`󰚌`)** menu icon on the top bar with full native integration with the official Omarchy application launcher and shell menus.
@@ -46,6 +62,7 @@
 ```text
 midnight-doll-dots/
 ├── README.md                      # Documentation & showcase
+├── Example Screenshots/           # Visual desktop showcase previews
 ├── install.sh                     # Automated 1-click installer & backup generator
 ├── uninstall.sh                   # Instant rollback script
 ├── config/

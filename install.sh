@@ -438,6 +438,14 @@ MANIFEST
 echo -e "\n${VIOLET}[*] Deploying Theme & Scripts to ~/.config/omarchy/...${RESET}"
 mkdir -p "${HOME}/.config/omarchy/themes/midnight-doll"
 cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${HOME}/.config/omarchy/themes/midnight-doll/"
+rm -f "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/omarchy.webp" \
+      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/0-winding-road.webp" \
+      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/1-quattro.webp" \
+      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/2-swirl-buck.webp" \
+      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/3-sunset-lake.webp" \
+      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/4-omakub.webp" \
+      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/5-oma-cityscape.jpg" \
+      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/6-oma.webp"
 cp "${DOTS_DIR}/config/omarchy/sys-hud.sh" "${HOME}/.config/omarchy/"
 cp "${DOTS_DIR}/config/omarchy/cava.conf" "${HOME}/.config/omarchy/"
 cp "${DOTS_DIR}/config/omarchy/set-accent.sh" "${HOME}/.config/omarchy/"
