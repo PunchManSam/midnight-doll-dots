@@ -950,6 +950,22 @@ Item {
            id === "midnight-doll.cava"
   }
 
+  function deduplicateEntries(entries) {
+    if (!Array.isArray(entries)) return []
+    var seen = {}
+    var out = []
+    for (var i = 0; i < entries.length; i++) {
+      var id = root.entryId(entries[i])
+      if (id) {
+        var canon = root.canonicalWidgetId(id)
+        if (seen[canon]) continue
+        seen[canon] = true
+      }
+      out.push(entries[i])
+    }
+    return out
+  }
+
   function filterMidnightWidgets(entries) {
     if (!Array.isArray(entries)) return []
     var out = []
@@ -976,13 +992,19 @@ Item {
       res.status = res.right
 
       if (Array.isArray(raw.midnightRight) && raw.midnightRight.length > 0) {
-        res.right = raw.midnightRight
+        res.right = deduplicateEntries(raw.midnightRight)
       } else {
         res.right = [
           { id: "midnight-doll.sys-hud" },
           { id: "midnight-doll.visualizer" }
         ]
       }
+
+      // In Midnight Doll, sys-hud and visualizer belong exclusively in the
+      // right section (midnightRight). Filter them out of left and center to
+      // prevent duplicate rendering if shell.json carries stray entries.
+      res.left = filterMidnightWidgets(res.left)
+      res.center = filterMidnightWidgets(res.center)
     } else {
       res.left = filterMidnightWidgets(res.left)
       res.center = filterMidnightWidgets(res.center)

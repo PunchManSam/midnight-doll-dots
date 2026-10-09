@@ -88,6 +88,7 @@ if command -v omarchy &> /dev/null; then
   omarchy plugin disable midnight-doll.clock >/dev/null 2>&1 || true
   omarchy plugin disable midnight-doll.sys-hud >/dev/null 2>&1 || true
   omarchy plugin disable midnight-doll.visualizer >/dev/null 2>&1 || true
+  omarchy plugin disable midnight-doll.notifications >/dev/null 2>&1 || true
   omarchy plugin enable omarchy.menu >/dev/null 2>&1 || true
   omarchy plugin enable omarchy.workspaces >/dev/null 2>&1 || true
   omarchy plugin enable omarchy.clock >/dev/null 2>&1 || true

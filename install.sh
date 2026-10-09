@@ -636,12 +636,19 @@ fi
 if [ -f "${HOME}/.config/omarchy/shell.json" ]; then
   python3 - "${HOME}/.config/omarchy/shell.json" << 'EOF'
 import sys, json
+
 shell_path = sys.argv[1]
 try:
     with open(shell_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     bar = data.setdefault("bar", {})
     layout = bar.setdefault("layout", {})
+
+    def get_id(item):
+        if isinstance(item, dict):
+            return item.get("id", "")
+        return str(item) if item else ""
+
     left = layout.setdefault("left", [])
     for item in left:
         if isinstance(item, dict) and item.get("id") == "midnight-doll.workspaces":
@@ -652,11 +659,57 @@ try:
             item["id"] = "omarchy.clock"
     if bar.get("centerAnchor") == "midnight-doll.clock":
         bar["centerAnchor"] = "omarchy.clock"
-    if "midnightRight" not in layout or not layout["midnightRight"]:
+
+    # Remove duplicate or misplaced HUD widgets from left, center, and right
+    midnight_hud_widgets = {
+        "midnight-doll.sys-hud", "midnight-doll.system-hud", "midnight-doll.hud",
+        "midnight-doll.visualizer", "midnight-doll.cava"
+    }
+    for sec in ["left", "center", "right"]:
+        if sec in layout and isinstance(layout[sec], list):
+            layout[sec] = [
+                item for item in layout[sec]
+                if get_id(item) not in midnight_hud_widgets
+            ]
+
+    # Ensure midnightRight is cleanly configured with sys-hud and visualizer without duplicates
+    raw_mr = layout.get("midnightRight")
+    if not isinstance(raw_mr, list) or not raw_mr:
         layout["midnightRight"] = [
             {"id": "midnight-doll.sys-hud"},
             {"id": "midnight-doll.visualizer"}
         ]
+    else:
+        seen = set()
+        deduped = []
+        for item in raw_mr:
+            iid = get_id(item)
+            if iid in ("midnight-doll.hud", "midnight-doll.system-hud"):
+                iid = "midnight-doll.sys-hud"
+                if isinstance(item, dict): item["id"] = iid
+            elif iid == "midnight-doll.cava":
+                iid = "midnight-doll.visualizer"
+                if isinstance(item, dict): item["id"] = iid
+            if iid and iid not in seen:
+                seen.add(iid)
+                deduped.append(item if isinstance(item, dict) else {"id": iid})
+        if "midnight-doll.sys-hud" not in seen:
+            deduped.insert(0, {"id": "midnight-doll.sys-hud"})
+            seen.add("midnight-doll.sys-hud")
+        if "midnight-doll.visualizer" not in seen:
+            deduped.append({"id": "midnight-doll.visualizer"})
+            seen.add("midnight-doll.visualizer")
+        layout["midnightRight"] = deduped
+
+    # Register modular widgets in plugins list so Omarchy knows they are enabled
+    # without running 'omarchy plugin enable' (which would inject them into bar.layout.center)
+    plugins = data.setdefault("plugins", [])
+    seen_plugins = {get_id(p) for p in plugins}
+    for req_p in ["midnight-doll.notifications", "midnight-doll.sys-hud", "midnight-doll.visualizer"]:
+        if req_p not in seen_plugins:
+            plugins.append({"id": req_p})
+            seen_plugins.add(req_p)
+
     with open(shell_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2)
         f.write("\n")
@@ -673,8 +726,6 @@ if command -v omarchy &> /dev/null; then
   omarchy bar use midnight-doll.bar || true
   omarchy plugin enable omarchy.workspaces || true
   omarchy plugin enable omarchy.clock || true
-  omarchy plugin enable midnight-doll.sys-hud || true
-  omarchy plugin enable midnight-doll.visualizer || true
   omarchy plugin enable midnight-doll.notifications || true
   omarchy plugin enable omarchy.menu || true
   omarchy restart shell || true
