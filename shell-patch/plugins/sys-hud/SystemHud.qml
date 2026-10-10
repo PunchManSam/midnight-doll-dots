@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
@@ -10,7 +11,7 @@ BarWidget {
 
   readonly property var shellBar: root.bar
   readonly property color secondaryColor: (shellBar && shellBar.secondaryColor) ? shellBar.secondaryColor : "#bb9af7"
-  readonly property color urgentColor: (shellBar && shellBar.urgent) ? shellBar.urgent : Color.accent
+  readonly property color urgentColor: (shellBar && shellBar.urgent) ? shellBar.urgent : Commons.Color.accent
   readonly property string fontFam: (shellBar && shellBar.fontFamily) ? shellBar.fontFamily : "JetBrainsMono Nerd Font"
   readonly property string homeDir: Quickshell.env("HOME")
 
@@ -127,14 +128,14 @@ BarWidget {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * (root.cpuVal / 100.0)))
-            color: root.cpuVal > 80 ? root.urgentColor : Color.accent
+            color: root.cpuVal > 80 ? root.urgentColor : Commons.Color.accent
           }
         }
         Text {
           text: root.cpuVal + "%"
           font.family: root.fontFam
           font.pixelSize: 8
-          color: Color.foreground
+          color: Commons.Color.foreground
           width: 22
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter
@@ -144,7 +145,7 @@ BarWidget {
           text: root.cpuTemp + "°C"
           font.family: root.fontFam
           font.pixelSize: 8
-          color: root.cpuTemp > 80 ? root.urgentColor : Color.foreground
+          color: root.cpuTemp > 80 ? root.urgentColor : Commons.Color.foreground
           width: visible ? 24 : 0
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter
@@ -188,7 +189,7 @@ BarWidget {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 height: Math.max(modelData > 0 ? 1 : 0, Math.round(parent.height * (Math.min(100, modelData) / 100.0)))
-                color: modelData > 80 ? root.urgentColor : Color.accent
+                color: modelData > 80 ? root.urgentColor : Commons.Color.accent
               }
             }
           }
@@ -197,7 +198,7 @@ BarWidget {
           text: root.fanVal > 0 ? (root.fanVal >= 10000 ? (root.fanVal / 1000).toFixed(1) + "k" : String(root.fanVal)) : "OFF"
           font.family: root.fontFam
           font.pixelSize: 8
-          color: root.fanPct > 80 ? root.urgentColor : Color.foreground
+          color: root.fanPct > 80 ? root.urgentColor : Commons.Color.foreground
           width: 24
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter
@@ -235,14 +236,14 @@ BarWidget {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * (root.memVal / 100.0)))
-            color: root.memVal > 85 ? root.urgentColor : Color.accent
+            color: root.memVal > 85 ? root.urgentColor : Commons.Color.accent
           }
         }
         Text {
           text: root.memVal + "%"
           font.family: root.fontFam
           font.pixelSize: 8
-          color: Color.foreground
+          color: Commons.Color.foreground
           width: 22
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter
@@ -280,14 +281,14 @@ BarWidget {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * (root.dskVal / 100.0)))
-            color: root.dskVal > 90 ? root.urgentColor : Color.accent
+            color: root.dskVal > 90 ? root.urgentColor : Commons.Color.accent
           }
         }
         Text {
           text: root.dskVal + "%"
           font.family: root.fontFam
           font.pixelSize: 8
-          color: Color.foreground
+          color: Commons.Color.foreground
           width: 22
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter
@@ -335,7 +336,7 @@ BarWidget {
           text: String(root.connsVal)
           font.family: root.fontFam
           font.pixelSize: 8
-          color: root.connsVal > 100 ? root.urgentColor : Color.accent
+          color: root.connsVal > 100 ? root.urgentColor : Commons.Color.accent
           width: 18
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter
@@ -368,7 +369,7 @@ BarWidget {
           text: "▲" + root.txRate + " ▼" + root.rxRate
           font.family: root.fontFam
           font.pixelSize: 8
-          color: Color.accent
+          color: Commons.Color.accent
           width: 78
           horizontalAlignment: Text.AlignLeft
           anchors.verticalCenter: parent.verticalCenter

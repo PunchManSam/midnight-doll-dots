@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
@@ -10,7 +11,7 @@ BarWidget {
 
   readonly property var shellBar: root.bar
   readonly property color secondaryColor: (shellBar && shellBar.secondaryColor) ? shellBar.secondaryColor : "#bb9af7"
-  readonly property color urgentColor: (shellBar && shellBar.urgent) ? shellBar.urgent : Color.accent
+  readonly property color urgentColor: (shellBar && shellBar.urgent) ? shellBar.urgent : Commons.Color.accent
   readonly property string fontFam: (shellBar && shellBar.fontFamily) ? shellBar.fontFamily : "JetBrainsMono Nerd Font"
   readonly property string homeDir: Quickshell.env("HOME")
 
@@ -102,7 +103,7 @@ BarWidget {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * root.airLevel))
-            color: Color.accent
+            color: Commons.Color.accent
           }
         }
       }
@@ -129,7 +130,7 @@ BarWidget {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * root.midLevel))
-            color: Color.accent
+            color: Commons.Color.accent
           }
         }
       }
@@ -156,7 +157,7 @@ BarWidget {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * root.bassLevel))
-            color: Color.accent
+            color: Commons.Color.accent
           }
         }
       }
@@ -193,7 +194,7 @@ BarWidget {
             ctx.arc(cx, cy, 1.3, 0, 2 * Math.PI)
             if (d < numDots) {
               if (d === numDots - 1) {
-                ctx.fillStyle = Color.accent ? Color.accent : "#ff51c5"
+                ctx.fillStyle = Commons.Color.accent ? Commons.Color.accent : "#ff51c5"
               } else {
                 ctx.fillStyle = root.secondaryColor
               }

@@ -445,7 +445,8 @@ rm -f "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/omarchy.webp" \
       "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/3-sunset-lake.webp" \
       "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/4-omakub.webp" \
       "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/5-oma-cityscape.jpg" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/6-oma.webp"
+      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/6-oma.webp" \
+      "${HOME}/.config/omarchy/themes/midnight-doll/shell.lock.toml"
 cp "${DOTS_DIR}/config/omarchy/sys-hud.sh" "${HOME}/.config/omarchy/"
 cp "${DOTS_DIR}/config/omarchy/cava.conf" "${HOME}/.config/omarchy/"
 cp "${DOTS_DIR}/config/omarchy/set-accent.sh" "${HOME}/.config/omarchy/"
@@ -513,7 +514,10 @@ raw_pri = pri_hex.lstrip('#')
 with open(colors_path, 'r', encoding='utf-8') as f:
     c = f.read()
 c = re.sub(r'^accent = "#[0-9a-fA-F]{6}"', f'accent = "{pri_hex}"', c, flags=re.MULTILINE)
-c = re.sub(r'^foreground = "#[0-9a-fA-F]{6}"', f'foreground = "{pri_hex}"', c, flags=re.MULTILINE)
+c = re.sub(r'^foreground = "#[0-9a-fA-F]{6}"', 'foreground = "#d0d0d0"', c, flags=re.MULTILINE)
+c = re.sub(r'^dark_foreground = "#[0-9a-fA-F]{6}"', 'dark_foreground = "#767676"', c, flags=re.MULTILINE)
+c = re.sub(r'^light_foreground = "#[0-9a-fA-F]{6}"', 'light_foreground = "#ebebeb"', c, flags=re.MULTILINE)
+c = re.sub(r'^bright_foreground = "#[0-9a-fA-F]{6}"', 'bright_foreground = "#ffffff"', c, flags=re.MULTILINE)
 c = re.sub(r'^selection = "#[0-9a-fA-F]{6}"', f'selection = "{sel_hex}"', c, flags=re.MULTILINE)
 c = re.sub(r'^muted = "#[0-9a-fA-F]{6}"', f'muted = "{sec_hex}"', c, flags=re.MULTILINE)
 c = re.sub(r'^bright_magenta = "#[0-9a-fA-F]{6}"', f'bright_magenta = "{sec_hex}"', c, flags=re.MULTILINE)
@@ -523,7 +527,7 @@ with open(colors_path, 'w', encoding='utf-8') as f:
 # 2. Update ghostty.conf
 with open(ghostty_path, 'r', encoding='utf-8') as f:
     g = f.read()
-g = re.sub(r'^foreground = #[0-9a-fA-F]{6}', f'foreground = {pri_hex}', g, flags=re.MULTILINE)
+g = re.sub(r'^foreground = #[0-9a-fA-F]{6}', 'foreground = #d0d0d0', g, flags=re.MULTILINE)
 g = re.sub(r'^selection-background = #[0-9a-fA-F]{6}', f'selection-background = {sel_hex}', g, flags=re.MULTILINE)
 g = re.sub(r'^palette = 13=#[0-9a-fA-F]{6}', f'palette = 13={sec_hex}', g, flags=re.MULTILINE)
 with open(ghostty_path, 'w', encoding='utf-8') as f:

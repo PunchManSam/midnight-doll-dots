@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "BarModel.js" as BarModel
 
@@ -178,7 +179,7 @@ Item {
     }
   }
   readonly property real cornerStrokeOffset: (root.cornerStrokeWidth - 1.0) / 2
-  readonly property color cornerStrokeColor: Color.accent
+  readonly property color cornerStrokeColor: Commons.Color.accent
 
   Process {
     id: hyprBorderSizeProc
@@ -640,14 +641,14 @@ Item {
   property string fontFamily: isMidnightDoll ? "JetBrainsMono Nerd Font" : Style.font.family
   // Bound to the central Color singleton so the bar tracks shell.toml's
   // [bar] section. Property names kept for the rest of this file's bindings.
-  property color themeForeground: isMidnightDoll ? Color.accent : Color.bar.text
-  property color themeContrastForeground: Color.background
-  property color transparentForeground: Color.bar.text
+  property color themeForeground: isMidnightDoll ? Commons.Color.accent : Commons.Color.bar.text
+  property color themeContrastForeground: Commons.Color.background
+  property color transparentForeground: Commons.Color.bar.text
   property color foreground: themeForeground
   property color barForeground: (isMidnightDoll || !useTransparentForeground) ? themeForeground : transparentForeground
   property bool foregroundAnimationEnabled: true
-  property color background: isMidnightDoll ? "#010101" : Color.bar.background
-  property color urgent: isMidnightDoll ? Color.accent : Color.bar.active
+  property color background: isMidnightDoll ? "#010101" : Commons.Color.bar.background
+  property color urgent: isMidnightDoll ? Commons.Color.accent : Commons.Color.bar.active
 
   Behavior on barForeground { enabled: root.foregroundAnimationEnabled; ColorAnimation { duration: 420; easing.type: Easing.InOutCubic } }
   Behavior on background { ColorAnimation { duration: 420; easing.type: Easing.InOutCubic } }
@@ -1834,8 +1835,8 @@ Item {
       anchors.centerIn: parent
       width: 480
       height: 520
-      color: Color.popups.background
-      border.color: Color.accent
+      color: Commons.Color.popups.background
+      border.color: Commons.Color.accent
       border.width: 2
       radius: 0
 
@@ -1855,7 +1856,7 @@ Item {
             font.family: root.fontFamily
             font.bold: true
             font.pixelSize: Style.font.title
-            color: Color.accent
+            color: Commons.Color.accent
             Layout.fillWidth: true
           }
           Button {
@@ -1897,7 +1898,7 @@ Item {
                 font.family: root.fontFamily
                 font.bold: true
                 font.pixelSize: Style.font.body
-                color: Color.foreground
+                color: Commons.Color.foreground
                 Layout.preferredWidth: 90
                 elide: Text.ElideRight
               }
@@ -1966,7 +1967,7 @@ Item {
             font.family: root.fontFamily
             font.bold: true
             font.pixelSize: Style.font.caption
-            color: Color.accent
+            color: Commons.Color.accent
             Layout.fillWidth: true
           }
           Button {
@@ -2002,7 +2003,7 @@ Item {
               width: 26
               height: 26
               color: iconHover.hovered ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.05)
-              border.color: newGlyphField.text === modelData.glyph ? Color.accent : "transparent"
+              border.color: newGlyphField.text === modelData.glyph ? Commons.Color.accent : "transparent"
               border.width: 1
               radius: 0
 
@@ -2041,7 +2042,7 @@ Item {
             font.family: root.fontFamily
             font.bold: true
             font.pixelSize: Style.font.caption
-            color: Color.foreground
+            color: Commons.Color.foreground
             Layout.fillWidth: true
           }
           Text {
@@ -2061,7 +2062,7 @@ Item {
             placeholderText: "Name"
             font.family: root.fontFamily
             Layout.preferredWidth: 100
-            color: Color.foreground
+            color: Commons.Color.foreground
           }
 
           TextField {
@@ -2078,7 +2079,7 @@ Item {
             placeholderText: "Command (e.g. ghostty -e btop)"
             font.family: root.fontFamily
             Layout.fillWidth: true
-            color: Color.foreground
+            color: Commons.Color.foreground
           }
         }
 
@@ -2186,7 +2187,7 @@ Item {
             right: parent.right
           }
           width: 1
-          color: Color.accent
+          color: Commons.Color.accent
         }
       }
 
@@ -2289,7 +2290,7 @@ Item {
             text: "󰐕"
             font.family: root.fontFamily
             font.pixelSize: 13
-            color: addBtnHover.hovered ? Color.accent : Qt.rgba(1, 1, 1, 0.25)
+            color: addBtnHover.hovered ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.25)
           }
 
           MouseArea {
@@ -2373,8 +2374,8 @@ Item {
         id: leftTooltipBubble
         implicitWidth: leftTooltipLabel.implicitWidth + 20
         implicitHeight: leftTooltipLabel.implicitHeight + 14
-        color: Color.tooltip.background
-        borderSpec: Border.surfaceSpec("tooltip", "border", Color.tooltip.border, 1)
+        color: Commons.Color.tooltip.background
+        borderSpec: Border.surfaceSpec("tooltip", "border", Commons.Color.tooltip.border, 1)
         radius: Style.cornerRadius
 
         Text {
@@ -2382,7 +2383,7 @@ Item {
           textFormat: Text.PlainText
           anchors.centerIn: parent
           text: root.tooltipText
-          color: Color.tooltip.text
+          color: Commons.Color.tooltip.text
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
           horizontalAlignment: Text.AlignHCenter
@@ -2544,7 +2545,7 @@ Item {
       // Corner fillet outline: adapts to active window border width when top-left window is active
       ShapePath {
         strokeWidth: root.cornerStrokeWidth
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         joinStyle: ShapePath.RoundJoin
         capStyle: ShapePath.FlatCap
@@ -2565,7 +2566,7 @@ Item {
       // Top bar bottom border: decoupled from fillet and always 1px
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         joinStyle: ShapePath.MiterJoin
         capStyle: ShapePath.FlatCap
@@ -2591,7 +2592,7 @@ Item {
 
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         joinStyle: ShapePath.RoundJoin
         capStyle: ShapePath.FlatCap
@@ -2670,8 +2671,8 @@ Item {
         id: tooltipBubble
         implicitWidth: tooltipLabel.implicitWidth + 20
         implicitHeight: tooltipLabel.implicitHeight + 14
-        color: Color.tooltip.background
-        borderSpec: Border.surfaceSpec("tooltip", "border", Color.tooltip.border, 1)
+        color: Commons.Color.tooltip.background
+        borderSpec: Border.surfaceSpec("tooltip", "border", Commons.Color.tooltip.border, 1)
         radius: Style.cornerRadius
 
         Text {
@@ -2679,7 +2680,7 @@ Item {
           textFormat: Text.PlainText
           anchors.centerIn: parent
           text: root.tooltipText
-          color: Color.tooltip.text
+          color: Commons.Color.tooltip.text
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
           horizontalAlignment: Text.AlignHCenter
@@ -2811,7 +2812,7 @@ Item {
       y: targetRect ? Math.round(targetRect.y) : 0
       width: targetRect ? targetRect.width : 0
       height: targetRect ? targetRect.height : 0
-      color: Color.accent
+      color: Commons.Color.accent
       radius: Math.min(width, height) / 2
     }
   }
@@ -2887,7 +2888,7 @@ Item {
     width: visible ? (badgeRow.implicitWidth + 14) : 0
     radius: 3
     color: badgeMouse.containsMouse ? Qt.rgba(1, 0.32, 0.77, 0.28) : Qt.rgba(1, 0.32, 0.77, 0.14)
-    border.color: Color.accent
+    border.color: Commons.Color.accent
     border.width: 1
     anchors.verticalCenter: parent ? parent.verticalCenter : undefined
 
@@ -2902,7 +2903,7 @@ Item {
         text: "󰊓"
         font.family: root.fontFamily
         font.pixelSize: 11
-        color: Color.accent
+        color: Commons.Color.accent
         anchors.verticalCenter: parent.verticalCenter
       }
 
@@ -2912,7 +2913,7 @@ Item {
         font.pixelSize: 9
         font.bold: true
         font.letterSpacing: 1.0
-        color: Color.accent
+        color: Commons.Color.accent
         anchors.verticalCenter: parent.verticalCenter
       }
     }
@@ -3396,7 +3397,7 @@ Item {
 
       visible: opacity > 0
       opacity: slot.panelOpen && !slot.dragSource ? 0.9 : 0
-      color: Color.accent
+      color: Commons.Color.accent
       radius: Math.min(width, height) / 2
       width: (root.vertical || slot.isLeftPanel) ? Style.space(2) : slot.panelIndicatorExtent
       height: (root.vertical || slot.isLeftPanel) ? slot.panelIndicatorExtent : Style.space(2)
@@ -3757,7 +3758,7 @@ Item {
 
             Text {
               text: "["
-              color: Color.accent
+              color: Commons.Color.accent
               font.family: root.fontFamily
               font.pixelSize: Style.font.body
               renderType: Text.NativeRendering
@@ -3778,7 +3779,7 @@ Item {
                 id: dateLabel
                 anchors.centerIn: parent
                 text: clockOverlayRoot.dateString
-                color: Color.accent
+                color: Commons.Color.accent
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
                 renderType: Text.NativeRendering
@@ -3808,7 +3809,7 @@ Item {
 
             Text {
               text: "/"
-              color: Color.accent
+              color: Commons.Color.accent
               font.family: root.fontFamily
               font.pixelSize: Style.font.body
               renderType: Text.NativeRendering
@@ -3829,7 +3830,7 @@ Item {
                 id: timeLabel
                 anchors.centerIn: parent
                 text: clockOverlayRoot.timeString
-                color: Color.accent
+                color: Commons.Color.accent
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
                 renderType: Text.NativeRendering
@@ -3869,7 +3870,7 @@ Item {
 
             Text {
               text: "]"
-              color: Color.accent
+              color: Commons.Color.accent
               font.family: root.fontFamily
               font.pixelSize: Style.font.body
               renderType: Text.NativeRendering
@@ -3922,7 +3923,7 @@ Item {
                 required property string modelData
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: modelData
-                color: Color.accent
+                color: Commons.Color.accent
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
                 renderType: Text.NativeRendering
@@ -3999,7 +4000,7 @@ Item {
                 anchors.centerIn: parent
                 width: parent.width
                 height: root.barSize - 6
-                color: Color.accent
+                color: Commons.Color.accent
                 radius: 0
               }
 
@@ -4040,7 +4041,7 @@ Item {
                   // 2. Accent border outline on angled sides and bottom (top remains open to flow seamlessly from the bar)
                   ShapePath {
                     strokeWidth: 1.0
-                    strokeColor: Color.accent
+                    strokeColor: Commons.Color.accent
                     fillColor: "transparent"
                     capStyle: ShapePath.FlatCap
                     joinStyle: ShapePath.MiterJoin
@@ -4062,7 +4063,7 @@ Item {
                   font.family: root.fontFamily
                   font.pixelSize: 8
                   font.bold: true
-                  color: Color.accent
+                  color: Commons.Color.accent
                   renderType: Text.NativeRendering
                 }
 
@@ -4102,7 +4103,7 @@ Item {
                 radius: height / 2
                 color: "#010101"
                 border.width: 1
-                border.color: Color.accent
+                border.color: Commons.Color.accent
                 z: 1000
 
                 Text {
@@ -4112,7 +4113,7 @@ Item {
                   font.family: root.fontFamily
                   font.pixelSize: 8
                   font.bold: true
-                  color: Color.accent
+                  color: Commons.Color.accent
                   renderType: Text.NativeRendering
                 }
 
@@ -4145,7 +4146,7 @@ Item {
                 anchors.fill: parent
                 bar: overlayRoot.bar
                 text: "[" + (modelData === 10 ? "0" : String(modelData)) + "]"
-                foreground: focused ? "#010101" : Color.accent
+                foreground: focused ? "#010101" : Commons.Color.accent
                 active: false
                 useActiveColor: false
                 fontFamily: root.fontFamily
@@ -4201,7 +4202,7 @@ Item {
           text: root.menuIcon
           fontFamily: "JetBrainsMono Nerd Font"
           fontSize: 18
-          foreground: Color.accent
+          foreground: Commons.Color.accent
           horizontalMargin: 6
           fixedWidth: (root.vertical || slot.isLeftPanel) ? root.barSize : 28
           fixedHeight: (root.vertical || slot.isLeftPanel) ? 28 : root.barSize
@@ -4250,7 +4251,7 @@ Item {
               font.family: root.fontFamily
               font.bold: true
               font.pixelSize: 12
-              color: (hudSubMouse.enabled && hudSubMouse.containsMouse) ? "#ffffff" : Color.accent
+              color: (hudSubMouse.enabled && hudSubMouse.containsMouse) ? "#ffffff" : Commons.Color.accent
 
               Behavior on color {
                 ColorAnimation { duration: 120 }
@@ -4463,14 +4464,14 @@ Item {
               anchors.left: parent.left
               height: parent.height
               width: Math.max(1, Math.round(parent.width * (sysHudRoot.cpuVal / 100.0)))
-              color: sysHudRoot.cpuVal > 80 ? root.urgent : Color.accent
+              color: sysHudRoot.cpuVal > 80 ? root.urgent : Commons.Color.accent
             }
           }
           Text {
             text: sysHudRoot.cpuVal + "%"
             font.family: root.fontFamily
             font.pixelSize: 8
-            color: Color.foreground
+            color: Commons.Color.foreground
             width: 22
             horizontalAlignment: Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
@@ -4480,7 +4481,7 @@ Item {
             text: sysHudRoot.cpuTemp + "°C"
             font.family: root.fontFamily
             font.pixelSize: 8
-            color: sysHudRoot.cpuTemp > 80 ? root.urgent : Color.foreground
+            color: sysHudRoot.cpuTemp > 80 ? root.urgent : Commons.Color.foreground
             width: visible ? 24 : 0
             horizontalAlignment: Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
@@ -4524,7 +4525,7 @@ Item {
                   anchors.left: parent.left
                   anchors.right: parent.right
                   height: Math.max(modelData > 0 ? 1 : 0, Math.round(parent.height * (Math.min(100, modelData) / 100.0)))
-                  color: modelData > 80 ? root.urgent : Color.accent
+                  color: modelData > 80 ? root.urgent : Commons.Color.accent
                 }
               }
             }
@@ -4533,7 +4534,7 @@ Item {
             text: sysHudRoot.fanVal > 0 ? (sysHudRoot.fanVal >= 10000 ? (sysHudRoot.fanVal / 1000).toFixed(1) + "k" : String(sysHudRoot.fanVal)) : "OFF"
             font.family: root.fontFamily
             font.pixelSize: 8
-            color: sysHudRoot.fanPct > 80 ? root.urgent : Color.foreground
+            color: sysHudRoot.fanPct > 80 ? root.urgent : Commons.Color.foreground
             width: 24
             horizontalAlignment: Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
@@ -4571,14 +4572,14 @@ Item {
               anchors.left: parent.left
               height: parent.height
               width: Math.max(1, Math.round(parent.width * (sysHudRoot.memVal / 100.0)))
-              color: sysHudRoot.memVal > 85 ? root.urgent : Color.accent
+              color: sysHudRoot.memVal > 85 ? root.urgent : Commons.Color.accent
             }
           }
           Text {
             text: sysHudRoot.memVal + "%"
             font.family: root.fontFamily
             font.pixelSize: 8
-            color: Color.foreground
+            color: Commons.Color.foreground
             width: 22
             horizontalAlignment: Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
@@ -4616,14 +4617,14 @@ Item {
               anchors.left: parent.left
               height: parent.height
               width: Math.max(1, Math.round(parent.width * (sysHudRoot.dskVal / 100.0)))
-              color: sysHudRoot.dskVal > 90 ? root.urgent : Color.accent
+              color: sysHudRoot.dskVal > 90 ? root.urgent : Commons.Color.accent
             }
           }
           Text {
             text: sysHudRoot.dskVal + "%"
             font.family: root.fontFamily
             font.pixelSize: 8
-            color: Color.foreground
+            color: Commons.Color.foreground
             width: 22
             horizontalAlignment: Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
@@ -4671,7 +4672,7 @@ Item {
             text: String(sysHudRoot.connsVal)
             font.family: root.fontFamily
             font.pixelSize: 8
-            color: sysHudRoot.connsVal > 100 ? root.urgent : Color.accent
+            color: sysHudRoot.connsVal > 100 ? root.urgent : Commons.Color.accent
             width: 18
             horizontalAlignment: Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
@@ -4704,7 +4705,7 @@ Item {
             text: "▲" + sysHudRoot.txRate + " ▼" + sysHudRoot.rxRate
             font.family: root.fontFamily
             font.pixelSize: 8
-            color: Color.accent
+            color: Commons.Color.accent
             width: 78
             horizontalAlignment: Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
@@ -4806,7 +4807,7 @@ Item {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * cavaRoot.airLevel))
-            color: Color.accent
+            color: Commons.Color.accent
           }
         }
       }
@@ -4833,7 +4834,7 @@ Item {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * cavaRoot.midLevel))
-            color: Color.accent
+            color: Commons.Color.accent
           }
         }
       }
@@ -4860,7 +4861,7 @@ Item {
             anchors.left: parent.left
             height: parent.height
             width: Math.max(1, Math.round(parent.width * cavaRoot.bassLevel))
-            color: Color.accent
+            color: Commons.Color.accent
           }
         }
       }
@@ -4897,7 +4898,7 @@ Item {
             ctx.arc(cx, cy, 1.3, 0, 2 * Math.PI)
             if (d < numDots) {
               if (d === numDots - 1) {
-                ctx.fillStyle = Color.accent ? Color.accent : "#ff51c5" // Vibrant neon accent peak
+                ctx.fillStyle = Commons.Color.accent ? Commons.Color.accent : "#ff51c5" // Vibrant neon accent peak
               } else {
                 ctx.fillStyle = root.secondaryColor // Complimentary accent active LED
               }

@@ -3,6 +3,7 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 Panel {
@@ -144,7 +145,7 @@ Panel {
             text: "󰂚"
             font.family: root.bar ? root.bar.fontFamily : Style.font.family
             font.pixelSize: Style.font.title
-            color: Color.accent
+            color: Commons.Color.accent
           }
 
           Text {
@@ -153,7 +154,7 @@ Panel {
             font.family: root.bar ? root.bar.fontFamily : Style.font.family
             font.pixelSize: Style.font.body
             font.bold: true
-            color: root.bar ? root.bar.foreground : Color.foreground
+            color: root.bar ? root.bar.foreground : Commons.Color.foreground
           }
 
           // Count badge
@@ -163,13 +164,13 @@ Panel {
             radius: height / 2
             width: Math.max(height, badgeText.implicitWidth + Style.space(10))
             height: Style.space(18)
-            color: Color.accent
+            color: Commons.Color.accent
 
             Text {
               id: badgeText
               anchors.centerIn: parent
               text: String(root.unreadCount)
-              color: Color.background
+              color: Commons.Color.background
               font.bold: true
               font.pixelSize: Style.font.caption
             }
@@ -207,7 +208,7 @@ Panel {
 
         PanelSeparator {
           width: parent.width
-          foreground: root.bar ? root.bar.foreground : Color.foreground
+          foreground: root.bar ? root.bar.foreground : Commons.Color.foreground
         }
 
         // Empty state view
@@ -227,7 +228,7 @@ Panel {
               font.family: root.bar ? root.bar.fontFamily : Style.font.family
               font.pixelSize: Style.space(48)
               opacity: 0.2
-              color: root.bar ? root.bar.foreground : Color.foreground
+              color: root.bar ? root.bar.foreground : Commons.Color.foreground
             }
 
             Text {
@@ -236,7 +237,7 @@ Panel {
               font.family: root.bar ? root.bar.fontFamily : Style.font.family
               font.pixelSize: Style.font.title
               opacity: 0.6
-              color: root.bar ? root.bar.foreground : Color.foreground
+              color: root.bar ? root.bar.foreground : Commons.Color.foreground
             }
 
             Text {
@@ -245,7 +246,7 @@ Panel {
               font.family: root.bar ? root.bar.fontFamily : Style.font.family
               font.pixelSize: Style.font.bodySmall
               opacity: 0.4
-              color: root.bar ? root.bar.foreground : Color.foreground
+              color: root.bar ? root.bar.foreground : Commons.Color.foreground
             }
           }
         }
@@ -275,7 +276,7 @@ Panel {
               radius: Style.space(6)
               color: cardHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
               border.width: 1
-              border.color: cardHover.hovered ? Color.accent : Qt.rgba(1, 1, 1, 0.08)
+              border.color: cardHover.hovered ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.08)
 
               HoverHandler {
                 id: cardHover
@@ -298,7 +299,7 @@ Panel {
                     text: modelData.glyph || "󰂚"
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
                     font.pixelSize: Style.font.bodySmall
-                    color: Color.accent
+                    color: Commons.Color.accent
                   }
 
                   Text {
@@ -307,7 +308,7 @@ Panel {
                     font.pixelSize: Style.font.bodySmall
                     font.bold: true
                     opacity: 0.7
-                    color: root.bar ? root.bar.foreground : Color.foreground
+                    color: root.bar ? root.bar.foreground : Commons.Color.foreground
                   }
 
                   Item {
@@ -321,7 +322,7 @@ Panel {
                     font.family: root.bar ? root.bar.fontFamily : Style.font.family
                     font.pixelSize: Style.font.caption
                     opacity: 0.45
-                    color: root.bar ? root.bar.foreground : Color.foreground
+                    color: root.bar ? root.bar.foreground : Commons.Color.foreground
                   }
 
                   MouseArea {
@@ -337,7 +338,7 @@ Panel {
                       text: "󰅖"
                       font.family: root.bar ? root.bar.fontFamily : Style.font.family
                       font.pixelSize: Style.font.caption
-                      color: dismissBtn.containsMouse ? Color.accent : (root.bar ? root.bar.foreground : Color.foreground)
+                      color: dismissBtn.containsMouse ? Commons.Color.accent : (root.bar ? root.bar.foreground : Commons.Color.foreground)
                       opacity: dismissBtn.containsMouse ? 1.0 : 0.5
                     }
                   }
@@ -352,7 +353,7 @@ Panel {
                   font.bold: true
                   wrapMode: Text.Wrap
                   textFormat: Text.PlainText
-                  color: root.bar ? root.bar.foreground : Color.foreground
+                  color: root.bar ? root.bar.foreground : Commons.Color.foreground
                 }
 
                 // Body
@@ -365,7 +366,7 @@ Panel {
                   wrapMode: Text.Wrap
                   textFormat: Text.PlainText
                   opacity: 0.8
-                  color: root.bar ? root.bar.foreground : Color.foreground
+                  color: root.bar ? root.bar.foreground : Commons.Color.foreground
                 }
               }
             }

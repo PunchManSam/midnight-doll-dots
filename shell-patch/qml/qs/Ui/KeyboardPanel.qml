@@ -3,6 +3,7 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import qs.Commons as Commons
 
 // Layer-shell popup attached to a bar widget icon, designed for
 // click-driven AND keyboard-driven panels (e.g. SUPER+CTRL+W summon).
@@ -45,7 +46,7 @@ PanelWindow {
   property int padding: Style.spacing.popupPadding
   property int contentWidth: Style.space(280)
   property int contentHeight: Style.space(200)
-  property var borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+  property var borderSpec: Border.surfaceSpec("popups", "border", Commons.Color.popups.border, Math.max(1, Style.space(2)))
   property bool centerOnBar: false
   property bool open: false
   property int gap: Style.gapsOut  // distance between bar edge and panel
@@ -515,7 +516,7 @@ PanelWindow {
     BorderSurface {
       anchors.fill: parent
       visible: !root.isMidnightDoll
-      color: Color.popups.background
+      color: Commons.Color.popups.background
       borderSpec: root.borderSpec
       padding: root.padding
       radius: Style.cornerRadius
@@ -544,7 +545,7 @@ PanelWindow {
 
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         capStyle: ShapePath.FlatCap
         joinStyle: ShapePath.RoundJoin
@@ -601,7 +602,7 @@ PanelWindow {
 
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         capStyle: ShapePath.FlatCap
         joinStyle: ShapePath.RoundJoin
@@ -644,7 +645,7 @@ PanelWindow {
 
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         capStyle: ShapePath.FlatCap
         joinStyle: ShapePath.RoundJoin
@@ -678,7 +679,7 @@ PanelWindow {
 
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         capStyle: ShapePath.FlatCap
         joinStyle: ShapePath.RoundJoin
@@ -709,7 +710,7 @@ PanelWindow {
 
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         capStyle: ShapePath.FlatCap
         joinStyle: ShapePath.RoundJoin
@@ -751,7 +752,7 @@ PanelWindow {
 
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         capStyle: ShapePath.FlatCap
         joinStyle: ShapePath.RoundJoin
@@ -784,7 +785,7 @@ PanelWindow {
 
       ShapePath {
         strokeWidth: 1.0
-        strokeColor: Color.accent
+        strokeColor: Commons.Color.accent
         fillColor: "transparent"
         capStyle: ShapePath.FlatCap
         joinStyle: ShapePath.RoundJoin
