@@ -1,5 +1,5 @@
 local active_border_color = "rgb(ff51c5)"
-local inactive_border_color = "rgb(2b0938)"
+local inactive_border_color = "rgb(292136)"
 
 hl.config({
   general = {
