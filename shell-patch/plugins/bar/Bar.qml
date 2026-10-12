@@ -3587,7 +3587,7 @@ Item {
 
         Row {
           anchors.left: parent.left
-          anchors.leftMargin: (root.isMidnightDoll && root.sideBarEnabled && root.sideBarPosition === "left") ? (36 + Style.space(8)) : Style.space(8)
+          anchors.leftMargin: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.space(8)
 
@@ -3598,7 +3598,7 @@ Item {
 
         Row {
           anchors.right: parent.right
-          anchors.rightMargin: (root.isMidnightDoll && root.sideBarEnabled && root.sideBarPosition === "right") ? (36 + Style.space(8)) : Style.space(8)
+          anchors.rightMargin: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           spacing: 6
 
