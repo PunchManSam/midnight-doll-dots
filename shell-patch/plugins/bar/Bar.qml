@@ -150,6 +150,131 @@ Item {
     midnightShortcutsFile.setText(JSON.stringify(list, null, 2) + "\n")
   }
   property bool midnightShortcutEditorOpen: false
+  property bool midnightThemeCenterOpen: false
+
+  readonly property string midnightConfigPath: root.home + "/.config/omarchy/midnight-config.json"
+  property var midnightConfig: ({
+    sideBarEnabled: true,
+    sideBarPosition: "left",
+    primaryAccent: "#ff51c5",
+    secondaryAccent: "#bb9af7"
+  })
+
+  readonly property bool sideBarEnabled: (root.midnightConfig && root.midnightConfig.sideBarEnabled !== undefined) ? root.midnightConfig.sideBarEnabled : true
+  readonly property string sideBarPosition: (root.midnightConfig && root.midnightConfig.sideBarPosition) ? root.midnightConfig.sideBarPosition : "left"
+
+  FileView {
+    id: midnightConfigFile
+    path: root.midnightConfigPath
+    watchChanges: true
+    printErrors: false
+    atomicWrites: true
+    onLoaded: root.parseMidnightConfig(text())
+    onFileChanged: reload()
+  }
+
+  function parseMidnightConfig(raw) {
+    try {
+      if (raw && raw.trim().length > 0) {
+        var parsed = JSON.parse(String(raw))
+        if (parsed && typeof parsed === "object") {
+          var updated = Object.assign({
+            sideBarEnabled: true,
+            sideBarPosition: "left",
+            primaryAccent: "#ff51c5",
+            secondaryAccent: "#bb9af7"
+          }, parsed)
+          midnightConfig = updated
+          return
+        }
+      }
+    } catch (e) {
+      console.warn("parseMidnightConfig error", e)
+    }
+  }
+
+  function saveMidnightConfig(cfg) {
+    midnightConfig = cfg
+    midnightConfigFile.setText(JSON.stringify(cfg, null, 2) + "\n")
+  }
+
+  function isWidgetInLayout(widgetId) {
+    if (!root.barConfig || !root.barConfig.layout) return false
+    var regions = ["left", "center", "right", "midnightRight", "status"]
+    for (var r = 0; r < regions.length; r++) {
+      var list = root.barConfig.layout[regions[r]]
+      if (Array.isArray(list)) {
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] && list[i].id === widgetId) return true
+        }
+      }
+    }
+    return false
+  }
+
+  function toggleBarWidget(widgetId, defaultRegion) {
+    if (!root.shell || typeof root.shell.mutateShellConfig !== "function") return
+    root.shell.mutateShellConfig(function(config) {
+      if (!config.bar || !config.bar.layout) return
+      var found = false
+      var regions = Object.keys(config.bar.layout)
+      for (var r = 0; r < regions.length; r++) {
+        var list = config.bar.layout[regions[r]]
+        if (Array.isArray(list)) {
+          for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].id === widgetId) {
+              list.splice(i, 1)
+              found = true
+              break
+            }
+          }
+          if (found) break
+        }
+      }
+      if (!found) {
+        var targetRegion = defaultRegion || "center"
+        if (!Array.isArray(config.bar.layout[targetRegion])) {
+          config.bar.layout[targetRegion] = []
+        }
+        config.bar.layout[targetRegion].push({ id: widgetId })
+      }
+    })
+  }
+
+  function restoreMidnightDollDefaults() {
+    if (!root.shell || typeof root.shell.mutateShellConfig !== "function") return
+    root.shell.mutateShellConfig(function(config) {
+      if (!config.bar) config.bar = {}
+      config.bar.layout = {
+        "left": [
+          { "id": "omarchy.menu" },
+          { "id": "midnight-doll.notifications" },
+          { "id": "omarchy.workspaces" }
+        ],
+        "center": [
+          { "id": "omarchy.indicators" },
+          { "id": "omarchy.elsewhen", "zones": "Eastern|US/Eastern, London|Europe/London, Dubai|Asia/Dubai, Tokyo|Asia/Tokyo, Los Angeles|America/Los_Angeles" },
+          { "dateFormat": "full", "format": "dddd HH:mm:ss", "formatAlt": "d MMMM 'W'ww yyyy", "id": "omarchy.clock", "precision": true, "timeFormat": "24h", "verticalFormat": "HH\n—\nmm" },
+          { "id": "omarchy.weather" },
+          { "id": "omarchy.system-update" }
+        ],
+        "midnightRight": [
+          { "id": "midnight-doll.sys-hud" },
+          { "id": "midnight-doll.visualizer" }
+        ],
+        "right": [
+          { "id": "omarchy.keyboard-layout" },
+          { "id": "omarchy.tray" },
+          { "id": "omarchy.agents", "providers": { "antigravity": { "enabled": true }, "claude": { "enabled": true }, "codex": { "enabled": true }, "fireworks": { "enabled": true }, "hermes": { "enabled": true } } },
+          { "id": "omarchy.audio" },
+          { "id": "omarchy.bluetooth" },
+          { "id": "omarchy.network" },
+          { "id": "omarchy.monitor" },
+          { "id": "omarchy.power", "showPercentage": true }
+        ]
+      }
+    })
+  }
 
   // Responsive corner fillet radius based on bar size and screen resolution / scaling
   readonly property int midnightCornerRadius: {
@@ -1806,6 +1931,18 @@ Item {
     }
   }
 
+  Variants {
+    model: Quickshell.screens
+
+    delegate: Component {
+      MidnightThemeCenterDialog {
+        required property var modelData
+
+        ghostScreen: modelData
+      }
+    }
+  }
+
   component MidnightShortcutEditorDialog: PanelWindow {
     id: shortcutModalWindow
     required property var ghostScreen
@@ -2105,12 +2242,721 @@ Item {
     }
   }
 
+  component MidnightThemeCenterDialog: PanelWindow {
+    id: themeCenterModalWindow
+    required property var ghostScreen
+    screen: ghostScreen
+
+    visible: root.isMidnightDoll && root.midnightThemeCenterOpen
+    color: "transparent"
+    surfaceFormat.opaque: false
+    exclusionMode: ExclusionMode.Ignore
+    WlrLayershell.namespace: "omarchy-midnight-theme-center-modal"
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    anchors {
+      top: true
+      bottom: true
+      left: true
+      right: true
+    }
+
+    MouseArea {
+      anchors.fill: parent
+      onClicked: root.midnightThemeCenterOpen = false
+    }
+
+    Item {
+      focus: true
+      Keys.onEscapePressed: root.midnightThemeCenterOpen = false
+    }
+
+    Rectangle {
+      id: modalContainer
+      anchors.centerIn: parent
+      width: 720
+      height: 600
+      color: "#050505"
+      border.color: Commons.Color.accent
+      border.width: 2
+      radius: 0
+
+      property int activeTab: 0
+
+      MouseArea {
+        anchors.fill: parent
+      }
+
+      ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 16
+        spacing: 10
+
+        // 1. Header Bar
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: 8
+
+          Text {
+            text: "󰒓"
+            font.family: root.fontFamily
+            font.pixelSize: 22
+            color: Commons.Color.accent
+          }
+
+          ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 1
+
+            Text {
+              text: "MIDNIGHT-DOLL // CONTROL CENTER"
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: Style.font.title
+              color: Commons.Color.accent
+            }
+
+            Text {
+              text: "CYBERDECK THEME ENGINE & CONTENT LOADER"
+              font.family: root.fontFamily
+              font.pixelSize: 10
+              color: Qt.rgba(1, 1, 1, 0.5)
+            }
+          }
+
+          Button {
+            text: "✕"
+            fontFamily: root.fontFamily
+            onClicked: root.midnightThemeCenterOpen = false
+          }
+        }
+
+        // Cyberpunk separator
+        Rectangle {
+          Layout.fillWidth: true
+          height: 1
+          color: Qt.rgba(1, 1, 1, 0.15)
+        }
+
+        // 2. Navigation Tabs
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: 6
+
+          Button {
+            text: "󰏘 ACCENTS & PALETTE"
+            fontFamily: root.fontFamily
+            accent: Commons.Color.accent
+            bordered: true
+            selected: modalContainer.activeTab === 0
+            Layout.fillWidth: true
+            onClicked: modalContainer.activeTab = 0
+          }
+
+          Button {
+            text: "󰍹 BAR & LAYOUT"
+            fontFamily: root.fontFamily
+            accent: Commons.Color.accent
+            bordered: true
+            selected: modalContainer.activeTab === 1
+            Layout.fillWidth: true
+            onClicked: modalContainer.activeTab = 1
+          }
+
+          Button {
+            text: "󰒓 WIDGETS & CONTENT"
+            fontFamily: root.fontFamily
+            accent: Commons.Color.accent
+            bordered: true
+            selected: modalContainer.activeTab === 2
+            Layout.fillWidth: true
+            onClicked: modalContainer.activeTab = 2
+          }
+        }
+
+        Rectangle {
+          Layout.fillWidth: true
+          height: 1
+          color: Qt.rgba(1, 1, 1, 0.1)
+        }
+
+        // 3. Tab Contents
+        Item {
+          Layout.fillWidth: true
+          Layout.fillHeight: true
+
+          // TAB 0: ACCENTS & PALETTE
+          ColumnLayout {
+            anchors.fill: parent
+            visible: modalContainer.activeTab === 0
+            spacing: 10
+
+            property string priColor: root.midnightConfig.primaryAccent || Commons.Color.accent || "#ff51c5"
+            property string secColor: root.midnightConfig.secondaryAccent || root.secondaryColor || "#bb9af7"
+
+            // Live Preview Strip
+            Rectangle {
+              Layout.fillWidth: true
+              height: 48
+              color: "#0a0a0a"
+              border.color: parent.priColor
+              border.width: 1
+
+              RowLayout {
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 12
+
+                Text {
+                  text: "MIDNIGHT-DOLL // HUD"
+                  font.family: root.fontFamily
+                  font.bold: true
+                  font.pixelSize: 13
+                  color: parent.parent.parent.secColor
+                }
+
+                Text {
+                  text: "CPU: 24% | RAM: 6.2G"
+                  font.family: root.fontFamily
+                  font.pixelSize: 11
+                  color: Qt.rgba(1, 1, 1, 0.7)
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Rectangle {
+                  width: 70
+                  height: 24
+                  color: parent.parent.parent.priColor
+                  Text {
+                    anchors.centerIn: parent
+                    text: "ACTIVE"
+                    font.family: root.fontFamily
+                    font.bold: true
+                    font.pixelSize: 10
+                    color: "#010101"
+                  }
+                }
+
+                Rectangle {
+                  width: 70
+                  height: 24
+                  color: "transparent"
+                  border.color: parent.parent.parent.secColor
+                  border.width: 1
+                  Text {
+                    anchors.centerIn: parent
+                    text: "COMPLIMENT"
+                    font.family: root.fontFamily
+                    font.pixelSize: 9
+                    color: parent.parent.parent.secColor
+                  }
+                }
+              }
+            }
+
+            Text {
+              text: "CYBERDECK PALETTE PRESETS"
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: Style.font.caption
+              color: Commons.Color.accent
+            }
+
+            Flow {
+              Layout.fillWidth: true
+              spacing: 6
+
+              Repeater {
+                model: [
+                  { name: "Doll Pink", pri: "#ff51c5", sec: "#bb9af7" },
+                  { name: "Matrix Green", pri: "#00ff9f", sec: "#00f0ff" },
+                  { name: "Cyber Cyan", pri: "#00f0ff", sec: "#ff51c5" },
+                  { name: "Ghost Violet", pri: "#bb9af7", sec: "#00f0ff" },
+                  { name: "Crimson Red", pri: "#ff3366", sec: "#00f0ff" },
+                  { name: "Volt Yellow", pri: "#ffe600", sec: "#bb9af7" },
+                  { name: "Solar Orange", pri: "#ff8800", sec: "#00f0ff" },
+                  { name: "Ice Blue", pri: "#7da6ff", sec: "#ff51c5" },
+                  { name: "Pure White", pri: "#ffffff", sec: "#767676" }
+                ]
+
+                delegate: Rectangle {
+                  required property var modelData
+
+                  width: 130
+                  height: 32
+                  color: presetHover.hovered ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
+                  border.color: priInputField.text.toLowerCase() === modelData.pri.toLowerCase() ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.2)
+                  border.width: priInputField.text.toLowerCase() === modelData.pri.toLowerCase() ? 2 : 1
+
+                  HoverHandler { id: presetHover }
+
+                  RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 4
+                    spacing: 6
+
+                    Rectangle {
+                      width: 14
+                      height: 14
+                      color: modelData.pri
+                    }
+
+                    Rectangle {
+                      width: 14
+                      height: 14
+                      color: modelData.sec
+                    }
+
+                    Text {
+                      text: modelData.name
+                      font.family: root.fontFamily
+                      font.pixelSize: 11
+                      color: Commons.Color.foreground
+                      Layout.fillWidth: true
+                      elide: Text.ElideRight
+                    }
+                  }
+
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                      priInputField.text = modelData.pri
+                      secInputField.text = modelData.sec
+                    }
+                  }
+                }
+              }
+            }
+
+            Rectangle {
+              Layout.fillWidth: true
+              height: 1
+              color: Qt.rgba(1, 1, 1, 0.1)
+            }
+
+            Text {
+              text: "CUSTOM HEX CODES"
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: Style.font.caption
+              color: Commons.Color.accent
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 10
+
+              Text {
+                text: "PRIMARY:"
+                font.family: root.fontFamily
+                font.pixelSize: 11
+                color: Commons.Color.foreground
+                Layout.preferredWidth: 90
+              }
+
+              TextField {
+                id: priInputField
+                text: root.midnightConfig.primaryAccent || Commons.Color.accent || "#ff51c5"
+                font.family: root.fontFamily
+                Layout.fillWidth: true
+                color: Commons.Color.foreground
+              }
+
+              Rectangle {
+                width: 28
+                height: 28
+                color: priInputField.text.match(/^#[0-9a-fA-F]{6}$/) ? priInputField.text : "transparent"
+                border.color: Qt.rgba(1, 1, 1, 0.3)
+                border.width: 1
+              }
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 10
+
+              Text {
+                text: "COMPLIMENT:"
+                font.family: root.fontFamily
+                font.pixelSize: 11
+                color: Commons.Color.foreground
+                Layout.preferredWidth: 90
+              }
+
+              TextField {
+                id: secInputField
+                text: root.midnightConfig.secondaryAccent || root.secondaryColor || "#bb9af7"
+                font.family: root.fontFamily
+                Layout.fillWidth: true
+                color: Commons.Color.foreground
+              }
+
+              Rectangle {
+                width: 28
+                height: 28
+                color: secInputField.text.match(/^#[0-9a-fA-F]{6}$/) ? secInputField.text : "transparent"
+                border.color: Qt.rgba(1, 1, 1, 0.3)
+                border.width: 1
+              }
+            }
+
+            Item { Layout.fillHeight: true }
+
+            Button {
+              text: "⚡ APPLY ACCENTS LIVE ACROSS SYSTEM"
+              fontFamily: root.fontFamily
+              accent: Commons.Color.accent
+              bordered: true
+              selected: true
+              Layout.fillWidth: true
+              Layout.preferredHeight: 38
+              onClicked: {
+                var pri = priInputField.text.trim()
+                var sec = secInputField.text.trim()
+                if (pri) {
+                  var cfg = Object.assign({}, root.midnightConfig, {
+                    primaryAccent: pri,
+                    secondaryAccent: sec
+                  })
+                  root.saveMidnightConfig(cfg)
+                  root.run(root.home + "/.config/omarchy/set-accent.sh '" + pri + "' '" + sec + "'")
+                  root.midnightThemeCenterOpen = false
+                }
+              }
+            }
+          }
+
+          // TAB 1: BAR & LAYOUT
+          ColumnLayout {
+            anchors.fill: parent
+            visible: modalContainer.activeTab === 1
+            spacing: 12
+
+            Text {
+              text: "BAR STRUCTURE"
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: Style.font.caption
+              color: Commons.Color.accent
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 10
+
+              Button {
+                text: "󰍹 DUAL BAR (TOP HUD + SIDE RAIL)"
+                fontFamily: root.fontFamily
+                selected: root.sideBarEnabled
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: {
+                  var cfg = Object.assign({}, root.midnightConfig, { sideBarEnabled: true })
+                  root.saveMidnightConfig(cfg)
+                }
+              }
+
+              Button {
+                text: "󰍺 SINGLE BAR (TOP HUD ONLY)"
+                fontFamily: root.fontFamily
+                selected: !root.sideBarEnabled
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: {
+                  var cfg = Object.assign({}, root.midnightConfig, { sideBarEnabled: false })
+                  root.saveMidnightConfig(cfg)
+                }
+              }
+            }
+
+            Rectangle {
+              Layout.fillWidth: true
+              height: 1
+              color: Qt.rgba(1, 1, 1, 0.1)
+            }
+
+            Text {
+              text: "SIDE RAIL DOCK POSITION"
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: Style.font.caption
+              color: Commons.Color.accent
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 10
+
+              Button {
+                text: "󰁍 LEFT RAIL"
+                fontFamily: root.fontFamily
+                selected: root.sideBarPosition === "left"
+                enabled: root.sideBarEnabled
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: {
+                  var cfg = Object.assign({}, root.midnightConfig, { sideBarPosition: "left" })
+                  root.saveMidnightConfig(cfg)
+                }
+              }
+
+              Button {
+                text: "󰁔 RIGHT RAIL"
+                fontFamily: root.fontFamily
+                selected: root.sideBarPosition === "right"
+                enabled: root.sideBarEnabled
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: {
+                  var cfg = Object.assign({}, root.midnightConfig, { sideBarPosition: "right" })
+                  root.saveMidnightConfig(cfg)
+                }
+              }
+            }
+
+            Rectangle {
+              Layout.fillWidth: true
+              height: 1
+              color: Qt.rgba(1, 1, 1, 0.1)
+            }
+
+            Text {
+              text: "TOP HUD EDGE POSITION"
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: Style.font.caption
+              color: Commons.Color.accent
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 10
+
+              Button {
+                text: "󰁞 TOP EDGE"
+                fontFamily: root.fontFamily
+                selected: root.position === "top"
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: root.setBarPosition("top")
+              }
+
+              Button {
+                text: "󰁡 BOTTOM EDGE"
+                fontFamily: root.fontFamily
+                selected: root.position === "bottom"
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: root.setBarPosition("bottom")
+              }
+            }
+
+            Rectangle {
+              Layout.fillWidth: true
+              height: 1
+              color: Qt.rgba(1, 1, 1, 0.1)
+            }
+
+            Text {
+              text: "SURFACE BACKGROUND OPACITY"
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: Style.font.caption
+              color: Commons.Color.accent
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 10
+
+              Button {
+                text: "󰈈 OPAQUE CYBERDECK (#010101)"
+                fontFamily: root.fontFamily
+                selected: !root.requestedTransparent
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: {
+                  if (root.requestedTransparent) root.toggleTransparency()
+                }
+              }
+
+              Button {
+                text: "󰈉 GLASS / TRANSPARENT"
+                fontFamily: root.fontFamily
+                selected: root.requestedTransparent
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: {
+                  if (!root.requestedTransparent) root.toggleTransparency()
+                }
+              }
+            }
+
+            Item { Layout.fillHeight: true }
+          }
+
+          // TAB 2: WIDGETS & CONTENT
+          ColumnLayout {
+            anchors.fill: parent
+            visible: modalContainer.activeTab === 2
+            spacing: 8
+
+            RowLayout {
+              Layout.fillWidth: true
+              Text {
+                text: "ACTIVE BAR MODULES (CLICK TO TOGGLE)"
+                font.family: root.fontFamily
+                font.bold: true
+                font.pixelSize: Style.font.caption
+                color: Commons.Color.accent
+                Layout.fillWidth: true
+              }
+
+              Button {
+                text: "↺ RESET DEFAULTS"
+                fontFamily: root.fontFamily
+                fontSize: 10
+                onClicked: root.restoreMidnightDollDefaults()
+              }
+            }
+
+            ListView {
+              id: widgetListView
+              Layout.fillWidth: true
+              Layout.fillHeight: true
+              clip: true
+              spacing: 4
+
+              model: [
+                { id: "midnight-doll.sys-hud", name: "System Telemetry HUD (CPU/GPU/RAM)", region: "midnightRight" },
+                { id: "midnight-doll.visualizer", name: "Audio Spectrum Visualizer (CAVA)", region: "midnightRight" },
+                { id: "omarchy.indicators", name: "Playback & Media Status", region: "center" },
+                { id: "omarchy.clock", name: "Digital Clock & Seconds", region: "center" },
+                { id: "omarchy.elsewhen", name: "World Clocks Matrix", region: "center" },
+                { id: "omarchy.weather", name: "Weather Conditions Sensor", region: "center" },
+                { id: "omarchy.system-update", name: "Pacman / AUR Package Updates", region: "center" },
+                { id: "omarchy.workspaces", name: "Cyberdeck Workspaces", region: "left" },
+                { id: "midnight-doll.notifications", name: "Notifications Panel", region: "left" },
+                { id: "omarchy.keyboard-layout", name: "Keyboard Layout Locale", region: "right" },
+                { id: "omarchy.tray", name: "System Tray Minimized Apps", region: "right" },
+                { id: "omarchy.agents", name: "AI Agents Monitor", region: "right" },
+                { id: "omarchy.audio", name: "Audio Volume Controller", region: "right" },
+                { id: "omarchy.bluetooth", name: "Bluetooth Device Link", region: "right" },
+                { id: "omarchy.network", name: "Network & Wi-Fi Monitor", region: "right" },
+                { id: "omarchy.power", name: "Power & Battery Manager", region: "right" }
+              ]
+
+              delegate: Rectangle {
+                required property var modelData
+                required property int index
+
+                readonly property bool isEnabled: root.isWidgetInLayout(modelData.id)
+
+                width: widgetListView.width
+                height: 32
+                color: wHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : (index % 2 === 0 ? Qt.rgba(1, 1, 1, 0.03) : "transparent")
+                border.color: isEnabled ? Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.4) : Qt.rgba(1, 1, 1, 0.1)
+                border.width: 1
+
+                HoverHandler { id: wHover }
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.margins: 4
+                  spacing: 8
+
+                  Rectangle {
+                    width: 50
+                    height: 18
+                    color: isEnabled ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.1)
+                    Text {
+                      anchors.centerIn: parent
+                      text: isEnabled ? "ON" : "OFF"
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 9
+                      color: isEnabled ? "#010101" : Qt.rgba(1, 1, 1, 0.6)
+                    }
+                  }
+
+                  Text {
+                    text: modelData.name
+                    font.family: root.fontFamily
+                    font.pixelSize: 11
+                    color: isEnabled ? Commons.Color.foreground : Qt.rgba(1, 1, 1, 0.4)
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                  }
+
+                  Text {
+                    text: "[" + modelData.region.toUpperCase() + "]"
+                    font.family: root.fontFamily
+                    font.pixelSize: 9
+                    color: root.secondaryColor
+                  }
+                }
+
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.toggleBarWidget(modelData.id, modelData.region)
+                }
+              }
+            }
+
+            Rectangle {
+              Layout.fillWidth: true
+              height: 1
+              color: Qt.rgba(1, 1, 1, 0.1)
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 8
+
+              Text {
+                text: "SIDE RAIL LAUNCHERS:"
+                font.family: root.fontFamily
+                font.pixelSize: 11
+                color: Commons.Color.foreground
+                Layout.fillWidth: true
+              }
+
+              Button {
+                text: "󰐕 EDIT SHORTCUT ICONS"
+                fontFamily: root.fontFamily
+                fontSize: 11
+                accent: Commons.Color.accent
+                bordered: true
+                onClicked: {
+                  root.midnightThemeCenterOpen = false
+                  root.midnightShortcutEditorOpen = true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   component MidnightLeftPanel: PanelWindow {
     id: leftBarWindow
 
-    visible: root.isMidnightDoll && (!root.barHidden || root.barAnimProgress > 0.001) && !remapGuardLeft.remapping
-    exclusionMode: (root.isMidnightDoll && !root.barHidden) ? ExclusionMode.Normal : ExclusionMode.Ignore
-    exclusiveZone: (root.isMidnightDoll && !root.barHidden) ? 36 : 0
+    visible: root.isMidnightDoll && root.sideBarEnabled && (!root.barHidden || root.barAnimProgress > 0.001) && !remapGuardLeft.remapping
+    exclusionMode: (root.isMidnightDoll && root.sideBarEnabled && !root.barHidden) ? ExclusionMode.Normal : ExclusionMode.Ignore
+    exclusiveZone: (root.isMidnightDoll && root.sideBarEnabled && !root.barHidden) ? 36 : 0
 
     ScreenMoveRemap {
       id: remapGuardLeft
@@ -2127,15 +2973,15 @@ Item {
     anchors {
       top: true
       bottom: true
-      left: true
-      right: false
+      left: root.sideBarPosition === "left"
+      right: root.sideBarPosition === "right"
     }
 
     implicitWidth: 36
     implicitHeight: 0
     color: "transparent"
     surfaceFormat.opaque: false
-    WlrLayershell.namespace: "omarchy-midnight-left-bar"
+    WlrLayershell.namespace: (root.sideBarPosition === "right") ? "omarchy-midnight-right-bar" : "omarchy-midnight-left-bar"
     WlrLayershell.layer: WlrLayer.Top
 
     mask: Region {
@@ -2151,7 +2997,9 @@ Item {
       id: leftBarContentHolder
       anchors.fill: parent
       transform: Translate {
-        x: Math.round(-36 * (1.0 - root.barAnimProgress))
+        x: (root.sideBarPosition === "right")
+          ? Math.round(36 * (1.0 - root.barAnimProgress))
+          : Math.round(-36 * (1.0 - root.barAnimProgress))
       }
       opacity: root.barAnimProgress
 
@@ -2161,19 +3009,14 @@ Item {
           top: parent.top
           bottom: parent.bottom
           left: parent.left
+          right: parent.right
         }
-        width: 36
         opacity: root.transparent ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
 
         Rectangle {
           id: leftBarBackground
-          anchors {
-            top: parent.top
-            bottom: parent.bottom
-            left: parent.left
-          }
-          width: 35
+          anchors.fill: parent
           color: "#010101"
         }
 
@@ -2184,7 +3027,8 @@ Item {
             topMargin: (root.isMidnightDoll && root.position === "top") ? (root.midnightCornerRadius - 1) : 0
             bottomMargin: (root.isMidnightDoll && root.position === "bottom") ? (root.midnightCornerRadius - 1) : 0
             bottom: parent.bottom
-            right: parent.right
+            right: root.sideBarPosition === "left" ? parent.right : undefined
+            left: root.sideBarPosition === "right" ? parent.left : undefined
           }
           width: 1
           color: Commons.Color.accent
@@ -2193,16 +3037,11 @@ Item {
 
       MouseArea {
         id: leftBarMouseArea
-        anchors {
-          top: parent.top
-          bottom: parent.bottom
-          left: parent.left
-        }
-        width: 36
+        anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onClicked: function(mouse) {
           if (mouse.button === Qt.RightButton) {
-            root.midnightShortcutEditorOpen = !root.midnightShortcutEditorOpen
+            root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
           }
         }
         onDoubleClicked: function(mouse) {
@@ -2218,7 +3057,7 @@ Item {
         anchors {
           top: parent.top
           topMargin: 6
-          left: parent.left
+          left: root.sideBarPosition === "right" ? parent.left + 1 : parent.left
         }
         width: 35
         spacing: 2
@@ -2307,7 +3146,7 @@ Item {
         anchors {
           bottom: parent.bottom
           bottomMargin: (root.isMidnightDoll && root.position === "bottom") ? (root.barSize + 6) : 6
-          left: parent.left
+          left: root.sideBarPosition === "right" ? parent.left + 1 : parent.left
         }
         width: 35
         spacing: 2
@@ -2361,7 +3200,7 @@ Item {
 
           var popupWidth = leftTooltipWindow.implicitWidth
           var popupHeight = leftTooltipWindow.implicitHeight
-          var localX = target.width + 6
+          var localX = (root.sideBarPosition === "right") ? (-popupWidth - 6) : (target.width + 6)
           var localY = target.height / 2 - popupHeight / 2
 
           var point = leftBarWindow.contentItem.mapFromItem(target, localX, localY)
@@ -2493,20 +3332,20 @@ Item {
 
     Item {
       id: midnightCornerFillet
-      x: 34
+      x: (root.sideBarPosition === "right") ? (barWindow.width - 34 - (root.midnightCornerRadius + 6)) : 34
       y: root.barSize
       width: root.midnightCornerRadius + 6
       height: root.midnightCornerRadius + 6
-      visible: root.isMidnightDoll && !root.barHidden && root.position === "top"
+      visible: root.isMidnightDoll && root.sideBarEnabled && !root.barHidden && root.position === "top"
     }
 
     Item {
       id: midnightWorkspacesChamferStrip
-      x: 34
+      x: (root.sideBarPosition === "right") ? (barWindow.width - 34 - 400) : 34
       y: root.barSize
       width: 400
       height: 16
-      visible: root.isMidnightDoll && !root.barHidden && root.position === "top" && root.hasUrgentWorkspaceNotification
+      visible: root.isMidnightDoll && root.sideBarEnabled && root.sideBarPosition === "left" && !root.barHidden && root.position === "top" && root.hasUrgentWorkspaceNotification
     }
 
     Shape {
@@ -2522,10 +3361,11 @@ Item {
       preferredRendererType: Shape.CurveRenderer
       z: 999
 
+      // Left fillet fill
       ShapePath {
         strokeWidth: 0
         strokeColor: "transparent"
-        fillColor: "#010101"
+        fillColor: (root.sideBarEnabled && root.sideBarPosition === "left") ? "#010101" : "transparent"
 
         startX: 34
         startY: root.barSize
@@ -2542,10 +3382,10 @@ Item {
         PathLine { x: 34; y: root.barSize }
       }
 
-      // Corner fillet outline: adapts to active window border width when top-left window is active
+      // Left fillet outline
       ShapePath {
-        strokeWidth: root.cornerStrokeWidth
-        strokeColor: Commons.Color.accent
+        strokeWidth: (root.sideBarEnabled && root.sideBarPosition === "left") ? root.cornerStrokeWidth : 0
+        strokeColor: (root.sideBarEnabled && root.sideBarPosition === "left") ? Commons.Color.accent : "transparent"
         fillColor: "transparent"
         joinStyle: ShapePath.RoundJoin
         capStyle: ShapePath.FlatCap
@@ -2563,7 +3403,49 @@ Item {
         }
       }
 
-      // Top bar bottom border: decoupled from fillet and always 1px
+      // Right fillet fill
+      ShapePath {
+        strokeWidth: 0
+        strokeColor: "transparent"
+        fillColor: (root.sideBarEnabled && root.sideBarPosition === "right") ? "#010101" : "transparent"
+
+        startX: barWindow.width - 34
+        startY: root.barSize
+        PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: root.barSize }
+        PathAngleArc {
+          centerX: barWindow.width - 35.5 - root.midnightCornerRadius
+          centerY: root.barSize - 0.5 + root.midnightCornerRadius
+          radiusX: root.midnightCornerRadius
+          radiusY: root.midnightCornerRadius
+          startAngle: -90
+          sweepAngle: 90
+        }
+        PathLine { x: barWindow.width - 34; y: root.barSize + root.midnightCornerRadius }
+        PathLine { x: barWindow.width - 34; y: root.barSize }
+      }
+
+      // Right fillet outline
+      ShapePath {
+        strokeWidth: (root.sideBarEnabled && root.sideBarPosition === "right") ? root.cornerStrokeWidth : 0
+        strokeColor: (root.sideBarEnabled && root.sideBarPosition === "right") ? Commons.Color.accent : "transparent"
+        fillColor: "transparent"
+        joinStyle: ShapePath.RoundJoin
+        capStyle: ShapePath.FlatCap
+
+        startX: barWindow.width - 35.5 - root.midnightCornerRadius
+        startY: root.barSize - 0.5
+
+        PathAngleArc {
+          centerX: barWindow.width - 35.5 - root.midnightCornerRadius
+          centerY: root.barSize - 0.5 + root.midnightCornerRadius
+          radiusX: root.midnightCornerRadius - root.cornerStrokeOffset
+          radiusY: root.midnightCornerRadius - root.cornerStrokeOffset
+          startAngle: -90
+          sweepAngle: 90
+        }
+      }
+
+      // Top bar bottom border
       ShapePath {
         strokeWidth: 1.0
         strokeColor: Commons.Color.accent
@@ -2571,9 +3453,12 @@ Item {
         joinStyle: ShapePath.MiterJoin
         capStyle: ShapePath.FlatCap
 
-        startX: 35.5 + root.midnightCornerRadius
+        startX: (root.sideBarEnabled && root.sideBarPosition === "left") ? (35.5 + root.midnightCornerRadius) : 0
         startY: root.barSize - 0.5
-        PathLine { x: barWindow.width; y: root.barSize - 0.5 }
+        PathLine {
+          x: (root.sideBarEnabled && root.sideBarPosition === "right") ? (barWindow.width - 35.5 - root.midnightCornerRadius) : barWindow.width
+          y: root.barSize - 0.5
+        }
       }
     }
 
@@ -2597,9 +3482,12 @@ Item {
         joinStyle: ShapePath.RoundJoin
         capStyle: ShapePath.FlatCap
 
-        startX: 35.5
+        startX: (root.sideBarEnabled && root.sideBarPosition === "left") ? 35.5 : 0
         startY: 0.5
-        PathLine { x: barWindow.width; y: 0.5 }
+        PathLine {
+          x: (root.sideBarEnabled && root.sideBarPosition === "right") ? (barWindow.width - 35.5) : barWindow.width
+          y: 0.5
+        }
       }
     }
 
@@ -2699,7 +3587,7 @@ Item {
 
         Row {
           anchors.left: parent.left
-          anchors.leftMargin: Style.space(8)
+          anchors.leftMargin: (root.isMidnightDoll && root.sideBarEnabled && root.sideBarPosition === "left") ? (36 + Style.space(8)) : Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.space(8)
 
@@ -2710,7 +3598,7 @@ Item {
 
         Row {
           anchors.right: parent.right
-          anchors.rightMargin: Style.space(8)
+          anchors.rightMargin: (root.isMidnightDoll && root.sideBarEnabled && root.sideBarPosition === "right") ? (36 + Style.space(8)) : Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           spacing: 6
 
@@ -3056,7 +3944,7 @@ Item {
     property real pressedY: 0
     readonly property real dragThreshold: Style.space(4)
 
-    acceptedButtons: Qt.LeftButton
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
     cursorShape: dragging ? Qt.ClosedHandCursor : Qt.ArrowCursor
     pressAndHoldInterval: 200
 
@@ -3069,15 +3957,18 @@ Item {
     }
 
     onPressed: function(mouse) {
-      dragging = false
-      suppressClick = false
-      pressedX = mouse.x
-      pressedY = mouse.y
+      if (mouse.button === Qt.LeftButton) {
+        dragging = false
+        suppressClick = false
+        pressedX = mouse.x
+        pressedY = mouse.y
+      }
     }
 
     onPressAndHold: function(mouse) {
       // A widget above us propagates its composed press-and-hold down here without
       // ever handing over the grab, so we'd get no release or cancel to end the move.
+      if (mouse.button !== Qt.LeftButton) return
       if (!gestureArea.pressed) return
       startDrag(mouse.x, mouse.y)
     }
@@ -3097,11 +3988,13 @@ Item {
     }
 
     onReleased: function(mouse) {
-      if (!dragging) return
-      dragging = false
-      suppressClick = true
-      root.finishBarMove()
-      mouse.accepted = true
+      if (mouse.button === Qt.LeftButton) {
+        if (!dragging) return
+        dragging = false
+        suppressClick = true
+        root.finishBarMove()
+        mouse.accepted = true
+      }
     }
 
     onCanceled: {
@@ -3113,6 +4006,11 @@ Item {
     onClicked: function(mouse) {
       if (suppressClick) {
         suppressClick = false
+        mouse.accepted = true
+        return
+      }
+      if (mouse.button === Qt.RightButton) {
+        root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
         mouse.accepted = true
       }
     }
@@ -4220,14 +5118,33 @@ Item {
           leftPadding: 6
           rightPadding: 8
 
-          Text {
+          Item {
             visible: root.hudTitle !== ""
-            text: root.hudTitle
-            font.family: root.fontFamily
-            font.bold: true
-            font.pixelSize: 12
-            color: root.secondaryColor
+            width: hudTitleText.implicitWidth
+            height: hudTitleText.implicitHeight
             anchors.verticalCenter: parent.verticalCenter
+
+            Text {
+              id: hudTitleText
+              anchors.fill: parent
+              text: root.hudTitle
+              font.family: root.fontFamily
+              font.bold: true
+              font.pixelSize: 12
+              color: hudTitleMouse.containsMouse ? Commons.Color.accent : root.secondaryColor
+              anchors.verticalCenter: parent.verticalCenter
+            }
+
+            MouseArea {
+              id: hudTitleMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              acceptedButtons: Qt.LeftButton | Qt.RightButton
+              onEntered: root.showTooltip(hudTitleMouse, "Midnight Doll Control Center (Right-click bar)")
+              onExited: root.hideTooltip(hudTitleMouse)
+              onClicked: root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
+            }
           }
           Text {
             visible: root.hudTitle !== "" && root.hudSubtitle !== ""

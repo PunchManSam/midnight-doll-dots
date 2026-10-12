@@ -175,6 +175,24 @@ with open(bar_path, 'w', encoding='utf-8') as f:
 EOF
 fi
 
+# 3. Update midnight-config.json
+MIDNIGHT_CFG="${HOME}/.config/omarchy/midnight-config.json"
+if [ -f "${MIDNIGHT_CFG}" ]; then
+  python3 - "${MIDNIGHT_CFG}" "${PRIMARY}" "${SECONDARY}" << 'EOF'
+import sys, json
+cfg_path, pri, sec = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    with open(cfg_path, 'r', encoding='utf-8') as f:
+        cfg = json.load(f)
+    cfg["primaryAccent"] = pri
+    cfg["secondaryAccent"] = sec
+    with open(cfg_path, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, indent=2)
+except Exception:
+    pass
+EOF
+fi
+
 if command -v omarchy &> /dev/null; then
   omarchy theme set "Midnight Doll" >/dev/null 2>&1 || true
   omarchy restart shell >/dev/null 2>&1 || true

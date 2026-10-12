@@ -405,7 +405,7 @@ if [ -d "${HOME}/.config/omarchy/themes/midnight-doll" ]; then
 fi
 
 # 4. Backup existing omarchy configs
-for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "set-accent.sh"; do
+for cfg in "shell.json" "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "midnight-config.json" "set-accent.sh"; do
   if [ -f "${HOME}/.config/omarchy/${cfg}" ]; then
     cp "${HOME}/.config/omarchy/${cfg}" "${BACKUP_DIR}/"
     echo -e "    ✓ Backed up config: ~/.config/omarchy/${cfg}"
@@ -452,6 +452,10 @@ cp "${DOTS_DIR}/config/omarchy/cava.conf" "${HOME}/.config/omarchy/"
 cp "${DOTS_DIR}/config/omarchy/set-accent.sh" "${HOME}/.config/omarchy/"
 if [ ! -f "${HOME}/.config/omarchy/midnight-shortcuts.json" ]; then
   cp "${DOTS_DIR}/config/omarchy/midnight-shortcuts.json" "${HOME}/.config/omarchy/"
+fi
+if [ ! -f "${HOME}/.config/omarchy/midnight-config.json" ]; then
+  cp "${DOTS_DIR}/config/omarchy/midnight-config.json" "${HOME}/.config/omarchy/"
+fi
 else
   # Ensure NovelAI, ChatGPT, and Tintin++ shortcuts are removed if present in existing configuration
   python3 - "${HOME}/.config/omarchy/midnight-shortcuts.json" << 'EOF'
