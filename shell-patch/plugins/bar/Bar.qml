@@ -5094,19 +5094,36 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           height: root.barSize
 
-        WidgetButton {
+        Item {
           id: menuBtn
-          bar: root
-          text: root.menuIcon
-          fontFamily: "JetBrainsMono Nerd Font"
-          fontSize: 18
-          foreground: Commons.Color.accent
-          horizontalMargin: 6
-          fixedWidth: (root.vertical || slot.isLeftPanel) ? root.barSize : 28
-          fixedHeight: (root.vertical || slot.isLeftPanel) ? 28 : root.barSize
-          onPressed: function(button) {
-            if (button === Qt.RightButton) root.run("xdg-terminal-exec")
-            else root.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
+          width: (root.vertical || slot.isLeftPanel) ? root.barSize : 28
+          height: (root.vertical || slot.isLeftPanel) ? 28 : root.barSize
+          anchors.verticalCenter: parent.verticalCenter
+
+          Text {
+            anchors.centerIn: parent
+            text: root.menuIcon
+            font.family: root.fontFamily
+            font.pixelSize: 19
+            color: menuMouse.containsMouse ? root.urgent : Commons.Color.accent
+
+            Behavior on color {
+              ColorAnimation { duration: 120 }
+            }
+          }
+
+          MouseArea {
+            id: menuMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onEntered: root.showTooltip(menuBtn, "Menu (Right-click: terminal)")
+            onExited: root.hideTooltip(menuBtn)
+            onClicked: function(mouse) {
+              if (mouse.button === Qt.RightButton) root.run("xdg-terminal-exec")
+              else root.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
+            }
           }
         }
 
