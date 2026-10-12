@@ -98,15 +98,46 @@ Panel {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
-  BarIconButton {
+  WidgetButton {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.unreadCount > 0 ? "󰂚 " + root.unreadCount : "󰂚"
-    slotSize: Style.bar.iconSlot * (root.unreadCount > 0 && !vertical ? (root.unreadCount > 9 ? 2.2 : 1.8) : 1)
+    text: "󰂚"
+    labelVisible: false
+    property real slotSize: Style.bar.iconSlot * (root.unreadCount > 0 && !vertical ? (root.unreadCount > 9 ? 2.2 : 1.8) : 1)
+    fixedWidth: vertical ? -1 : slotSize
+    fixedHeight: vertical ? slotSize : -1
+    fontSize: Style.bar.iconFont
     tooltipText: root.unreadCount > 0 ? root.unreadCount + " notifications" : "Notification Center"
     onPressed: function(b) {
       root.toggle()
+    }
+
+    Row {
+      anchors.centerIn: parent
+      spacing: Style.space(4)
+
+      OpticalGlyph {
+        width: Style.bar.iconCanvas
+        height: Style.bar.iconCanvas
+        text: "󰂚"
+        fontFamily: button.fontFamily
+        fontSize: button.fontSize
+        paintedSize: Style.bar.iconSize
+        color: button.active && button.useActiveColor ? button.activeColor : button.foreground
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Text {
+        visible: root.unreadCount > 0
+        text: String(root.unreadCount)
+        font.family: button.fontFamily
+        font.pixelSize: button.fontSize
+        font.bold: true
+        color: button.active && button.useActiveColor ? button.activeColor : button.foreground
+        anchors.verticalCenter: parent.verticalCenter
+        renderType: Text.NativeRendering
+      }
     }
   }
 
