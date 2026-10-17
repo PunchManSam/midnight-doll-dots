@@ -284,119 +284,15 @@ Item {
     return Math.round(rounded / 4) * 4
   }
 
-  // Active window in top-left detection and adaptive highlight styling
-  property bool topLeftWindowActive: false
-  property bool topLeftWindowPresent: false
+  // Dynamic rounding active whenever top/bottom bar and side rail meet
+  readonly property bool barsMeet: root.isMidnightDoll && root.sideBarEnabled && !root.barHidden && (root.position === "top" || root.position === "bottom")
+
   readonly property color inactiveBorderColor: {
     try {
       return Qt.rgba(root.secondaryColor.r * 0.22, root.secondaryColor.g * 0.22, root.secondaryColor.b * 0.22, 1.0)
     } catch (e) {
       return "#2b0938"
     }
-  }
-
-  property real activeCornerStrokeWidth: 3.0
-  property real cornerStrokeWidth: root.topLeftWindowActive ? (root.activeCornerStrokeWidth + 1.0) : 1.0
-  Behavior on cornerStrokeWidth {
-    NumberAnimation {
-      duration: 200
-      easing.type: Easing.OutQuint
-    }
-  }
-  readonly property real cornerStrokeOffset: (root.cornerStrokeWidth - 1.0) / 2
-  readonly property color cornerStrokeColor: Commons.Color.accent
-
-  Process {
-    id: hyprBorderSizeProc
-    command: ["hyprctl", "getoption", "general:border_size", "-j"]
-    running: root.isMidnightDoll
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          var parsed = JSON.parse(String(text || "").trim())
-          if (parsed && typeof parsed.int === "number" && parsed.int > 0) {
-            root.activeCornerStrokeWidth = parsed.int
-          }
-        } catch (e) {}
-      }
-    }
-  }
-
-  function updateTopLeftWindowState() {
-    if (!root.isMidnightDoll) return
-
-    var activeTop = Hyprland.activeToplevel
-    if (!activeTop) {
-      root.topLeftWindowActive = false
-      root.topLeftWindowPresent = false
-      return
-    }
-
-    var ws = Hyprland.focusedWorkspace
-    var activeIpc = activeTop.lastIpcObject
-
-    // Fullscreen window active on the focused workspace always occupies the top-left corner
-    var isFullscreen = Boolean(activeTop.fullscreen || (activeIpc && activeIpc.fullscreen && activeIpc.fullscreen !== 0))
-    if (isFullscreen) {
-      var actWsId = (activeTop.workspace && activeTop.workspace.id) || (activeIpc && activeIpc.workspace && activeIpc.workspace.id)
-      var curWsId = ws ? ws.id : null
-      if (curWsId === null || actWsId === undefined || actWsId === null || actWsId === curWsId) {
-        root.topLeftWindowActive = true
-        root.topLeftWindowPresent = true
-        return
-      }
-    }
-
-    var isFloating = Boolean(activeTop.floating || (activeIpc && activeIpc.floating && (!activeIpc.fullscreen || activeIpc.fullscreen === 0)))
-    if (isFloating) {
-      root.topLeftWindowActive = false
-    }
-
-    var toplevels = (ws && ws.toplevels && ws.toplevels.values) ? ws.toplevels.values : []
-    if (toplevels.length === 0) {
-      root.topLeftWindowActive = false
-      root.topLeftWindowPresent = false
-      return
-    }
-
-    var minX = Infinity
-    var minY = Infinity
-    var hasTiled = false
-
-    for (var i = 0; i < toplevels.length; i++) {
-      var top = toplevels[i]
-      var ipc = top ? top.lastIpcObject : null
-      var ipcFloating = Boolean((top && top.floating) || (ipc && ipc.floating && (!ipc.fullscreen || ipc.fullscreen === 0)))
-      if (ipc && !ipcFloating && ipc.at && ipc.at.length >= 2) {
-        var x = Number(ipc.at[0])
-        var y = Number(ipc.at[1])
-        if (!isNaN(x) && !isNaN(y)) {
-          if (x < minX) minX = x
-          if (y < minY) minY = y
-          hasTiled = true
-        }
-      }
-    }
-
-    if (!hasTiled || minX === Infinity || minY === Infinity) {
-      root.topLeftWindowActive = false
-      root.topLeftWindowPresent = false
-      return
-    }
-
-    root.topLeftWindowPresent = true
-
-    if (!isFloating && activeIpc && activeIpc.at && activeIpc.at.length >= 2) {
-      var ax = Number(activeIpc.at[0])
-      var ay = Number(activeIpc.at[1])
-      if (!isNaN(ax) && !isNaN(ay)) {
-        root.topLeftWindowActive = (Math.abs(ax - minX) <= 3 && Math.abs(ay - minY) <= 3)
-        return
-      }
-    }
-
-    root.topLeftWindowActive = false
   }
 
   property bool fullscreenModeActive: false
@@ -605,7 +501,6 @@ Item {
   Connections {
     target: Hyprland
     function onActiveToplevelChanged() {
-      root.updateTopLeftWindowState()
       root.triggerFullscreenSync()
     }
     function onFocusedWorkspaceChanged() {
@@ -614,7 +509,6 @@ Item {
         root.markWorkspaceVisited(ws.id)
       }
       Hyprland.refreshToplevels()
-      root.updateTopLeftWindowState()
       root.syncFullscreenFromStateFile()
       root.triggerFullscreenSync()
     }
@@ -628,23 +522,10 @@ Item {
         root.triggerFullscreenSync()
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
-        root.updateTopLeftWindowState()
       } else if (event.name === "openwindow" || event.name === "closewindow" ||
                  event.name === "movewindow" || event.name === "changefloatingmode") {
-        if (event.name === "changefloatingmode") {
-          var fData = String(event.data || "")
-          var fParts = fData.split(",")
-          if (fParts.length >= 2 && fParts[1].trim() === "1") {
-            var act = Hyprland.activeToplevel
-            var actAddr = (act && act.lastIpcObject) ? act.lastIpcObject.address : ""
-            if (!actAddr || actAddr === fParts[0].trim() || root.topLeftWindowActive) {
-              root.topLeftWindowActive = false
-            }
-          }
-        }
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
-        root.updateTopLeftWindowState()
         root.triggerFullscreenSync()
       } else if (event.name === "activewindow" || event.name === "activewindowv2" ||
                  event.name === "workspace" || event.name === "focusedmon") {
@@ -653,12 +534,7 @@ Item {
         }
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
-        root.updateTopLeftWindowState()
         root.triggerFullscreenSync()
-      } else if (event.name === "configreloaded") {
-        if (!hyprBorderSizeProc.running) {
-          hyprBorderSizeProc.running = true
-        }
       }
       if (event.name === "urgent") {
         var addr = String(event.data || "").trim()
@@ -681,22 +557,11 @@ Item {
     }
   }
 
-  Connections {
-    target: Hyprland.activeToplevel
-    function onLastIpcObjectChanged() {
-      root.updateTopLeftWindowState()
-    }
-  }
-
   Timer {
-    interval: (root.isMidnightDoll && (root.topLeftWindowActive || root.topLeftWindowPresent)) ? 150 : 1000
+    interval: 1000
     running: true
     repeat: true
     onTriggered: {
-      if (root.isMidnightDoll && (root.topLeftWindowActive || root.topLeftWindowPresent)) {
-        Hyprland.refreshToplevels()
-      }
-      root.updateTopLeftWindowState()
       root.syncFullscreenFromStateFile()
       root.urgentTick = (root.urgentTick + 1) % 1000
     }
@@ -1386,7 +1251,6 @@ Item {
     notifProc.running = true
     if (root.isMidnightDoll) {
       Hyprland.refreshToplevels()
-      root.updateTopLeftWindowState()
     }
   }
 
@@ -3016,7 +2880,14 @@ Item {
 
         Rectangle {
           id: leftBarBackground
-          anchors.fill: parent
+          anchors {
+            top: parent.top
+            bottom: parent.bottom
+            left: parent.left
+            leftMargin: root.sideBarPosition === "right" ? 1 : 0
+            right: parent.right
+            rightMargin: root.sideBarPosition === "left" ? 1 : 0
+          }
           color: "#010101"
         }
 
@@ -3024,8 +2895,8 @@ Item {
           id: leftBarRightBorder
           anchors {
             top: parent.top
-            topMargin: (root.isMidnightDoll && root.position === "top") ? (root.midnightCornerRadius - 1) : 0
-            bottomMargin: (root.isMidnightDoll && root.position === "bottom") ? (root.midnightCornerRadius - 1) : 0
+            topMargin: (root.barsMeet && root.position === "top") ? (root.midnightCornerRadius - 0.5) : 0
+            bottomMargin: (root.barsMeet && root.position === "bottom") ? (root.midnightCornerRadius - 0.5) : 0
             bottom: parent.bottom
             right: root.sideBarPosition === "left" ? parent.right : undefined
             left: root.sideBarPosition === "right" ? parent.left : undefined
@@ -3288,7 +3159,7 @@ Item {
     }
 
     implicitWidth: root.vertical ? root.barSize : 0
-    implicitHeight: (root.isMidnightDoll && root.position === "top") ? (root.barSize + root.midnightCornerRadius + 6) : (root.vertical ? 0 : root.barSize)
+    implicitHeight: root.vertical ? 0 : (root.barsMeet ? (root.barSize + root.midnightCornerRadius + 4) : root.barSize)
     color: "transparent"
     surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-bar"
@@ -3302,7 +3173,7 @@ Item {
         height: root.barHidden ? 0 : root.barSize
       }
       Region {
-        item: (root.isMidnightDoll && !root.transparent && root.position === "top" && !root.barHidden) ? midnightCornerFillet : null
+        item: (root.barsMeet && !root.transparent) ? midnightCornerFillet : null
       }
       Region {
         item: (root.isMidnightDoll && root.position === "top" && midnightWorkspacesChamferStrip.visible && !root.barHidden) ? midnightWorkspacesChamferStrip : null
@@ -3313,183 +3184,275 @@ Item {
       id: barContentHolder
       anchors.fill: parent
       transform: Translate {
-        y: Math.round(-(root.barSize + (root.isMidnightDoll ? (root.midnightCornerRadius + 6) : 0)) * (1.0 - root.barAnimProgress))
+        y: root.position === "bottom"
+          ? Math.round((root.barSize + (root.barsMeet ? root.midnightCornerRadius + 4 : 0)) * (1.0 - root.barAnimProgress))
+          : Math.round(-(root.barSize + (root.barsMeet ? root.midnightCornerRadius + 4 : 0)) * (1.0 - root.barAnimProgress))
       }
       opacity: root.barAnimProgress
 
       Rectangle {
         id: barBackgroundRect
-      anchors.top: root.position === "bottom" ? undefined : parent.top
-      anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
-      anchors.left: parent.left
-      anchors.right: parent.right
-      height: root.barSize
-      color: root.isMidnightDoll ? "#010101" : root.background
-      opacity: root.transparent ? 0.0 : 1.0
-      Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
-      z: -1
-    }
-
-    Item {
-      id: midnightCornerFillet
-      x: (root.sideBarPosition === "right") ? (barWindow.width - 34 - (root.midnightCornerRadius + 6)) : 34
-      y: root.barSize
-      width: root.midnightCornerRadius + 6
-      height: root.midnightCornerRadius + 6
-      visible: root.isMidnightDoll && root.sideBarEnabled && !root.barHidden && root.position === "top"
-    }
-
-    Item {
-      id: midnightWorkspacesChamferStrip
-      x: (root.sideBarPosition === "right") ? (barWindow.width - 34 - 400) : 34
-      y: root.barSize
-      width: 400
-      height: 16
-      visible: root.isMidnightDoll && root.sideBarEnabled && root.sideBarPosition === "left" && !root.barHidden && root.position === "top" && root.hasUrgentWorkspaceNotification
-    }
-
-    Shape {
-      id: midnightBorderShape
-      anchors.top: parent.top
-      anchors.left: parent.left
-      anchors.right: parent.right
-      height: root.barSize + root.midnightCornerRadius + 6
-      visible: root.isMidnightDoll && !root.barHidden && root.position === "top"
-      opacity: root.transparent ? 0.0 : 1.0
-      Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
-      asynchronous: false
-      preferredRendererType: Shape.CurveRenderer
-      z: 999
-
-      // Left fillet fill
-      ShapePath {
-        strokeWidth: 0
-        strokeColor: "transparent"
-        fillColor: (root.sideBarEnabled && root.sideBarPosition === "left") ? "#010101" : "transparent"
-
-        startX: 34
-        startY: root.barSize
-        PathLine { x: 35.5 + root.midnightCornerRadius; y: root.barSize }
-        PathAngleArc {
-          centerX: 35.5 + root.midnightCornerRadius
-          centerY: root.barSize - 0.5 + root.midnightCornerRadius
-          radiusX: root.midnightCornerRadius
-          radiusY: root.midnightCornerRadius
-          startAngle: -90
-          sweepAngle: -90
-        }
-        PathLine { x: 34; y: root.barSize + root.midnightCornerRadius }
-        PathLine { x: 34; y: root.barSize }
+        anchors.top: root.position === "bottom" ? undefined : parent.top
+        anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: root.barSize
+        color: root.isMidnightDoll ? "#010101" : root.background
+        opacity: root.transparent ? 0.0 : 1.0
+        Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
+        z: -1
       }
 
-      // Left fillet outline
-      ShapePath {
-        strokeWidth: (root.sideBarEnabled && root.sideBarPosition === "left") ? root.cornerStrokeWidth : 0
-        strokeColor: (root.sideBarEnabled && root.sideBarPosition === "left") ? Commons.Color.accent : "transparent"
-        fillColor: "transparent"
-        joinStyle: ShapePath.RoundJoin
-        capStyle: ShapePath.FlatCap
+      Item {
+        id: midnightCornerFillet
+        x: (root.sideBarPosition === "right") ? (barWindow.width - 34 - (root.midnightCornerRadius + 6)) : 34
+        y: root.position === "bottom" ? (barWindow.height - root.barSize - (root.midnightCornerRadius + 4)) : root.barSize
+        width: root.midnightCornerRadius + 6
+        height: root.midnightCornerRadius + 6
+        visible: root.barsMeet && !root.transparent
+      }
 
-        startX: 35.5 + root.cornerStrokeOffset
-        startY: root.barSize - 0.5 + root.midnightCornerRadius
+      Item {
+        id: midnightWorkspacesChamferStrip
+        x: (root.sideBarPosition === "right") ? (barWindow.width - 34 - 400) : 34
+        y: root.barSize
+        width: 400
+        height: 16
+        visible: root.isMidnightDoll && root.sideBarEnabled && root.sideBarPosition === "left" && !root.barHidden && root.position === "top" && root.hasUrgentWorkspaceNotification
+      }
 
-        PathAngleArc {
-          centerX: 35.5 + root.midnightCornerRadius
-          centerY: root.barSize - 0.5 + root.midnightCornerRadius
-          radiusX: root.midnightCornerRadius - root.cornerStrokeOffset
-          radiusY: root.midnightCornerRadius - root.cornerStrokeOffset
-          startAngle: -180
-          sweepAngle: 90
+      Shape {
+        id: midnightBorderShape
+        anchors.top: root.position === "bottom" ? undefined : parent.top
+        anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: root.barSize + (root.barsMeet ? (root.midnightCornerRadius + 4) : 0)
+        visible: root.isMidnightDoll && !root.barHidden && root.position === "top"
+        opacity: root.transparent ? 0.0 : root.barAnimProgress
+        Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
+        asynchronous: false
+        preferredRendererType: Shape.CurveRenderer
+        z: 999
+
+        // Left fillet fill
+        ShapePath {
+          strokeWidth: 0
+          strokeColor: "transparent"
+          fillColor: (root.barsMeet && root.sideBarPosition === "left") ? "#010101" : "transparent"
+
+          startX: 34
+          startY: root.barSize
+          PathLine { x: 35.5 + root.midnightCornerRadius; y: root.barSize }
+          PathLine { x: 35.5 + root.midnightCornerRadius; y: root.barSize - 0.5 }
+          PathCubic {
+            control1X: 35.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
+            control1Y: root.barSize - 0.5
+            control2X: 35.5
+            control2Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
+            x: 35.5
+            y: root.barSize - 0.5 + root.midnightCornerRadius
+          }
+          PathLine { x: 34; y: root.barSize + root.midnightCornerRadius }
+          PathLine { x: 34; y: root.barSize }
+        }
+
+        // Left fillet outline
+        ShapePath {
+          strokeWidth: (root.barsMeet && root.sideBarPosition === "left") ? 1.0 : 0
+          strokeColor: (root.barsMeet && root.sideBarPosition === "left") ? Commons.Color.accent : "transparent"
+          fillColor: "transparent"
+          joinStyle: ShapePath.RoundJoin
+          capStyle: ShapePath.FlatCap
+
+          startX: 35.5
+          startY: root.barSize - 0.5 + root.midnightCornerRadius
+
+          PathCubic {
+            control1X: 35.5
+            control1Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
+            control2X: 35.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
+            control2Y: root.barSize - 0.5
+            x: 35.5 + root.midnightCornerRadius
+            y: root.barSize - 0.5
+          }
+        }
+
+        // Right fillet fill
+        ShapePath {
+          strokeWidth: 0
+          strokeColor: "transparent"
+          fillColor: (root.barsMeet && root.sideBarPosition === "right") ? "#010101" : "transparent"
+
+          startX: barWindow.width - 34
+          startY: root.barSize
+          PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: root.barSize }
+          PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: root.barSize - 0.5 }
+          PathCubic {
+            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
+            control1Y: root.barSize - 0.5
+            control2X: barWindow.width - 35.5
+            control2Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
+            x: barWindow.width - 35.5
+            y: root.barSize - 0.5 + root.midnightCornerRadius
+          }
+          PathLine { x: barWindow.width - 34; y: root.barSize + root.midnightCornerRadius }
+          PathLine { x: barWindow.width - 34; y: root.barSize }
+        }
+
+        // Right fillet outline
+        ShapePath {
+          strokeWidth: (root.barsMeet && root.sideBarPosition === "right") ? 1.0 : 0
+          strokeColor: (root.barsMeet && root.sideBarPosition === "right") ? Commons.Color.accent : "transparent"
+          fillColor: "transparent"
+          joinStyle: ShapePath.RoundJoin
+          capStyle: ShapePath.FlatCap
+
+          startX: barWindow.width - 35.5 - root.midnightCornerRadius
+          startY: root.barSize - 0.5
+
+          PathCubic {
+            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
+            control1Y: root.barSize - 0.5
+            control2X: barWindow.width - 35.5
+            control2Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
+            x: barWindow.width - 35.5
+            y: root.barSize - 0.5 + root.midnightCornerRadius
+          }
+        }
+
+        // Top bar bottom border
+        ShapePath {
+          strokeWidth: 1.0
+          strokeColor: Commons.Color.accent
+          fillColor: "transparent"
+          joinStyle: ShapePath.MiterJoin
+          capStyle: ShapePath.FlatCap
+
+          startX: (root.barsMeet && root.sideBarPosition === "left") ? (35.5 + root.midnightCornerRadius) : 0
+          startY: root.barSize - 0.5
+          PathLine {
+            x: (root.barsMeet && root.sideBarPosition === "right") ? (barWindow.width - 35.5 - root.midnightCornerRadius) : barWindow.width
+            y: root.barSize - 0.5
+          }
         }
       }
 
-      // Right fillet fill
-      ShapePath {
-        strokeWidth: 0
-        strokeColor: "transparent"
-        fillColor: (root.sideBarEnabled && root.sideBarPosition === "right") ? "#010101" : "transparent"
+      Shape {
+        id: midnightBottomBorderShape
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: root.barSize + (root.barsMeet ? (root.midnightCornerRadius + 4) : 0)
+        visible: root.isMidnightDoll && !root.barHidden && root.position === "bottom"
+        opacity: root.transparent ? 0.0 : root.barAnimProgress
+        Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
+        asynchronous: false
+        preferredRendererType: Shape.CurveRenderer
+        z: 999
 
-        startX: barWindow.width - 34
-        startY: root.barSize
-        PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: root.barSize }
-        PathAngleArc {
-          centerX: barWindow.width - 35.5 - root.midnightCornerRadius
-          centerY: root.barSize - 0.5 + root.midnightCornerRadius
-          radiusX: root.midnightCornerRadius
-          radiusY: root.midnightCornerRadius
-          startAngle: -90
-          sweepAngle: 90
+        // Bottom-Left corner fillet fill
+        ShapePath {
+          strokeWidth: 0
+          strokeColor: "transparent"
+          fillColor: (root.barsMeet && root.sideBarPosition === "left") ? "#010101" : "transparent"
+
+          startX: 34
+          startY: midnightBottomBorderShape.height - root.barSize
+          PathLine { x: 35.5 + root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize }
+          PathLine { x: 35.5 + root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize + 0.5 }
+          PathCubic {
+            control1X: 35.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
+            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5
+            control2X: 35.5
+            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
+            x: 35.5
+            y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
+          }
+          PathLine { x: 34; y: midnightBottomBorderShape.height - root.barSize - root.midnightCornerRadius }
+          PathLine { x: 34; y: midnightBottomBorderShape.height - root.barSize }
         }
-        PathLine { x: barWindow.width - 34; y: root.barSize + root.midnightCornerRadius }
-        PathLine { x: barWindow.width - 34; y: root.barSize }
-      }
 
-      // Right fillet outline
-      ShapePath {
-        strokeWidth: (root.sideBarEnabled && root.sideBarPosition === "right") ? root.cornerStrokeWidth : 0
-        strokeColor: (root.sideBarEnabled && root.sideBarPosition === "right") ? Commons.Color.accent : "transparent"
-        fillColor: "transparent"
-        joinStyle: ShapePath.RoundJoin
-        capStyle: ShapePath.FlatCap
+        // Bottom-Left corner fillet outline
+        ShapePath {
+          strokeWidth: (root.barsMeet && root.sideBarPosition === "left") ? 1.0 : 0
+          strokeColor: (root.barsMeet && root.sideBarPosition === "left") ? Commons.Color.accent : "transparent"
+          fillColor: "transparent"
+          joinStyle: ShapePath.RoundJoin
+          capStyle: ShapePath.FlatCap
 
-        startX: barWindow.width - 35.5 - root.midnightCornerRadius
-        startY: root.barSize - 0.5
+          startX: 35.5
+          startY: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
 
-        PathAngleArc {
-          centerX: barWindow.width - 35.5 - root.midnightCornerRadius
-          centerY: root.barSize - 0.5 + root.midnightCornerRadius
-          radiusX: root.midnightCornerRadius - root.cornerStrokeOffset
-          radiusY: root.midnightCornerRadius - root.cornerStrokeOffset
-          startAngle: -90
-          sweepAngle: 90
+          PathCubic {
+            control1X: 35.5
+            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
+            control2X: 35.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
+            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5
+            x: 35.5 + root.midnightCornerRadius
+            y: midnightBottomBorderShape.height - root.barSize + 0.5
+          }
+        }
+
+        // Bottom-Right corner fillet fill
+        ShapePath {
+          strokeWidth: 0
+          strokeColor: "transparent"
+          fillColor: (root.barsMeet && root.sideBarPosition === "right") ? "#010101" : "transparent"
+
+          startX: barWindow.width - 34
+          startY: midnightBottomBorderShape.height - root.barSize
+          PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize }
+          PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize + 0.5 }
+          PathCubic {
+            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
+            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5
+            control2X: barWindow.width - 35.5
+            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
+            x: barWindow.width - 35.5
+            y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
+          }
+          PathLine { x: barWindow.width - 34; y: midnightBottomBorderShape.height - root.barSize - root.midnightCornerRadius }
+          PathLine { x: barWindow.width - 34; y: midnightBottomBorderShape.height - root.barSize }
+        }
+
+        // Bottom-Right corner fillet outline
+        ShapePath {
+          strokeWidth: (root.barsMeet && root.sideBarPosition === "right") ? 1.0 : 0
+          strokeColor: (root.barsMeet && root.sideBarPosition === "right") ? Commons.Color.accent : "transparent"
+          fillColor: "transparent"
+          joinStyle: ShapePath.RoundJoin
+          capStyle: ShapePath.FlatCap
+
+          startX: barWindow.width - 35.5 - root.midnightCornerRadius
+          startY: midnightBottomBorderShape.height - root.barSize + 0.5
+
+          PathCubic {
+            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
+            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5
+            control2X: barWindow.width - 35.5
+            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
+            x: barWindow.width - 35.5
+            y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
+          }
+        }
+
+        // Bottom bar top border
+        ShapePath {
+          strokeWidth: 1.0
+          strokeColor: Commons.Color.accent
+          fillColor: "transparent"
+          joinStyle: ShapePath.MiterJoin
+          capStyle: ShapePath.FlatCap
+
+          startX: (root.barsMeet && root.sideBarPosition === "left") ? (35.5 + root.midnightCornerRadius) : 0
+          startY: midnightBottomBorderShape.height - root.barSize + 0.5
+          PathLine {
+            x: (root.barsMeet && root.sideBarPosition === "right") ? (barWindow.width - 35.5 - root.midnightCornerRadius) : barWindow.width
+            y: midnightBottomBorderShape.height - root.barSize + 0.5
+          }
         }
       }
-
-      // Top bar bottom border
-      ShapePath {
-        strokeWidth: 1.0
-        strokeColor: Commons.Color.accent
-        fillColor: "transparent"
-        joinStyle: ShapePath.MiterJoin
-        capStyle: ShapePath.FlatCap
-
-        startX: (root.sideBarEnabled && root.sideBarPosition === "left") ? (35.5 + root.midnightCornerRadius) : 0
-        startY: root.barSize - 0.5
-        PathLine {
-          x: (root.sideBarEnabled && root.sideBarPosition === "right") ? (barWindow.width - 35.5 - root.midnightCornerRadius) : barWindow.width
-          y: root.barSize - 0.5
-        }
-      }
-    }
-
-    Shape {
-      id: midnightBottomBorderShape
-      anchors.bottom: parent.bottom
-      anchors.left: parent.left
-      anchors.right: parent.right
-      height: root.barSize
-      visible: root.isMidnightDoll && !root.barHidden && root.position === "bottom"
-      opacity: root.transparent ? 0.0 : 1.0
-      Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
-      asynchronous: false
-      preferredRendererType: Shape.CurveRenderer
-      z: 999
-
-      ShapePath {
-        strokeWidth: 1.0
-        strokeColor: Commons.Color.accent
-        fillColor: "transparent"
-        joinStyle: ShapePath.RoundJoin
-        capStyle: ShapePath.FlatCap
-
-        startX: (root.sideBarEnabled && root.sideBarPosition === "left") ? 35.5 : 0
-        startY: 0.5
-        PathLine {
-          x: (root.sideBarEnabled && root.sideBarPosition === "right") ? (barWindow.width - 35.5) : barWindow.width
-          y: 0.5
-        }
-      }
-    }
 
     Loader {
       id: barLoader
