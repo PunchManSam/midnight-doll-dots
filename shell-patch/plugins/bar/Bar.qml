@@ -287,6 +287,119 @@ Item {
   // Dynamic rounding active whenever top/bottom bar and side rail meet
   readonly property bool barsMeet: root.isMidnightDoll && root.sideBarEnabled && !root.barHidden && (root.position === "top" || root.position === "bottom")
 
+  property bool cornerWindowActive: false
+  property real activeCornerStrokeWidth: 2.0
+  property real cornerStrokeWidth: (root.barsMeet && root.cornerWindowActive) ? (1.0 + root.activeCornerStrokeWidth) : 1.0
+  Behavior on cornerStrokeWidth {
+    NumberAnimation {
+      duration: 180
+      easing.type: Easing.OutCubic
+    }
+  }
+  readonly property real cornerStrokeOffset: (root.cornerStrokeWidth - 1.0) / 2.0
+  readonly property real cornerEffectiveRadius: Math.max(1.0, root.midnightCornerRadius - root.cornerStrokeOffset)
+
+  Process {
+    id: hyprBorderSizeProc
+    command: ["hyprctl", "getoption", "general:border_size", "-j"]
+    running: false
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var str = String(text || "").trim()
+          if (str) {
+            var j = JSON.parse(str)
+            if (typeof j.int === "number" && j.int > 0) {
+              root.activeCornerStrokeWidth = j.int
+            }
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  function updateCornerWindowState() {
+    if (!root.barsMeet) {
+      if (root.cornerWindowActive) root.cornerWindowActive = false
+      return
+    }
+
+    var activeTop = Hyprland.activeToplevel
+    var activeIpc = (activeTop && activeTop.lastIpcObject) ? activeTop.lastIpcObject : null
+
+    if (!activeIpc) {
+      var ws = Hyprland.focusedWorkspace
+      if (ws && ws.toplevels && ws.toplevels.values) {
+        for (var i = 0; i < ws.toplevels.values.length; i++) {
+          var t = ws.toplevels.values[i]
+          if (t && (t.activated || t === activeTop) && t.lastIpcObject) {
+            activeIpc = t.lastIpcObject
+            break
+          }
+        }
+      }
+    }
+
+    if (!activeIpc || !activeIpc.at || !activeIpc.size) {
+      if (root.cornerWindowActive) root.cornerWindowActive = false
+      return
+    }
+
+    if (activeIpc.fullscreen) {
+      if (!root.cornerWindowActive) root.cornerWindowActive = true
+      return
+    }
+
+    if (activeIpc.floating) {
+      if (root.cornerWindowActive) root.cornerWindowActive = false
+      return
+    }
+
+    var border = root.activeCornerStrokeWidth || 2
+    var ax = activeIpc.at[0]
+    var ay = activeIpc.at[1]
+    var aw = activeIpc.size[0]
+    var ah = activeIpc.size[1]
+
+    var mon = Hyprland.focusedMonitor
+    var mx = mon ? (mon.x || 0) : 0
+    var my = mon ? (mon.y || 0) : 0
+    var mw = mon ? (mon.width || 1920) : 1920
+    var mh = mon ? (mon.height || 1080) : 1080
+
+    var relX = ax - mx
+    var relY = ay - my
+    var relR = mw - (relX + aw)
+    var relB = mh - (relY + ah)
+
+    var maxMargin = 16
+    var maxLeft = 36 + border + maxMargin
+    var maxTop = root.barSize + border + maxMargin
+    var maxRight = 36 + border + maxMargin
+    var maxBottom = root.barSize + border + maxMargin
+
+    var touchesTop = (relY <= maxTop)
+    var touchesBottom = (relB <= maxBottom)
+    var touchesLeft = (relX <= maxLeft)
+    var touchesRight = (relR <= maxRight)
+
+    var inCorner = false
+    if (root.position === "top" && root.sideBarPosition === "left") {
+      inCorner = touchesTop && touchesLeft
+    } else if (root.position === "top" && root.sideBarPosition === "right") {
+      inCorner = touchesTop && touchesRight
+    } else if (root.position === "bottom" && root.sideBarPosition === "left") {
+      inCorner = touchesBottom && touchesLeft
+    } else if (root.position === "bottom" && root.sideBarPosition === "right") {
+      inCorner = touchesBottom && touchesRight
+    }
+
+    if (root.cornerWindowActive !== inCorner) {
+      root.cornerWindowActive = inCorner
+    }
+  }
+
   readonly property color inactiveBorderColor: {
     try {
       return Qt.rgba(root.secondaryColor.r * 0.22, root.secondaryColor.g * 0.22, root.secondaryColor.b * 0.22, 1.0)
@@ -502,6 +615,7 @@ Item {
     target: Hyprland
     function onActiveToplevelChanged() {
       root.triggerFullscreenSync()
+      root.updateCornerWindowState()
     }
     function onFocusedWorkspaceChanged() {
       var ws = Hyprland.focusedWorkspace
@@ -511,6 +625,7 @@ Item {
       Hyprland.refreshToplevels()
       root.syncFullscreenFromStateFile()
       root.triggerFullscreenSync()
+      root.updateCornerWindowState()
     }
     function onRawEvent(event) {
       if (!event) return
@@ -522,11 +637,13 @@ Item {
         root.triggerFullscreenSync()
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
+        root.updateCornerWindowState()
       } else if (event.name === "openwindow" || event.name === "closewindow" ||
                  event.name === "movewindow" || event.name === "changefloatingmode") {
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
         root.triggerFullscreenSync()
+        root.updateCornerWindowState()
       } else if (event.name === "activewindow" || event.name === "activewindowv2" ||
                  event.name === "workspace" || event.name === "focusedmon") {
         if (event.name === "workspace") {
@@ -535,6 +652,7 @@ Item {
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
         root.triggerFullscreenSync()
+        root.updateCornerWindowState()
       }
       if (event.name === "urgent") {
         var addr = String(event.data || "").trim()
@@ -564,6 +682,7 @@ Item {
     onTriggered: {
       root.syncFullscreenFromStateFile()
       root.urgentTick = (root.urgentTick + 1) % 1000
+      root.updateCornerWindowState()
     }
   }
   property QtObject leftBarContext: QtObject {
@@ -1249,8 +1368,10 @@ Item {
     initVisited[currentWs] = Date.now()
     root.workspaceVisitedTimes = initVisited
     notifProc.running = true
+    hyprBorderSizeProc.running = true
     if (root.isMidnightDoll) {
       Hyprland.refreshToplevels()
+      root.updateCornerWindowState()
     }
   }
 
@@ -3259,22 +3380,22 @@ Item {
 
         // Left fillet outline
         ShapePath {
-          strokeWidth: (root.barsMeet && root.sideBarPosition === "left") ? 1.0 : 0
+          strokeWidth: (root.barsMeet && root.sideBarPosition === "left") ? root.cornerStrokeWidth : 0
           strokeColor: (root.barsMeet && root.sideBarPosition === "left") ? Commons.Color.accent : "transparent"
           fillColor: "transparent"
           joinStyle: ShapePath.RoundJoin
           capStyle: ShapePath.FlatCap
 
-          startX: 35.5
+          startX: 35.5 + root.cornerStrokeOffset
           startY: root.barSize - 0.5 + root.midnightCornerRadius
 
           PathCubic {
-            control1X: 35.5
-            control1Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
-            control2X: 35.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
-            control2Y: root.barSize - 0.5
+            control1X: 35.5 + root.cornerStrokeOffset
+            control1Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            control2X: 35.5 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            control2Y: root.barSize - 0.5 + root.cornerStrokeOffset
             x: 35.5 + root.midnightCornerRadius
-            y: root.barSize - 0.5
+            y: root.barSize - 0.5 + root.cornerStrokeOffset
           }
         }
 
@@ -3302,21 +3423,21 @@ Item {
 
         // Right fillet outline
         ShapePath {
-          strokeWidth: (root.barsMeet && root.sideBarPosition === "right") ? 1.0 : 0
+          strokeWidth: (root.barsMeet && root.sideBarPosition === "right") ? root.cornerStrokeWidth : 0
           strokeColor: (root.barsMeet && root.sideBarPosition === "right") ? Commons.Color.accent : "transparent"
           fillColor: "transparent"
           joinStyle: ShapePath.RoundJoin
           capStyle: ShapePath.FlatCap
 
           startX: barWindow.width - 35.5 - root.midnightCornerRadius
-          startY: root.barSize - 0.5
+          startY: root.barSize - 0.5 + root.cornerStrokeOffset
 
           PathCubic {
-            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
-            control1Y: root.barSize - 0.5
-            control2X: barWindow.width - 35.5
-            control2Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
-            x: barWindow.width - 35.5
+            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            control1Y: root.barSize - 0.5 + root.cornerStrokeOffset
+            control2X: barWindow.width - 35.5 - root.cornerStrokeOffset
+            control2Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            x: barWindow.width - 35.5 - root.cornerStrokeOffset
             y: root.barSize - 0.5 + root.midnightCornerRadius
           }
         }
@@ -3375,22 +3496,22 @@ Item {
 
         // Bottom-Left corner fillet outline
         ShapePath {
-          strokeWidth: (root.barsMeet && root.sideBarPosition === "left") ? 1.0 : 0
+          strokeWidth: (root.barsMeet && root.sideBarPosition === "left") ? root.cornerStrokeWidth : 0
           strokeColor: (root.barsMeet && root.sideBarPosition === "left") ? Commons.Color.accent : "transparent"
           fillColor: "transparent"
           joinStyle: ShapePath.RoundJoin
           capStyle: ShapePath.FlatCap
 
-          startX: 35.5
+          startX: 35.5 + root.cornerStrokeOffset
           startY: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
 
           PathCubic {
-            control1X: 35.5
-            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
-            control2X: 35.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
-            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5
+            control1X: 35.5 + root.cornerStrokeOffset
+            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            control2X: 35.5 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.cornerStrokeOffset
             x: 35.5 + root.midnightCornerRadius
-            y: midnightBottomBorderShape.height - root.barSize + 0.5
+            y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.cornerStrokeOffset
           }
         }
 
@@ -3418,21 +3539,21 @@ Item {
 
         // Bottom-Right corner fillet outline
         ShapePath {
-          strokeWidth: (root.barsMeet && root.sideBarPosition === "right") ? 1.0 : 0
+          strokeWidth: (root.barsMeet && root.sideBarPosition === "right") ? root.cornerStrokeWidth : 0
           strokeColor: (root.barsMeet && root.sideBarPosition === "right") ? Commons.Color.accent : "transparent"
           fillColor: "transparent"
           joinStyle: ShapePath.RoundJoin
           capStyle: ShapePath.FlatCap
 
           startX: barWindow.width - 35.5 - root.midnightCornerRadius
-          startY: midnightBottomBorderShape.height - root.barSize + 0.5
+          startY: midnightBottomBorderShape.height - root.barSize + 0.5 - root.cornerStrokeOffset
 
           PathCubic {
-            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
-            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5
-            control2X: barWindow.width - 35.5
-            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
-            x: barWindow.width - 35.5
+            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.cornerStrokeOffset
+            control2X: barWindow.width - 35.5 - root.cornerStrokeOffset
+            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            x: barWindow.width - 35.5 - root.cornerStrokeOffset
             y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
           }
         }
