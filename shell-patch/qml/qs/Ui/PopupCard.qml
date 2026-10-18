@@ -78,7 +78,7 @@ PopupWindow {
 
   default property alias contentItem: contentHolder.children
 
-  visible: open || card.opacity > 0
+  visible: open || (cardOpacityAnim.running && card.opacity > 0.01)
   color: "transparent"
   implicitWidth: contentWidth
   implicitHeight: contentHeight
@@ -138,11 +138,17 @@ PopupWindow {
           if (root.bar.position === "bottom") {
             cy = -popupHeight - root.margin
           } else {
-            cy = (root.isMidnightDoll && !root.isBarTransparent) ? ((root.bar.barSize !== undefined ? root.bar.barSize : 30) - 1) : (window.height + root.margin)
+            cy = (root.isMidnightDoll && !root.isBarTransparent) ? ((root.bar.barSize !== undefined ? root.bar.barSize : 30) - 2) : (window.height + root.margin)
           }
           cx = Math.max(root.margin, Math.min(cx, window.width - popupWidth - root.margin))
         } else {
-          cx = root.bar.position === "left" ? ((root.isMidnightDoll && !root.isBarTransparent) ? ((root.bar.barSize !== undefined ? root.bar.barSize : 36) - 1) : (window.width + root.margin)) : -popupWidth - root.margin
+          if (root.bar.position === "left") {
+            cx = (root.isMidnightDoll && !root.isBarTransparent) ? ((root.bar.barSize !== undefined ? root.bar.barSize : 36) - 2) : (window.width + root.margin)
+          } else if (root.bar.position === "right") {
+            cx = (root.isMidnightDoll && !root.isBarTransparent) ? (window.width - (root.bar.barSize !== undefined ? root.bar.barSize : 36) - popupWidth + 2) : -popupWidth - root.margin
+          } else {
+            cx = -popupWidth - root.margin
+          }
           cy = window.height / 2 - popupHeight / 2
           cy = Math.max(root.margin, Math.min(cy, window.height - popupHeight - root.margin))
         }
@@ -155,14 +161,26 @@ PopupWindow {
       var point = window.contentItem.mapFromItem(target, localX, localY)
 
       if (root.bar.position === "top" || root.bar.position === "bottom") {
-        point.x = Math.max(root.margin, Math.min(point.x, window.width - popupWidth - root.margin))
+        var minX = root.margin
+        var maxX = window.width - popupWidth - root.margin
+        if (root.isMidnightDoll && !root.isBarTransparent) {
+          var hasRightBar = root.bar && root.bar.sideBarEnabled !== false && root.bar.sideBarPosition === "right"
+          var hasLeftBar = (!root.bar || root.bar.sideBarEnabled !== false) && (!root.bar || root.bar.sideBarPosition !== "right")
+          if (hasLeftBar) minX = 34
+          if (hasRightBar) maxX = window.width - 34 - popupWidth
+        }
+        point.x = Math.max(minX, Math.min(point.x, maxX))
         if (root.bar.position === "top" && root.isMidnightDoll && !root.isBarTransparent) {
-          point.y = (root.bar.barSize !== undefined ? root.bar.barSize : 30) - 1
+          point.y = (root.bar.barSize !== undefined ? root.bar.barSize : 30) - 2
+        } else if (root.bar.position === "bottom" && root.isMidnightDoll && !root.isBarTransparent) {
+          point.y = window.height - (root.bar.barSize !== undefined ? root.bar.barSize : 30) - popupHeight + 2
         }
       } else {
         point.y = Math.max(root.margin, Math.min(point.y, window.height - popupHeight - root.margin))
         if (root.bar.position === "left" && root.isMidnightDoll && !root.isBarTransparent) {
-          point.x = (root.bar.barSize !== undefined ? root.bar.barSize : 36) - 1
+          point.x = (root.bar.barSize !== undefined ? root.bar.barSize : 36) - 2
+        } else if (root.bar.position === "right" && root.isMidnightDoll && !root.isBarTransparent) {
+          point.x = window.width - (root.bar.barSize !== undefined ? root.bar.barSize : 36) - popupWidth + 2
         }
       }
 
@@ -181,13 +199,13 @@ PopupWindow {
     readonly property real shelfRadius: Math.min(Style.cornerRadius > 0 ? Style.cornerRadius : 14, Math.floor(Math.min(card.width, card.height) / 2))
 
     readonly property real borderTop: (root.isMidnightDoll && !root.isBarTransparent) ? (root.bar && root.bar.position === "top" ? 0 : 1) : Border.top(root.borderSpec)
-    readonly property real borderRight: root.isMidnightDoll ? 1 : Border.right(root.borderSpec)
-    readonly property real borderBottom: (root.isMidnightDoll && !root.isBarTransparent) ? (root.isSnappedBottom ? 0 : 1) : Border.bottom(root.borderSpec)
+    readonly property real borderRight: (root.isMidnightDoll && !root.isBarTransparent) ? (root.bar && root.bar.position === "right" ? 0 : 1) : Border.right(root.borderSpec)
+    readonly property real borderBottom: (root.isMidnightDoll && !root.isBarTransparent) ? ((root.isSnappedBottom || (root.bar && root.bar.position === "bottom")) ? 0 : 1) : Border.bottom(root.borderSpec)
     readonly property real borderLeft: (root.isMidnightDoll && !root.isBarTransparent) ? (root.bar && root.bar.position === "left" ? 0 : 1) : Border.left(root.borderSpec)
 
     readonly property real contentTopInset: (root.isMidnightDoll && !root.isBarTransparent) ? (root.bar && root.bar.position === "top" ? (root.padding + 2) : (root.padding + 1)) : (borderTop + root.padding)
-    readonly property real contentRightInset: root.isMidnightDoll ? (root.padding + 1) : (borderRight + root.padding)
-    readonly property real contentBottomInset: (root.isMidnightDoll && !root.isBarTransparent) ? (root.isSnappedBottom ? root.padding : (root.padding + 1)) : (borderBottom + root.padding)
+    readonly property real contentRightInset: (root.isMidnightDoll && !root.isBarTransparent) ? (root.bar && root.bar.position === "right" ? (root.padding + 2) : (root.padding + 1)) : (borderRight + root.padding)
+    readonly property real contentBottomInset: (root.isMidnightDoll && !root.isBarTransparent) ? ((root.isSnappedBottom || (root.bar && root.bar.position === "bottom")) ? (root.padding + 2) : (root.padding + 1)) : (borderBottom + root.padding)
     readonly property real contentLeftInset: (root.isMidnightDoll && !root.isBarTransparent) ? (root.bar && root.bar.position === "left" ? (root.padding + 2) : (root.padding + 1)) : (borderLeft + root.padding)
 
     // Stock BorderSurface for non-midnight themes
@@ -206,10 +224,10 @@ PopupWindow {
       anchors.fill: parent
       visible: root.isMidnightDoll
       color: "#010101"
-      topLeftRadius: root.isBarTransparent ? card.shelfRadius : 0
-      topRightRadius: (root.isBarTransparent || (root.bar && root.bar.position === "left")) ? card.shelfRadius : 0
-      bottomLeftRadius: (root.isBarTransparent || (root.bar && root.bar.position === "top")) ? card.shelfRadius : 0
-      bottomRightRadius: (!root.isBarTransparent && root.isSnappedBottom) ? 0 : card.shelfRadius
+      topLeftRadius: (root.isBarTransparent || (root.bar && (root.bar.position === "right" || root.bar.position === "bottom"))) ? card.shelfRadius : 0
+      topRightRadius: (root.isBarTransparent || (root.bar && (root.bar.position === "left" || root.bar.position === "bottom"))) ? card.shelfRadius : 0
+      bottomLeftRadius: (root.isBarTransparent || (root.bar && (root.bar.position === "top" || root.bar.position === "right"))) ? card.shelfRadius : 0
+      bottomRightRadius: (!root.isBarTransparent && (root.isSnappedBottom || (root.bar && (root.bar.position === "right" || root.bar.position === "bottom")))) ? 0 : card.shelfRadius
     }
 
     // Midnight-doll dedicated floating panel shape when bar is transparent (all 4 rounded corners + continuous border)
@@ -275,7 +293,7 @@ PopupWindow {
       anchors.fill: parent
       preferredRendererType: Shape.CurveRenderer
       asynchronous: false
-      visible: root.isMidnightDoll && !root.isBarTransparent && (!root.bar || root.bar.position !== "left")
+      visible: root.isMidnightDoll && !root.isBarTransparent && (!root.bar || root.bar.position === "top")
       z: 10
 
       ShapePath {
@@ -306,6 +324,46 @@ PopupWindow {
           sweepAngle: -90
         }
         PathLine { x: card.width - 0.5; y: 0.0 }
+      }
+    }
+
+    // Midnight-doll shelf continuous pink accent border for bottom bar
+    Shape {
+      id: shelfBorderBottom
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.bar && root.bar.position === "bottom"
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: 0.5
+        startY: card.height
+        PathLine { x: 0.5; y: card.shelfRadius + 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 180
+          sweepAngle: 90
+        }
+        PathLine { x: card.width - card.shelfRadius - 0.5; y: 0.5 }
+        PathAngleArc {
+          centerX: card.width - card.shelfRadius - 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 270
+          sweepAngle: 90
+        }
+        PathLine { x: card.width - 0.5; y: card.height }
       }
     }
 
@@ -380,8 +438,79 @@ PopupWindow {
       }
     }
 
+    // Midnight-doll shelf continuous pink accent border for right bar (standard)
+    Shape {
+      id: shelfBorderRightStandard
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.bar && root.bar.position === "right" && !root.isSnappedBottom
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: card.width
+        startY: 0.5
+        PathLine { x: card.shelfRadius + 0.5; y: 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: -90
+          sweepAngle: -90
+        }
+        PathLine { x: 0.5; y: card.height - card.shelfRadius - 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.height - card.shelfRadius - 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 180
+          sweepAngle: -90
+        }
+        PathLine { x: card.width; y: card.height - 0.5 }
+      }
+    }
+
+    // Midnight-doll shelf continuous pink accent border for right bar (snapped-bottom)
+    Shape {
+      id: shelfBorderRightSnappedBottom
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.bar && root.bar.position === "right" && root.isSnappedBottom
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: card.width
+        startY: 0.5
+        PathLine { x: card.shelfRadius + 0.5; y: 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: -90
+          sweepAngle: -90
+        }
+        PathLine { x: 0.5; y: card.height }
+      }
+    }
+
     Behavior on opacity {
-      NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
+      NumberAnimation { id: cardOpacityAnim; duration: Style.duration(140); easing.type: Easing.OutCubic }
     }
 
     Item {

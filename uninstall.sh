@@ -55,7 +55,7 @@ else
 fi
 
 # 4. Restore or clean configs
-for cfg in "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "set-accent.sh" "launch-comms.sh"; do
+for cfg in "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "midnight-config.json" "set-accent.sh" "launch-comms.sh"; do
   if [ -f "${LATEST_BACKUP}/${cfg}" ]; then
     cp "${LATEST_BACKUP}/${cfg}" "${HOME}/.config/omarchy/"
     echo -e "    ✓ Restored ~/.config/omarchy/${cfg}"
@@ -65,6 +65,7 @@ for cfg in "sys-hud.sh" "cava.conf" "midnight-shortcuts.json" "set-accent.sh" "l
   fi
 done
 rm -f "${HOME}/.local/bin/omarchy-fullscreen-bar-sync"
+rm -f "${HOME}/.config/omarchy/hooks/theme-set.d/20-midnight-doll"
 
 if [ -f "${LATEST_BACKUP}/shell.json" ]; then
   cp "${LATEST_BACKUP}/shell.json" "${HOME}/.config/omarchy/"
@@ -73,6 +74,7 @@ fi
 
 # Clean up QML overrides and environment config
 rm -rf "${HOME}/.config/omarchy/qml"
+rm -rf "${HOME}/.config/omarchy/themes/midnight-doll/qml"
 rm -f "${HOME}/.config/environment.d/qml.conf"
 if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
   sed -i '/QML_IMPORT_PATH/d' "${HOME}/.config/hypr/autostart.lua"

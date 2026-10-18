@@ -435,30 +435,23 @@ cat << MANIFEST > "${BACKUP_DIR}/backup_manifest.json"
 }
 MANIFEST
 
-echo -e "\n${VIOLET}[*] Deploying Theme & Scripts to ~/.config/omarchy/...${RESET}"
-mkdir -p "${HOME}/.config/omarchy/themes/midnight-doll"
-cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${HOME}/.config/omarchy/themes/midnight-doll/"
-rm -f "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/omarchy.webp" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/0-winding-road.webp" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/1-quattro.webp" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/2-swirl-buck.webp" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/3-sunset-lake.webp" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/4-omakub.webp" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/5-oma-cityscape.jpg" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/backgrounds/6-oma.webp" \
-      "${HOME}/.config/omarchy/themes/midnight-doll/shell.lock.toml"
-cp "${DOTS_DIR}/config/omarchy/sys-hud.sh" "${HOME}/.config/omarchy/"
-cp "${DOTS_DIR}/config/omarchy/cava.conf" "${HOME}/.config/omarchy/"
-cp "${DOTS_DIR}/config/omarchy/set-accent.sh" "${HOME}/.config/omarchy/"
-if [ ! -f "${HOME}/.config/omarchy/midnight-shortcuts.json" ]; then
-  cp "${DOTS_DIR}/config/omarchy/midnight-shortcuts.json" "${HOME}/.config/omarchy/"
-fi
-if [ ! -f "${HOME}/.config/omarchy/midnight-config.json" ]; then
-  cp "${DOTS_DIR}/config/omarchy/midnight-config.json" "${HOME}/.config/omarchy/"
-fi
-else
-  # Ensure NovelAI, ChatGPT, and Tintin++ shortcuts are removed if present in existing configuration
-  python3 - "${HOME}/.config/omarchy/midnight-shortcuts.json" << 'EOF'
+echo -e "\n${VIOLET}[*] Deploying Theme & Scripts to ~/.config/omarchy/themes/midnight-doll/...${RESET}"
+THEME_DEST="${HOME}/.config/omarchy/themes/midnight-doll"
+mkdir -p "${THEME_DEST}/bin"
+cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${THEME_DEST}/"
+rm -f "${THEME_DEST}/backgrounds/omarchy.webp" \
+      "${THEME_DEST}/backgrounds/0-winding-road.webp" \
+      "${THEME_DEST}/backgrounds/1-quattro.webp" \
+      "${THEME_DEST}/backgrounds/2-swirl-buck.webp" \
+      "${THEME_DEST}/backgrounds/3-sunset-lake.webp" \
+      "${THEME_DEST}/backgrounds/4-omakub.webp" \
+      "${THEME_DEST}/backgrounds/5-oma-cityscape.jpg" \
+      "${THEME_DEST}/backgrounds/6-oma.webp" \
+      "${THEME_DEST}/shell.lock.toml"
+
+# Filter blocked shortcuts if shortcuts file exists
+if [ -f "${THEME_DEST}/midnight-shortcuts.json" ]; then
+  python3 - "${THEME_DEST}/midnight-shortcuts.json" << 'EOF'
 import sys, json
 path = sys.argv[1]
 try:
@@ -474,17 +467,20 @@ except Exception:
     pass
 EOF
 fi
-chmod +x "${HOME}/.config/omarchy/sys-hud.sh"
-chmod +x "${HOME}/.config/omarchy/set-accent.sh"
-if [ -f "${DOTS_DIR}/config/omarchy/launch-comms.sh" ]; then
-  cp "${DOTS_DIR}/config/omarchy/launch-comms.sh" "${HOME}/.config/omarchy/"
-  chmod +x "${HOME}/.config/omarchy/launch-comms.sh"
-fi
+
+chmod +x "${THEME_DEST}/bin/"* 2>/dev/null || true
+
+# Clean up any legacy loose files from ~/.config/omarchy/ root
+for old_cfg in "sys-hud.sh" "cava.conf" "set-accent.sh" "launch-comms.sh" "midnight-shortcuts.json" "midnight-config.json"; do
+  rm -f "${HOME}/.config/omarchy/${old_cfg}"
+done
+
 if [ -f "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" ]; then
   mkdir -p "${HOME}/.local/bin"
   cp "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" "${HOME}/.local/bin/"
   chmod +x "${HOME}/.local/bin/omarchy-fullscreen-bar-sync"
 fi
+
 
 # Apply customized accent & complimentary colors to theme configs
 echo -e "    ✓ Applying dual-tone color scheme (${CHOSEN_PRIMARY} / ${CHOSEN_SECONDARY}) to theme configs..."
@@ -613,9 +609,15 @@ if [ -d "${DOTS_DIR}/shell-patch/plugins/notifications" ]; then
   chmod +x "${PLUGINS_DIR}/midnight-doll.notifications/helper.py" 2>/dev/null || true
 fi
 
-# 5. Shell QML overrides (attached shelf popouts for KeyboardPanel and PopupCard)
-echo -e "${VIOLET}[*] Deploying QML shell overrides to ~/.config/omarchy/qml/...${RESET}"
-QML_OVERRIDE_DIR="${HOME}/.config/omarchy/qml"
+# 5. Theme lifecycle hook (ensures 100% theme isolation)
+echo -e "${VIOLET}[*] Deploying theme lifecycle hook to ~/.config/omarchy/hooks/theme-set.d/...${RESET}"
+mkdir -p "${HOME}/.config/omarchy/hooks/theme-set.d"
+cp "${DOTS_DIR}/config/omarchy/hooks/theme-set.d/20-midnight-doll" "${HOME}/.config/omarchy/hooks/theme-set.d/"
+chmod +x "${HOME}/.config/omarchy/hooks/theme-set.d/20-midnight-doll"
+
+# 6. Shell QML overrides (attached shelf popouts for KeyboardPanel and PopupCard)
+echo -e "${VIOLET}[*] Deploying QML shell overrides to ~/.config/omarchy/themes/midnight-doll/qml/...${RESET}"
+QML_OVERRIDE_DIR="${HOME}/.config/omarchy/themes/midnight-doll/qml"
 mkdir -p "${QML_OVERRIDE_DIR}/qs/Ui"
 ln -sfn "/usr/share/omarchy/shell/Commons" "${QML_OVERRIDE_DIR}/qs/Commons"
 if [ -d "/usr/share/omarchy/shell/Ui" ]; then
@@ -630,13 +632,15 @@ cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
 cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/KeyboardPanel.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
 cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/PopupCard.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
 
+# Clean up legacy ~/.config/omarchy/qml if present
+rm -rf "${HOME}/.config/omarchy/qml"
+
 # Ensure QML_IMPORT_PATH is set in environment.d and hyprland autostart
 mkdir -p "${HOME}/.config/environment.d"
-echo "QML_IMPORT_PATH=${HOME}/.config/omarchy/qml" > "${HOME}/.config/environment.d/qml.conf"
+echo "QML_IMPORT_PATH=${QML_OVERRIDE_DIR}" > "${HOME}/.config/environment.d/qml.conf"
 if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
-  if ! grep -q "QML_IMPORT_PATH" "${HOME}/.config/hypr/autostart.lua"; then
-    sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "'"${HOME}"'") .. "/.config/omarchy/qml")' "${HOME}/.config/hypr/autostart.lua"
-  fi
+  sed -i '/QML_IMPORT_PATH/d' "${HOME}/.config/hypr/autostart.lua"
+  sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "'"${HOME}"'") .. "/.config/omarchy/themes/midnight-doll/qml")' "${HOME}/.config/hypr/autostart.lua"
 fi
 
 

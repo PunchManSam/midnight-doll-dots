@@ -38,10 +38,12 @@ Item {
 
   property string home: Quickshell.env("HOME")
   property bool fullscreenSyncPending: false
+  readonly property string midnightThemeDir: root.home + "/.config/omarchy/themes/midnight-doll"
+  readonly property string fullscreenSyncBin: root.midnightThemeDir + "/bin/omarchy-fullscreen-bar-sync"
 
   Process {
     id: fullscreenBarSyncProc
-    command: ["/home/punch/.local/bin/omarchy-fullscreen-bar-sync"]
+    command: [root.fullscreenSyncBin]
     onExited: {
       if (root.fullscreenSyncPending) {
         root.fullscreenSyncPending = false
@@ -122,7 +124,7 @@ Item {
     return name === "midnightdoll"
   }
   onIsMidnightDollChanged: applyBarConfig()
-  readonly property string midnightShortcutsPath: root.home + "/.config/omarchy/midnight-shortcuts.json"
+  readonly property string midnightShortcutsPath: root.midnightThemeDir + "/midnight-shortcuts.json"
   property var midnightShortcutsList: []
   FileView {
     id: midnightShortcutsFile
@@ -152,7 +154,7 @@ Item {
   property bool midnightShortcutEditorOpen: false
   property bool midnightThemeCenterOpen: false
 
-  readonly property string midnightConfigPath: root.home + "/.config/omarchy/midnight-config.json"
+  readonly property string midnightConfigPath: root.midnightThemeDir + "/midnight-config.json"
   property var midnightConfig: ({
     sideBarEnabled: true,
     sideBarPosition: "left",
@@ -717,7 +719,9 @@ Item {
   }
   property QtObject leftBarContext: QtObject {
     id: leftBarCtx
-    property string position: "left"
+    property string position: root.sideBarPosition || "left"
+    property string sideBarPosition: root.sideBarPosition || "left"
+    property bool sideBarEnabled: root.sideBarEnabled
     property bool vertical: true
     property int barSize: 36
     property bool isMidnightDoll: root.isMidnightDoll
@@ -732,6 +736,8 @@ Item {
     property var activePopout: root.activePopout
     property var shell: root.shell
     property bool transparent: root.transparent
+    property string mainBarPosition: root.position
+    property var mainBar: root
 
     function run(cmd) { root.run(cmd) }
     function requestPopout(owner) { root.requestPopout(owner) }
@@ -2637,7 +2643,7 @@ Item {
                     secondaryAccent: sec
                   })
                   root.saveMidnightConfig(cfg)
-                  root.run(root.home + "/.config/omarchy/set-accent.sh '" + pri + "' '" + sec + "'")
+                  root.run(root.midnightThemeDir + "/bin/set-accent.sh '" + pri + "' '" + sec + "'")
                   root.midnightThemeCenterOpen = false
                 }
               }
@@ -3031,28 +3037,25 @@ Item {
 
         Rectangle {
           id: leftBarBackground
+          x: root.sideBarPosition === "right" ? 2 : 0
+          width: parent.width - 2
           anchors {
             top: parent.top
             bottom: parent.bottom
-            left: parent.left
-            leftMargin: root.sideBarPosition === "right" ? 2 : 0
-            right: parent.right
-            rightMargin: root.sideBarPosition === "left" ? 2 : 0
           }
           color: "#010101"
         }
 
         Rectangle {
           id: leftBarRightBorder
+          x: root.sideBarPosition === "right" ? 0 : (parent.width - 2)
+          width: 2
           anchors {
             top: parent.top
             topMargin: (root.barsMeet && root.position === "top") ? (root.midnightCornerRadius - 1.0) : 0
             bottomMargin: (root.barsMeet && root.position === "bottom") ? (root.midnightCornerRadius - 1.0) : 0
             bottom: parent.bottom
-            right: root.sideBarPosition === "left" ? parent.right : undefined
-            left: root.sideBarPosition === "right" ? parent.left : undefined
           }
-          width: 2
           color: Commons.Color.accent
         }
       }
@@ -3343,8 +3346,7 @@ Item {
 
       Rectangle {
         id: barBackgroundRect
-        anchors.top: root.position === "bottom" ? undefined : parent.top
-        anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
+        y: root.position === "bottom" ? (parent.height - root.barSize) : 0
         anchors.left: parent.left
         anchors.right: parent.right
         height: root.barSize
@@ -3374,8 +3376,7 @@ Item {
 
       Shape {
         id: midnightBorderShape
-        anchors.top: root.position === "bottom" ? undefined : parent.top
-        anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         height: root.barSize + (root.barsMeet ? (root.midnightCornerRadius + 4) : 0)
@@ -3607,8 +3608,7 @@ Item {
 
     Loader {
       id: barLoader
-      anchors.top: root.position === "bottom" ? undefined : parent.top
-      anchors.bottom: root.position === "bottom" ? parent.bottom : undefined
+      y: root.position === "bottom" ? (parent.height - root.barSize) : 0
       anchors.left: parent.left
       anchors.right: parent.right
       height: root.barSize
@@ -3925,7 +3925,7 @@ Item {
       anchors.fill: parent
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      onClicked: root.run("/home/punch/.local/bin/omarchy-fullscreen-bar-sync --toggle-window")
+      onClicked: root.run(root.fullscreenSyncBin + " --toggle-window")
     }
 
     HoverHandler {
@@ -4407,8 +4407,8 @@ Item {
 
       readonly property int inset: Style.space(2)
 
-      visible: opacity > 0
-      opacity: slot.panelOpen && !slot.dragSource ? 0.9 : 0
+      visible: !root.isMidnightDoll && opacity > 0
+      opacity: !root.isMidnightDoll && slot.panelOpen && !slot.dragSource ? 0.9 : 0
       color: Commons.Color.accent
       radius: Math.min(width, height) / 2
       width: (root.vertical || slot.isLeftPanel) ? Style.space(2) : slot.panelIndicatorExtent
@@ -5455,7 +5455,7 @@ Item {
 
     Process {
       id: sysProc
-      command: ["/bin/bash", root.home + "/.config/omarchy/sys-hud.sh"]
+      command: ["/bin/bash", root.midnightThemeDir + "/bin/sys-hud.sh"]
       stdout: SplitParser {
         onRead: function(line) {
           sysHudRoot.updateMetrics(line)
@@ -5698,7 +5698,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         property bool pressable: true
         function triggerPress(button) {
-          root.run("omarchy-launch-or-focus-tui --app-id=TUI.float " + root.home + "/.config/omarchy/launch-comms.sh")
+          root.run("omarchy-launch-or-focus-tui --app-id=TUI.float " + root.midnightThemeDir + "/bin/launch-comms.sh")
         }
         Component.onCompleted: if (typeof root.registerClickTarget === "function") root.registerClickTarget(this)
         Component.onDestruction: if (typeof root.unregisterClickTarget === "function") root.unregisterClickTarget(this)
@@ -5797,7 +5797,7 @@ Item {
 
     Process {
       id: cavaProc
-      command: ["cava", "-p", root.home + "/.config/omarchy/cava.conf"]
+      command: ["cava", "-p", root.midnightThemeDir + "/cava.conf"]
       running: cavaRoot.visible
       onExited: function(exitCode, exitStatus) {
         cavaRoot.spectrum = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -5830,11 +5830,12 @@ Item {
     // Inverted Stacked Meters: AIR (top), MID (middle), BASS (bottom)
     Column {
       anchors.verticalCenter: parent.verticalCenter
-      anchors.verticalCenterOffset: -2
-      spacing: 0
+      anchors.verticalCenterOffset: root.position === "bottom" ? 1 : -1
+      spacing: 1
 
       // AIR (Top)
       Row {
+        height: 7
         spacing: 3
         Text {
           text: "AIR"
@@ -5862,6 +5863,7 @@ Item {
 
       // MID (Middle)
       Row {
+        height: 7
         spacing: 3
         Text {
           text: "MID"
@@ -5889,6 +5891,7 @@ Item {
 
       // BASS (Bottom)
       Row {
+        height: 7
         spacing: 3
         Text {
           text: "BASS"

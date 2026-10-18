@@ -176,7 +176,10 @@ EOF
 fi
 
 # 3. Update midnight-config.json
-MIDNIGHT_CFG="${HOME}/.config/omarchy/midnight-config.json"
+MIDNIGHT_CFG="${HOME}/.config/omarchy/themes/midnight-doll/midnight-config.json"
+if [ ! -f "${MIDNIGHT_CFG}" ] && [ -f "${HOME}/.config/omarchy/midnight-config.json" ]; then
+  MIDNIGHT_CFG="${HOME}/.config/omarchy/midnight-config.json"
+fi
 if [ -f "${MIDNIGHT_CFG}" ]; then
   python3 - "${MIDNIGHT_CFG}" "${PRIMARY}" "${SECONDARY}" << 'EOF'
 import sys, json

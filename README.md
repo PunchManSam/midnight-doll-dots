@@ -101,22 +101,31 @@ midnight-doll-dots/
 │   ├── image4.png
 │   └── image5.png
 ├── install.sh                     # Automated 1-click installer & backup generator
+├── update.sh                      # Automated updater & migration script
 ├── uninstall.sh                   # Instant rollback script
 ├── bin/
 │   └── omarchy-fullscreen-bar-sync# Fullscreen bar state & auto-hide sync engine
 ├── config/
 │   └── omarchy/
-│       ├── sys-hud.sh             # Fast real-time system metrics engine
-│       ├── cava.conf              # Audio spectrum capture profile
-│       ├── midnight-shortcuts.json# Left bar launcher shortcuts store
+│       ├── hooks/
+│       │   └── theme-set.d/
+│       │       └── 20-midnight-doll # Theme lifecycle hook for 100% theme isolation
 │       └── themes/
-│           └── midnight-doll/     # Colors, Hyprland rules, and terminal profiles
+│           └── midnight-doll/     # Fully centralized theme suite
 │               ├── colors.toml    # Theme color definitions
 │               ├── hyprland.lua   # Border, gaps, and window decorations
 │               ├── ghostty.conf   # Ghostty terminal palette configuration
+│               ├── cava.conf      # Audio spectrum capture profile
+│               ├── midnight-shortcuts.json # Left bar launcher shortcuts
+│               ├── midnight-config.json    # Active configuration & accent store
+│               ├── bin/           # Theme-specific helper binaries
+│               │   ├── set-accent.sh
+│               │   ├── launch-comms.sh
+│               │   ├── sys-hud.sh
+│               │   └── omarchy-fullscreen-bar-sync
 │               └── backgrounds/   # Curated Midnight Doll retro-cyberpunk wallpapers
 └── shell-patch/
-    ├── qml/                       # QML shell overrides for attached shelf drawers
+    ├── qml/                       # Scoped QML overrides for attached shelf drawers
     │   └── qs/
     │       └── Ui/
     │           ├── KeyboardPanel.qml # Attached shelf drawers with edge snapping
@@ -132,7 +141,8 @@ midnight-doll-dots/
         │   └── helper.py          # Notification daemon & history helper
         ├── sys-hud/
         │   ├── manifest.json      # Modular System HUD manifest
-        │   └── SystemHud.qml      # Modular CPU, Temp, Fan, RAM, Disk, Net metrics widget
+        │   ├── SystemHud.qml      # Modular CPU, Temp, Fan, RAM, Disk, Net metrics widget
+        │   └── sys-hud.sh         # Metrics collector
         └── visualizer/
             ├── manifest.json      # Modular Audio Visualizer manifest
             └── Visualizer.qml     # Modular CAVA LED dot-matrix widget
@@ -158,6 +168,20 @@ git clone https://github.com/PunchManSam/midnight-doll-dots.git
 cd midnight-doll-dots
 chmod +x install.sh
 ./install.sh
+```
+
+### 3. Update & Sync
+To update an existing installation to the latest version while keeping your custom shortcuts, color scheme, and preferences intact:
+
+```bash
+cd midnight-doll-dots
+git pull
+./update.sh
+```
+
+Or run the one-line updater directly:
+```bash
+curl -fsSL https://raw.githubusercontent.com/PunchManSam/midnight-doll-dots/master/update.sh | bash
 ```
 
 The interactive installer will guide you through configuration steps:

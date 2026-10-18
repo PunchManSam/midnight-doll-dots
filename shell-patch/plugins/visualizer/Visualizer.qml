@@ -44,7 +44,7 @@ BarWidget {
 
   Process {
     id: cavaProc
-    command: ["cava", "-p", root.homeDir + "/.config/omarchy/cava.conf"]
+    command: ["cava", "-p", root.homeDir + "/.config/omarchy/themes/midnight-doll/cava.conf"]
     running: root.visible
     onExited: function(exitCode, exitStatus) {
       root.spectrum = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -78,11 +78,12 @@ BarWidget {
     Column {
       id: metersCol
       anchors.verticalCenter: parent.verticalCenter
-      anchors.verticalCenterOffset: -2
-      spacing: 0
+      anchors.verticalCenterOffset: (root.shellBar && root.shellBar.position === "bottom") ? 1 : -1
+      spacing: 1
 
       // AIR (Top)
       Row {
+        height: 7
         spacing: 3
         Text {
           text: "AIR"
@@ -110,6 +111,7 @@ BarWidget {
 
       // MID (Middle)
       Row {
+        height: 7
         spacing: 3
         Text {
           text: "MID"
@@ -137,6 +139,7 @@ BarWidget {
 
       // BASS (Bottom)
       Row {
+        height: 7
         spacing: 3
         Text {
           text: "BASS"

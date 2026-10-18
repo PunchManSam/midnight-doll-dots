@@ -1,0 +1,41 @@
+#!/bin/bash
+# ==============================================================================
+# Midnight-Doll Theme Lifecycle Hook
+# Ensures 100% theme isolation:
+# - When switching to "Midnight Doll": activates cyberdeck bar & plugins
+# - When switching to any other theme: restores stock Omarchy bar & plugins
+# ==============================================================================
+set -u
+
+NEW_THEME="${1:-}"
+
+# Normalize theme name (lowercase, remove spaces, underscores, and hyphens)
+NORM_THEME="$(echo "$NEW_THEME" | tr '[:upper:]' '[:lower:]' | tr -d ' -_')"
+
+if [[ "$NORM_THEME" == "midnightdoll" ]]; then
+  # Switching to Midnight Doll: activate bar and modular plugins
+  if command -v omarchy &>/dev/null; then
+    CURRENT_BAR=$(python3 -c "import json; data=json.load(open('$HOME/.config/omarchy/shell.json')); print(data.get('bar', {}).get('id', ''))" 2>/dev/null || true)
+    if [[ "$CURRENT_BAR" != "midnight-doll.bar" ]]; then
+      omarchy bar use midnight-doll.bar >/dev/null 2>&1 || true
+    fi
+    omarchy plugin enable midnight-doll.notifications >/dev/null 2>&1 || true
+    omarchy plugin enable midnight-doll.sys-hud >/dev/null 2>&1 || true
+    omarchy plugin enable midnight-doll.visualizer >/dev/null 2>&1 || true
+  fi
+else
+  # Switching to any other theme: restore stock Omarchy if midnight-doll.bar was active
+  if command -v omarchy &>/dev/null; then
+    CURRENT_BAR=$(python3 -c "import json; data=json.load(open('$HOME/.config/omarchy/shell.json')); print(data.get('bar', {}).get('id', ''))" 2>/dev/null || true)
+    if [[ "$CURRENT_BAR" == "midnight-doll.bar" ]]; then
+      omarchy bar reset >/dev/null 2>&1 || true
+      omarchy plugin disable midnight-doll.notifications >/dev/null 2>&1 || true
+      omarchy plugin disable midnight-doll.sys-hud >/dev/null 2>&1 || true
+      omarchy plugin disable midnight-doll.visualizer >/dev/null 2>&1 || true
+      omarchy plugin enable omarchy.menu >/dev/null 2>&1 || true
+      omarchy plugin enable omarchy.workspaces >/dev/null 2>&1 || true
+      omarchy plugin enable omarchy.clock >/dev/null 2>&1 || true
+      omarchy restart shell >/dev/null 2>&1 || true
+    fi
+  fi
+fi

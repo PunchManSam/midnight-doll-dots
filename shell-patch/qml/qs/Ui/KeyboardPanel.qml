@@ -53,15 +53,31 @@ PanelWindow {
   property bool popoutSwitching: false
   property bool popoutSwitchClosing: false
   property bool focusPrimed: false
-
+  property bool hasOpenedEver: false
   readonly property bool isTargetOpen: root.open && !root.popoutSwitchClosing
-  property real slideProgress: isTargetOpen ? 1.0 : 0.0
+  readonly property real targetProgress: isTargetOpen ? 1.0 : 0.0
+  property real slideProgress: targetProgress
+
+  Binding on slideProgress {
+    value: root.targetProgress
+  }
 
   Behavior on slideProgress {
     enabled: !root.popoutSwitching
     NumberAnimation {
-      duration: root.isTargetOpen ? Style.duration(220) : Style.duration(160)
+      id: slideAnim
+      duration: root.isTargetOpen ? Style.duration(280) : Style.duration(220)
       easing.type: root.isTargetOpen ? Easing.OutCubic : Easing.InCubic
+    }
+  }
+
+  Timer {
+    id: closeWatchdog
+    interval: 400
+    onTriggered: {
+      if (!root.open && slideAnim.running) {
+        slideAnim.stop()
+      }
     }
   }
 
@@ -110,7 +126,15 @@ PanelWindow {
 
   readonly property var coordinatorKey: owner || root
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
-  readonly property string barPos: bar ? bar.position : "top"
+  readonly property string barPos: {
+    if (anchorWindow && anchorWindow.anchors) {
+      if (anchorWindow.anchors.right && !anchorWindow.anchors.left && anchorWindow.anchors.top && anchorWindow.anchors.bottom) return "right"
+      if (anchorWindow.anchors.left && !anchorWindow.anchors.right && anchorWindow.anchors.top && anchorWindow.anchors.bottom) return "left"
+      if (anchorWindow.anchors.bottom && !anchorWindow.anchors.top) return "bottom"
+      if (anchorWindow.anchors.top && !anchorWindow.anchors.bottom) return "top"
+    }
+    return bar ? bar.position : "top"
+  }
 
   function close() {
     if (owner && "close" in owner) owner.close()
@@ -126,7 +150,7 @@ PanelWindow {
   screen: (anchorWindow && anchorWindow.screen)
     ? anchorWindow.screen
     : (bar && bar.screen ? bar.screen : (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null))
-  visible: open || slideProgress > 0.001 || card.opacity > 0 || popoutSwitching
+  visible: open || (slideAnim.running && slideProgress > 0.005) || popoutSwitching
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
 
@@ -193,10 +217,29 @@ PanelWindow {
     anchorWatcher.transform  // reactive dependency
     if (!anchorItem) return Qt.point(0, 0)
     try {
+      var pt = Qt.point(0, 0)
       if (anchorWindow && anchorWindow.contentItem) {
-        return anchorItem.mapToItem(anchorWindow.contentItem, 0, 0)
+        pt = anchorItem.mapToItem(anchorWindow.contentItem, 0, 0)
+      } else {
+        pt = anchorItem.mapToItem(null, 0, 0)
       }
-      return anchorItem.mapToItem(null, 0, 0)
+      var winX = 0
+      var winY = 0
+      if (anchorWindow) {
+        if (anchorWindow.anchors) {
+          if (anchorWindow.anchors.right && !anchorWindow.anchors.left) {
+            winX = root.screenW - anchorWindow.width
+          }
+          if (anchorWindow.anchors.bottom && !anchorWindow.anchors.top) {
+            winY = root.screenH - anchorWindow.height
+          }
+        } else if (barPos === "right") {
+          winX = root.screenW - anchorWindow.width
+        } else if (barPos === "bottom") {
+          winY = root.screenH - anchorWindow.height
+        }
+      }
+      return Qt.point(Math.round(winX + pt.x), Math.round(winY + pt.y))
     } catch (e) {
       return Qt.point(0, 0)
     }
@@ -206,10 +249,10 @@ PanelWindow {
   readonly property real screenW: screen ? screen.width : (Quickshell.screens.length > 0 ? Quickshell.screens[0].width : 1920)
   readonly property real screenH: screen ? screen.height : (Quickshell.screens.length > 0 ? Quickshell.screens[0].height : 1080)
   readonly property real availableCardWidth: screenW > 0
-    ? Math.max(120, screenW - ((barPos === "left" || barPos === "right") ? (root.isMidnightDoll ? (bar ? bar.barSize : 36) : (barW + gap)) + margin : margin * 2))
+    ? Math.max(120, (hasRightBar ? rightBarEdge : screenW) - (hasLeftBar ? leftBarEdge : 0) - ((barPos === "left" || barPos === "right") ? 0 : margin * 2))
     : 0
   readonly property real availableCardHeight: screenH > 0
-    ? Math.max(120, screenH - ((barPos === "top" || barPos === "bottom") ? (root.isMidnightDoll ? (bar ? bar.barSize : 30) : (barH + gap)) + margin : margin * 2))
+    ? Math.max(120, (hasBottomBar ? bottomBarEdge : screenH) - (hasTopBar ? topBarEdge : 0) - ((barPos === "top" || barPos === "bottom") ? 0 : margin * 2))
     : 0
   readonly property real verticalContentInset: padding * 2 + Border.top(borderSpec) + Border.bottom(borderSpec)
 
@@ -237,13 +280,33 @@ PanelWindow {
   readonly property real barH: anchorWindow ? anchorWindow.height : (bar && bar.barSize ? bar.barSize : 30)
 
   readonly property real snapDistance: Style.space(48)
-  readonly property real leftBarEdge: isMidnightDoll ? 35 : 0
-  readonly property real topBarEdge: isMidnightDoll ? 29 : 0
+  readonly property string mainBarPos: bar ? (bar.mainBarPosition || (bar.position !== "left" && bar.position !== "right" ? bar.position : "")) : ""
+  readonly property bool hasTopBar: isMidnightDoll && (barPos === "top" || mainBarPos === "top")
+  readonly property bool hasBottomBar: isMidnightDoll && (barPos === "bottom" || mainBarPos === "bottom")
+  readonly property bool hasRightBar: isMidnightDoll && (
+    (bar && bar.sideBarEnabled !== false && bar.sideBarPosition === "right") ||
+    (barPos === "right")
+  )
+  readonly property bool hasLeftBar: isMidnightDoll && (
+    (bar && bar.sideBarEnabled !== false && (bar.sideBarPosition === "left" || !bar.sideBarPosition) && barPos !== "right" && barPos !== "left") ||
+    (barPos === "left")
+  )
+
+  readonly property real leftBarEdge: (isMidnightDoll && hasLeftBar) ? 34 : 0
+  readonly property real rightBarEdge: isMidnightDoll
+    ? (barPos === "right" ? (screenW - (bar ? bar.barSize : 36) + 2) : (hasRightBar ? (screenW - 34) : screenW))
+    : screenW
+  readonly property real topBarEdge: (isMidnightDoll && hasTopBar)
+    ? ((bar && bar.mainBar && bar.mainBar.barSize ? bar.mainBar.barSize : (bar && bar.barSize && barPos === "top" ? bar.barSize : 30)) - 2)
+    : 0
+  readonly property real bottomBarEdge: (isMidnightDoll && hasBottomBar)
+    ? (screenH - (bar && bar.mainBar && bar.mainBar.barSize ? bar.mainBar.barSize : (bar && bar.barSize && barPos === "bottom" ? bar.barSize : 30)) + 2)
+    : screenH
 
   readonly property bool isSnappedLeft: !isBarTransparent && isMidnightDoll && (barPos === "top" || barPos === "bottom") && (cardOrigin.x <= leftBarEdge + 1)
-  readonly property bool isSnappedRight: !isBarTransparent && isMidnightDoll && (barPos === "top" || barPos === "bottom") && (cardOrigin.x + contentWidth >= screenW - 2)
-  readonly property bool isSnappedBottom: !isBarTransparent && isMidnightDoll && (barPos === "left" || barPos === "right") && (cardOrigin.y + contentHeight >= screenH - 2)
-  readonly property bool isSnappedTop: !isBarTransparent && isMidnightDoll && (barPos === "left" || barPos === "right") && (cardOrigin.y <= topBarEdge + 1)
+  readonly property bool isSnappedRight: !isBarTransparent && isMidnightDoll && (barPos === "top" || barPos === "bottom") && (cardOrigin.x + contentWidth >= rightBarEdge - 2)
+  readonly property bool isSnappedBottom: !isBarTransparent && isMidnightDoll && (barPos === "left" || barPos === "right") && (cardOrigin.y + contentHeight >= (hasBottomBar ? bottomBarEdge : screenH) - 2)
+  readonly property bool isSnappedTop: !isBarTransparent && isMidnightDoll && (barPos === "left" || barPos === "right") && (cardOrigin.y <= (hasTopBar ? topBarEdge : 0) + 1)
 
   readonly property point cardOrigin: {
     if (!anchorItem || !bar) return Qt.point(margin, margin)
@@ -252,7 +315,7 @@ PanelWindow {
     if (isBarTransparent) {
       if (centerOnBar && (barPos === "top" || barPos === "bottom")) {
         x = screenW / 2 - contentWidth / 2
-        y = (barPos === "bottom") ? (screenH - barH - contentHeight - margin) : (topBarEdge + margin)
+        y = (barPos === "bottom") ? (screenH - (bar && bar.barSize ? bar.barSize : 30) - contentHeight - margin) : ((hasTopBar ? topBarEdge : 0) + margin)
       } else if (centerOnBar) {
         x = (barPos === "left") ? (leftBarEdge + margin) : (screenW - barW - contentWidth - margin)
         y = screenH / 2 - contentHeight / 2
@@ -266,10 +329,10 @@ PanelWindow {
         y = Math.max(margin, Math.min(targetY, screenH - contentHeight - margin))
       } else if (barPos === "bottom") {
         x = Math.max(margin, Math.min(anchorScreenPos.x + anchorW / 2 - contentWidth / 2, screenW - contentWidth - margin))
-        y = screenH - barH - contentHeight - margin
+        y = screenH - (bar && bar.barSize ? bar.barSize : 30) - contentHeight - margin
       } else { // "top"
         x = Math.max(margin, Math.min(anchorScreenPos.x + anchorW / 2 - contentWidth / 2, screenW - contentWidth - margin))
-        y = topBarEdge + margin
+        y = (hasTopBar ? topBarEdge : 0) + margin
       }
       return Qt.point(Math.round(x), Math.round(y))
     }
@@ -277,7 +340,7 @@ PanelWindow {
     if (centerOnBar && (barPos === "top" || barPos === "bottom")) {
       x = screenW / 2 - contentWidth / 2
       if (barPos === "bottom") {
-        y = screenH - barH - contentHeight - gap
+        y = isMidnightDoll ? (bottomBarEdge - contentHeight) : (screenH - barH - contentHeight - gap)
       } else {
         y = isMidnightDoll ? topBarEdge : (barH + gap)
       }
@@ -285,42 +348,77 @@ PanelWindow {
       if (barPos === "left") {
         x = isMidnightDoll ? leftBarEdge : (barW + gap)
       } else {
-        x = screenW - barW - contentWidth - gap
+        x = isMidnightDoll ? (rightBarEdge - contentWidth) : (screenW - barW - contentWidth - gap)
       }
       y = screenH / 2 - contentHeight / 2
     } else if (barPos === "bottom") {
-      x = anchorScreenPos.x + anchorW / 2 - contentWidth / 2
-      y = screenH - barH - contentHeight - gap
+      var buttonCenterX = anchorScreenPos.x + anchorW / 2
+      var desiredX = buttonCenterX - contentWidth / 2
+      if (isMidnightDoll) {
+        var minBoundary = hasLeftBar ? leftBarEdge : 0
+        var maxBoundary = hasRightBar ? rightBarEdge : screenW
+        if (desiredX <= minBoundary + snapDistance) {
+          x = minBoundary
+        } else if (desiredX + contentWidth >= maxBoundary - snapDistance) {
+          x = Math.max(minBoundary, maxBoundary - contentWidth)
+        } else {
+          x = Math.max(minBoundary + margin, Math.min(desiredX, maxBoundary - contentWidth - margin))
+        }
+        y = bottomBarEdge - contentHeight
+      } else {
+        x = desiredX
+        y = screenH - barH - contentHeight - gap
+      }
     } else if (barPos === "left") {
       x = isMidnightDoll ? leftBarEdge : (barW + gap)
-      var targetY = anchorScreenPos.y + anchorH / 2 - contentHeight / 2
+      var buttonCenterY = anchorScreenPos.y + anchorH / 2
+      var desiredY = buttonCenterY - contentHeight / 2
       if (isMidnightDoll) {
-        if (anchorScreenPos.y >= screenH / 2 || (targetY + contentHeight >= screenH - snapDistance)) {
-          y = screenH - contentHeight
-        } else if (targetY <= topBarEdge + snapDistance) {
-          y = topBarEdge
+        var minY = hasTopBar ? topBarEdge : 0
+        var maxY = (hasBottomBar ? bottomBarEdge : screenH) - contentHeight
+        if (desiredY <= minY + snapDistance) {
+          y = minY
+        } else if (desiredY >= maxY - snapDistance) {
+          y = Math.max(minY, maxY)
         } else {
-          y = Math.max(topBarEdge + margin, Math.min(targetY, screenH - contentHeight - margin))
+          y = Math.max(minY + margin, Math.min(desiredY, maxY - margin))
         }
       } else {
-        y = targetY
+        y = desiredY
       }
     } else if (barPos === "right") {
-      x = screenW - barW - contentWidth - gap
-      y = anchorScreenPos.y + anchorH / 2 - contentHeight / 2
-    } else { // "top" (default)
-      var targetX = anchorScreenPos.x + anchorW / 2 - contentWidth / 2
+      x = isMidnightDoll ? (rightBarEdge - contentWidth) : (screenW - barW - contentWidth - gap)
+      var buttonCenterY = anchorScreenPos.y + anchorH / 2
+      var desiredY = buttonCenterY - contentHeight / 2
       if (isMidnightDoll) {
-        if (targetX <= leftBarEdge + snapDistance) {
-          x = leftBarEdge
-        } else if (targetX + contentWidth >= screenW - snapDistance) {
-          x = screenW - contentWidth
+        var minY = hasTopBar ? topBarEdge : 0
+        var maxY = (hasBottomBar ? bottomBarEdge : screenH) - contentHeight
+        if (desiredY <= minY + snapDistance) {
+          y = minY
+        } else if (desiredY >= maxY - snapDistance) {
+          y = Math.max(minY, maxY)
         } else {
-          x = Math.max(leftBarEdge + margin, Math.min(targetX, screenW - contentWidth - margin))
+          y = Math.max(minY + margin, Math.min(desiredY, maxY - margin))
+        }
+      } else {
+        y = desiredY
+      }
+    } else { // "top" (default)
+      var buttonCenterX = anchorScreenPos.x + anchorW / 2
+      var desiredX = buttonCenterX - contentWidth / 2
+      if (isMidnightDoll) {
+        var minBoundary = hasLeftBar ? leftBarEdge : 0
+        var maxBoundary = hasRightBar ? rightBarEdge : screenW
+        if (desiredX <= minBoundary + snapDistance) {
+          x = minBoundary
+        } else if (desiredX + contentWidth >= maxBoundary - snapDistance) {
+          x = Math.max(minBoundary, maxBoundary - contentWidth)
+        } else {
+          x = Math.max(minBoundary + margin, Math.min(desiredX, maxBoundary - contentWidth - margin))
         }
         y = topBarEdge
       } else {
-        x = targetX
+        x = desiredX
         y = barH + gap
       }
     }
@@ -339,12 +437,15 @@ PanelWindow {
   // animation, which made ownership transfer to a sibling popup race.
   onOpenChanged: {
     if (open) {
+      closeWatchdog.stop()
+      hasOpenedEver = true
       focusPrimed = false
       beginFocusPrime()
       if (focusTarget) Qt.callLater(function() {
         if (root.open && root.focusTarget) root.focusTarget.forceActiveFocus()
       })
     } else {
+      closeWatchdog.restart()
       focusPrimeTimer.stop()
       focusPrimed = false
     }
@@ -401,15 +502,16 @@ PanelWindow {
     cursorShape: hoveringBar ? Qt.PointingHandCursor : Qt.ArrowCursor
 
     function inBarRegion(px, py) {
-      if (root.barPos === "bottom") return py >= root.screenH - root._barStripSize
-      if (root.barPos === "left") return px <= root._barStripSize
-      if (root.barPos === "right") return px >= root.screenW - root._barStripSize
-      return py <= root._barStripSize
+      if (py <= (root.barH || 30)) return true
+      if (root.hasRightBar && px >= root.screenW - 36) return true
+      if (root.hasLeftBar && px <= 36) return true
+      if (root.barPos === "bottom" && py >= root.screenH - (root.barH || 30)) return true
+      return false
     }
 
     function barPoint(px, py) {
       if (root.barPos === "bottom") return Qt.point(px, py - (root.screenH - root.barH))
-      if (root.barPos === "right") return Qt.point(px - (root.screenW - root.barW), py)
+      if (root.barPos === "right" || (root.hasRightBar && px >= root.screenW - 36)) return Qt.point(px - (root.screenW - (root.barW || 36)), py)
       return Qt.point(px, py)
     }
 
@@ -492,10 +594,18 @@ PanelWindow {
 
   Item {
     id: shelfClip
-    x: (root.isMidnightDoll && !root.isBarTransparent) ? (root.barPos === "left" ? root.leftBarEdge : 0) : 0
-    y: (root.isMidnightDoll && !root.isBarTransparent) ? (root.barPos === "top" ? root.topBarEdge : 0) : 0
-    width: (root.isMidnightDoll && !root.isBarTransparent) ? (root.barPos === "left" ? (root.screenW - root.leftBarEdge) : (root.barPos === "right" ? (root.screenW - root.barW) : root.screenW)) : root.screenW
-    height: (root.isMidnightDoll && !root.isBarTransparent) ? (root.barPos === "top" ? (root.screenH - root.topBarEdge) : (root.barPos === "bottom" ? (root.screenH - root.barH) : root.screenH)) : root.screenH
+    x: (root.isMidnightDoll && !root.isBarTransparent)
+      ? ((root.hasLeftBar || root.barPos === "left") ? root.leftBarEdge : 0)
+      : 0
+    y: (root.isMidnightDoll && !root.isBarTransparent)
+      ? (root.hasTopBar ? root.topBarEdge : 0)
+      : 0
+    width: (root.isMidnightDoll && !root.isBarTransparent)
+      ? (((root.hasRightBar || root.barPos === "right") ? root.rightBarEdge : root.screenW) - shelfClip.x)
+      : root.screenW
+    height: (root.isMidnightDoll && !root.isBarTransparent)
+      ? ((root.hasBottomBar ? root.bottomBarEdge : root.screenH) - shelfClip.y)
+      : root.screenH
     clip: root.isMidnightDoll && !root.isBarTransparent
 
     Item {
@@ -520,18 +630,22 @@ PanelWindow {
       }
       width: root.contentWidth
       height: root.contentHeight
-      opacity: root.popoutSwitching ? (root.open ? 1.0 : 0) : Math.max(0, Math.min(1, root.slideProgress * 1.5))
+      opacity: root.popoutSwitching
+        ? (root.open ? 1.0 : 0)
+        : (root.isMidnightDoll && !root.isBarTransparent
+            ? (root.slideProgress > 0.001 ? 1.0 : 0.0)
+            : Math.max(0, Math.min(1, root.slideProgress * 1.5)))
 
     readonly property real shelfRadius: Math.min(Style.cornerRadius > 0 ? Style.cornerRadius : 14, Math.floor(Math.min(card.width, card.height) / 2))
 
     readonly property real borderTop: root.isBarTransparent ? 1 : (root.isMidnightDoll ? (root.barPos === "top" ? 0 : (root.isSnappedTop ? 0 : 1)) : Border.top(root.borderSpec))
-    readonly property real borderRight: root.isBarTransparent ? 1 : (root.isMidnightDoll ? (root.isSnappedRight ? 0 : 1) : Border.right(root.borderSpec))
-    readonly property real borderBottom: root.isBarTransparent ? 1 : (root.isMidnightDoll ? (root.isSnappedBottom ? 0 : 1) : Border.bottom(root.borderSpec))
+    readonly property real borderRight: root.isBarTransparent ? 1 : (root.isMidnightDoll ? (root.barPos === "right" ? 0 : (root.isSnappedRight ? 0 : 1)) : Border.right(root.borderSpec))
+    readonly property real borderBottom: root.isBarTransparent ? 1 : (root.isMidnightDoll ? (root.barPos === "bottom" ? 0 : (root.isSnappedBottom ? 0 : 1)) : Border.bottom(root.borderSpec))
     readonly property real borderLeft: root.isBarTransparent ? 1 : (root.isMidnightDoll ? (root.barPos === "left" ? 0 : (root.isSnappedLeft ? 0 : 1)) : Border.left(root.borderSpec))
 
     readonly property real contentTopInset: root.isBarTransparent ? (root.padding + 1) : (root.isMidnightDoll ? (root.barPos === "top" ? (root.padding + 2) : (root.isSnappedTop ? (root.padding + 2) : (root.padding + 1))) : (borderTop + root.padding))
-    readonly property real contentRightInset: root.isBarTransparent ? (root.padding + 1) : (root.isMidnightDoll ? (root.isSnappedRight ? root.padding : (root.padding + 1)) : (borderRight + root.padding))
-    readonly property real contentBottomInset: root.isBarTransparent ? (root.padding + 1) : (root.isMidnightDoll ? (root.isSnappedBottom ? root.padding : (root.padding + 1)) : (borderBottom + root.padding))
+    readonly property real contentRightInset: root.isBarTransparent ? (root.padding + 1) : (root.isMidnightDoll ? (root.barPos === "right" ? (root.padding + 2) : (root.isSnappedRight ? root.padding : (root.padding + 1))) : (borderRight + root.padding))
+    readonly property real contentBottomInset: root.isBarTransparent ? (root.padding + 1) : (root.isMidnightDoll ? (root.barPos === "bottom" ? (root.padding + 2) : (root.isSnappedBottom ? root.padding : (root.padding + 1))) : (borderBottom + root.padding))
     readonly property real contentLeftInset: root.isBarTransparent ? (root.padding + 1) : (root.isMidnightDoll ? (root.barPos === "left" ? (root.padding + 2) : (root.isSnappedLeft ? (root.padding + 2) : (root.padding + 1))) : (borderLeft + root.padding))
 
     // Stock BorderSurface for non-midnight themes
@@ -550,10 +664,26 @@ PanelWindow {
       anchors.fill: parent
       visible: root.isMidnightDoll
       color: "#010101"
-      topLeftRadius: root.isBarTransparent ? card.shelfRadius : 0
-      topRightRadius: root.isBarTransparent ? card.shelfRadius : ((root.barPos === "left" && !root.isSnappedTop) ? card.shelfRadius : 0)
-      bottomLeftRadius: root.isBarTransparent ? card.shelfRadius : ((root.barPos === "top" && !root.isSnappedLeft) ? card.shelfRadius : 0)
-      bottomRightRadius: root.isBarTransparent ? card.shelfRadius : ((root.isSnappedBottom || root.isSnappedRight) ? 0 : card.shelfRadius)
+      topLeftRadius: root.isBarTransparent
+        ? card.shelfRadius
+        : (root.barPos === "bottom"
+            ? (root.isSnappedLeft ? 0 : card.shelfRadius)
+            : ((root.barPos === "right" && !root.isSnappedTop) ? card.shelfRadius : 0))
+      topRightRadius: root.isBarTransparent
+        ? card.shelfRadius
+        : (root.barPos === "bottom"
+            ? (root.isSnappedRight ? 0 : card.shelfRadius)
+            : ((root.barPos === "left" && !root.isSnappedTop) ? card.shelfRadius : 0))
+      bottomLeftRadius: root.isBarTransparent
+        ? card.shelfRadius
+        : (root.barPos === "top"
+            ? (root.isSnappedLeft ? 0 : card.shelfRadius)
+            : ((root.barPos === "right" && !root.isSnappedBottom) ? card.shelfRadius : 0))
+      bottomRightRadius: root.isBarTransparent
+        ? card.shelfRadius
+        : (root.barPos === "top"
+            ? (root.isSnappedRight ? 0 : card.shelfRadius)
+            : ((root.barPos === "left" && !root.isSnappedBottom) ? card.shelfRadius : 0))
     }
 
     // Midnight-doll dedicated floating panel border when bar is transparent (rounded corners all around)
@@ -619,7 +749,7 @@ PanelWindow {
       anchors.fill: parent
       preferredRendererType: Shape.CurveRenderer
       asynchronous: false
-      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos !== "left" && !root.isSnappedLeft && !root.isSnappedRight
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "top" && !root.isSnappedLeft && !root.isSnappedRight
       z: 10
 
       ShapePath {
@@ -662,7 +792,7 @@ PanelWindow {
       anchors.fill: parent
       preferredRendererType: Shape.CurveRenderer
       asynchronous: false
-      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos !== "left" && root.isSnappedLeft
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "top" && root.isSnappedLeft
       z: 10
 
       ShapePath {
@@ -687,16 +817,16 @@ PanelWindow {
       }
     }
 
-    // Midnight-doll shelf continuous pink accent border for top bar (snapped-right: merged with screen right edge!)
+    // Midnight-doll shelf continuous pink accent border for top bar (snapped-right: merged with right bar or screen right edge!)
     // No right border, no top border.
     // Starts at top bar (0.5, 0.0), runs down left edge,
-    // rounds bottom-left corner, runs along bottom to screen edge (card.width, height - 0.5).
+    // rounds bottom-left corner, runs along bottom to right bar seam (or screen edge).
     Shape {
       id: shelfBorderTopSnappedRight
       anchors.fill: parent
       preferredRendererType: Shape.CurveRenderer
       asynchronous: false
-      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos !== "left" && root.isSnappedRight && !root.isSnappedLeft
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "top" && root.isSnappedRight && !root.isSnappedLeft
       z: 10
 
       ShapePath {
@@ -827,6 +957,210 @@ PanelWindow {
       }
     }
 
+    // Midnight-doll shelf continuous pink accent border for right bar (standard, floating along right bar)
+    Shape {
+      id: shelfBorderRightStandard
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "right" && !root.isSnappedBottom && !root.isSnappedTop
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: card.width
+        startY: 0.5
+        PathLine { x: card.shelfRadius + 0.5; y: 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: -90
+          sweepAngle: -90
+        }
+        PathLine { x: 0.5; y: card.height - card.shelfRadius - 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.height - card.shelfRadius - 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 180
+          sweepAngle: -90
+        }
+        PathLine { x: card.width; y: card.height - 0.5 }
+      }
+    }
+
+    // Midnight-doll shelf continuous pink accent border for right bar (snapped-bottom: flush with screen bottom!)
+    Shape {
+      id: shelfBorderRightSnappedBottom
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "right" && root.isSnappedBottom && !root.isSnappedTop
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: card.width
+        startY: 0.5
+        PathLine { x: card.shelfRadius + 0.5; y: 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: -90
+          sweepAngle: -90
+        }
+        PathLine { x: 0.5; y: card.height }
+      }
+    }
+
+    // Midnight-doll shelf continuous pink accent border for right bar (snapped-top: flush with top bar!)
+    Shape {
+      id: shelfBorderRightSnappedTop
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "right" && root.isSnappedTop && !root.isSnappedBottom
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: 0.5
+        startY: 0.0
+        PathLine { x: 0.5; y: card.height - card.shelfRadius - 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.height - card.shelfRadius - 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 180
+          sweepAngle: -90
+        }
+        PathLine { x: card.width; y: card.height - 0.5 }
+      }
+    }
+
+    // Midnight-doll shelf continuous pink accent border for bottom bar (standard, when not snapped)
+    Shape {
+      id: shelfBorderBottomStandard
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "bottom" && !root.isSnappedLeft && !root.isSnappedRight
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: 0.5
+        startY: card.height
+        PathLine { x: 0.5; y: card.shelfRadius + 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 180
+          sweepAngle: 90
+        }
+        PathLine { x: card.width - card.shelfRadius - 0.5; y: 0.5 }
+        PathAngleArc {
+          centerX: card.width - card.shelfRadius - 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 270
+          sweepAngle: 90
+        }
+        PathLine { x: card.width - 0.5; y: card.height }
+      }
+    }
+
+    // Midnight-doll shelf continuous pink accent border for bottom bar (snapped-left: merged with left rail!)
+    Shape {
+      id: shelfBorderBottomSnappedLeft
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "bottom" && root.isSnappedLeft
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: 0.0
+        startY: 0.5
+        PathLine { x: card.width - card.shelfRadius - 0.5; y: 0.5 }
+        PathAngleArc {
+          centerX: card.width - card.shelfRadius - 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 270
+          sweepAngle: 90
+        }
+        PathLine { x: card.width - 0.5; y: card.height }
+      }
+    }
+
+    // Midnight-doll shelf continuous pink accent border for bottom bar (snapped-right: merged with right rail or screen right edge!)
+    Shape {
+      id: shelfBorderBottomSnappedRight
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      asynchronous: false
+      visible: root.isMidnightDoll && !root.isBarTransparent && root.barPos === "bottom" && root.isSnappedRight && !root.isSnappedLeft
+      z: 10
+
+      ShapePath {
+        strokeWidth: 1.0
+        strokeColor: Commons.Color.accent
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.RoundJoin
+
+        startX: 0.5
+        startY: card.height
+        PathLine { x: 0.5; y: card.shelfRadius + 0.5 }
+        PathAngleArc {
+          centerX: card.shelfRadius + 0.5
+          centerY: card.shelfRadius + 0.5
+          radiusX: card.shelfRadius
+          radiusY: card.shelfRadius
+          startAngle: 180
+          sweepAngle: 90
+        }
+        PathLine { x: card.width; y: 0.5 }
+      }
+    }
+
     Behavior on opacity {
       enabled: root.popoutSwitching
       NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
@@ -852,7 +1186,7 @@ PanelWindow {
         id: contentLoader
         anchors.fill: parent
         focus: true
-        active: !!root.content && (root.open || root.contentRequested)
+        active: !!root.content && (root.open || root.contentRequested || root.hasOpenedEver || root.slideProgress > 0.001)
         sourceComponent: root.content
       }
 
