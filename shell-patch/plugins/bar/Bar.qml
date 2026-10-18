@@ -289,14 +289,14 @@ Item {
 
   property bool cornerWindowActive: false
   property real activeCornerStrokeWidth: 2.0
-  property real cornerStrokeWidth: (root.barsMeet && root.cornerWindowActive) ? (1.0 + root.activeCornerStrokeWidth) : 1.0
+  property real cornerStrokeWidth: (root.barsMeet && root.cornerWindowActive) ? (root.activeCornerStrokeWidth + 2.0) : 2.0
   Behavior on cornerStrokeWidth {
     NumberAnimation {
       duration: 180
       easing.type: Easing.OutCubic
     }
   }
-  readonly property real cornerStrokeOffset: (root.cornerStrokeWidth - 1.0) / 2.0
+  readonly property real cornerStrokeOffset: Math.max(0.0, Math.min(1.0, (root.cornerStrokeWidth - 2.0) * (1.0 / 2.0)))
   readonly property real cornerEffectiveRadius: Math.max(1.0, root.midnightCornerRadius - root.cornerStrokeOffset)
 
   Process {
@@ -325,74 +325,110 @@ Item {
       return
     }
 
-    var activeTop = Hyprland.activeToplevel
-    var activeIpc = (activeTop && activeTop.lastIpcObject) ? activeTop.lastIpcObject : null
+    var ws = Hyprland.focusedWorkspace
+    var toplevels = (ws && ws.toplevels && ws.toplevels.values && ws.toplevels.values.length > 0)
+      ? ws.toplevels.values
+      : (Hyprland.toplevels && Hyprland.toplevels.values ? Hyprland.toplevels.values.filter(function(t) {
+          return t && t.workspace && t.workspace.id === (ws ? ws.id : -1)
+        }) : [])
 
-    if (!activeIpc) {
-      var ws = Hyprland.focusedWorkspace
-      if (ws && ws.toplevels && ws.toplevels.values) {
-        for (var i = 0; i < ws.toplevels.values.length; i++) {
-          var t = ws.toplevels.values[i]
-          if (t && (t.activated || t === activeTop) && t.lastIpcObject) {
-            activeIpc = t.lastIpcObject
-            break
-          }
+    if (!ws || toplevels.length === 0) {
+      if (root.cornerWindowActive) root.cornerWindowActive = false
+      return
+    }
+
+    // 1. Fullscreen detection across all possible mechanisms
+    var hasFs = Boolean(ws.hasFullscreen)
+    if (!hasFs) {
+      for (var f = 0; f < toplevels.length; f++) {
+        var topF = toplevels[f]
+        var ipcF = topF ? topF.lastIpcObject : null
+        if (ipcF && (ipcF.fullscreen || ipcF.fullscreenClient)) {
+          hasFs = true
+          break
         }
       }
     }
 
-    if (!activeIpc || !activeIpc.at || !activeIpc.size) {
-      if (root.cornerWindowActive) root.cornerWindowActive = false
-      return
+    var activeTop = Hyprland.activeToplevel
+    var activeIpc = (activeTop && activeTop.lastIpcObject) ? activeTop.lastIpcObject : null
+    if (!hasFs && activeIpc && (activeIpc.fullscreen || activeIpc.fullscreenClient)) {
+      var actWs = activeTop.workspace || (activeIpc.workspace ? activeIpc.workspace.id : null)
+      if (!actWs || actWs === ws.id || (actWs.id && actWs.id === ws.id)) {
+        hasFs = true
+      }
     }
 
-    if (activeIpc.fullscreen) {
+    if (!hasFs && root.fullscreenModeActive) {
+      hasFs = true
+    }
+
+    if (hasFs) {
       if (!root.cornerWindowActive) root.cornerWindowActive = true
       return
     }
 
-    if (activeIpc.floating) {
-      if (root.cornerWindowActive) root.cornerWindowActive = false
-      return
-    }
-
-    var border = root.activeCornerStrokeWidth || 2
-    var ax = activeIpc.at[0]
-    var ay = activeIpc.at[1]
-    var aw = activeIpc.size[0]
-    var ah = activeIpc.size[1]
-
+    // 2. Toplevel corner position check
     var mon = Hyprland.focusedMonitor
     var mx = mon ? (mon.x || 0) : 0
     var my = mon ? (mon.y || 0) : 0
     var mw = mon ? (mon.width || 1920) : 1920
     var mh = mon ? (mon.height || 1080) : 1080
 
-    var relX = ax - mx
-    var relY = ay - my
-    var relR = mw - (relX + aw)
-    var relB = mh - (relY + ah)
-
+    var border = root.activeCornerStrokeWidth || 2
     var maxMargin = 16
     var maxLeft = 36 + border + maxMargin
     var maxTop = root.barSize + border + maxMargin
     var maxRight = 36 + border + maxMargin
     var maxBottom = root.barSize + border + maxMargin
 
-    var touchesTop = (relY <= maxTop)
-    var touchesBottom = (relB <= maxBottom)
-    var touchesLeft = (relX <= maxLeft)
-    var touchesRight = (relR <= maxRight)
+    function checkInCorner(ipc) {
+      if (!ipc || ipc.floating || !ipc.at || !ipc.size) return false
+      var relX = ipc.at[0] - mx
+      var relY = ipc.at[1] - my
+      var relR = mw - (relX + ipc.size[0])
+      var relB = mh - (relY + ipc.size[1])
+
+      var touchesTop = (relY <= maxTop)
+      var touchesBottom = (relB <= maxBottom)
+      var touchesLeft = (relX <= maxLeft)
+      var touchesRight = (relR <= maxRight)
+
+      if (root.position === "top" && root.sideBarPosition === "left") {
+        return touchesTop && touchesLeft
+      } else if (root.position === "top" && root.sideBarPosition === "right") {
+        return touchesTop && touchesRight
+      } else if (root.position === "bottom" && root.sideBarPosition === "left") {
+        return touchesBottom && touchesLeft
+      } else if (root.position === "bottom" && root.sideBarPosition === "right") {
+        return touchesBottom && touchesRight
+      }
+      return false
+    }
+
+    // Find active window's IPC object if not directly available
+    if (!activeIpc) {
+      for (var j = 0; j < toplevels.length; j++) {
+        var t = toplevels[j]
+        if (t && (t.activated || (activeTop && t.address && t.address === activeTop.address)) && t.lastIpcObject) {
+          activeIpc = t.lastIpcObject
+          break
+        }
+      }
+    }
 
     var inCorner = false
-    if (root.position === "top" && root.sideBarPosition === "left") {
-      inCorner = touchesTop && touchesLeft
-    } else if (root.position === "top" && root.sideBarPosition === "right") {
-      inCorner = touchesTop && touchesRight
-    } else if (root.position === "bottom" && root.sideBarPosition === "left") {
-      inCorner = touchesBottom && touchesLeft
-    } else if (root.position === "bottom" && root.sideBarPosition === "right") {
-      inCorner = touchesBottom && touchesRight
+    if (activeIpc && checkInCorner(activeIpc)) {
+      inCorner = true
+    } else {
+      // Check if any tiled window on this workspace is in the corner
+      for (var k = 0; k < toplevels.length; k++) {
+        var topK = toplevels[k]
+        if (topK && checkInCorner(topK.lastIpcObject)) {
+          inCorner = true
+          break
+        }
+      }
     }
 
     if (root.cornerWindowActive !== inCorner) {
@@ -3005,9 +3041,9 @@ Item {
             top: parent.top
             bottom: parent.bottom
             left: parent.left
-            leftMargin: root.sideBarPosition === "right" ? 1 : 0
+            leftMargin: root.sideBarPosition === "right" ? 2 : 0
             right: parent.right
-            rightMargin: root.sideBarPosition === "left" ? 1 : 0
+            rightMargin: root.sideBarPosition === "left" ? 2 : 0
           }
           color: "#010101"
         }
@@ -3016,13 +3052,13 @@ Item {
           id: leftBarRightBorder
           anchors {
             top: parent.top
-            topMargin: (root.barsMeet && root.position === "top") ? (root.midnightCornerRadius - 0.5) : 0
-            bottomMargin: (root.barsMeet && root.position === "bottom") ? (root.midnightCornerRadius - 0.5) : 0
+            topMargin: (root.barsMeet && root.position === "top") ? (root.midnightCornerRadius - 1.0) : 0
+            bottomMargin: (root.barsMeet && root.position === "bottom") ? (root.midnightCornerRadius - 1.0) : 0
             bottom: parent.bottom
             right: root.sideBarPosition === "left" ? parent.right : undefined
             left: root.sideBarPosition === "right" ? parent.left : undefined
           }
-          width: 1
+          width: 2
           color: Commons.Color.accent
         }
       }
@@ -3364,15 +3400,15 @@ Item {
 
           startX: 34
           startY: root.barSize
-          PathLine { x: 35.5 + root.midnightCornerRadius; y: root.barSize }
-          PathLine { x: 35.5 + root.midnightCornerRadius; y: root.barSize - 0.5 }
+          PathLine { x: 35.0 + root.midnightCornerRadius; y: root.barSize }
+          PathLine { x: 35.0 + root.midnightCornerRadius; y: root.barSize - 1.0 + root.cornerStrokeOffset }
           PathCubic {
-            control1X: 35.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
-            control1Y: root.barSize - 0.5
-            control2X: 35.5
-            control2Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
-            x: 35.5
-            y: root.barSize - 0.5 + root.midnightCornerRadius
+            control1X: 35.0 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            control1Y: root.barSize - 1.0 + root.cornerStrokeOffset
+            control2X: 35.0 + root.cornerStrokeOffset
+            control2Y: root.barSize - 1.0 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            x: 35.0 + root.cornerStrokeOffset
+            y: root.barSize - 1.0 + root.midnightCornerRadius
           }
           PathLine { x: 34; y: root.barSize + root.midnightCornerRadius }
           PathLine { x: 34; y: root.barSize }
@@ -3386,16 +3422,16 @@ Item {
           joinStyle: ShapePath.RoundJoin
           capStyle: ShapePath.FlatCap
 
-          startX: 35.5 + root.cornerStrokeOffset
-          startY: root.barSize - 0.5 + root.midnightCornerRadius
+          startX: 35.0 + root.cornerStrokeOffset
+          startY: root.barSize - 1.0 + root.midnightCornerRadius
 
           PathCubic {
-            control1X: 35.5 + root.cornerStrokeOffset
-            control1Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
-            control2X: 35.5 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
-            control2Y: root.barSize - 0.5 + root.cornerStrokeOffset
-            x: 35.5 + root.midnightCornerRadius
-            y: root.barSize - 0.5 + root.cornerStrokeOffset
+            control1X: 35.0 + root.cornerStrokeOffset
+            control1Y: root.barSize - 1.0 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            control2X: 35.0 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            control2Y: root.barSize - 1.0 + root.cornerStrokeOffset
+            x: 35.0 + root.midnightCornerRadius
+            y: root.barSize - 1.0 + root.cornerStrokeOffset
           }
         }
 
@@ -3407,15 +3443,15 @@ Item {
 
           startX: barWindow.width - 34
           startY: root.barSize
-          PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: root.barSize }
-          PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: root.barSize - 0.5 }
+          PathLine { x: barWindow.width - 35.0 - root.midnightCornerRadius; y: root.barSize }
+          PathLine { x: barWindow.width - 35.0 - root.midnightCornerRadius; y: root.barSize - 1.0 + root.cornerStrokeOffset }
           PathCubic {
-            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
-            control1Y: root.barSize - 0.5
-            control2X: barWindow.width - 35.5
-            control2Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
-            x: barWindow.width - 35.5
-            y: root.barSize - 0.5 + root.midnightCornerRadius
+            control1X: barWindow.width - 35.0 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            control1Y: root.barSize - 1.0 + root.cornerStrokeOffset
+            control2X: barWindow.width - 35.0 - root.cornerStrokeOffset
+            control2Y: root.barSize - 1.0 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            x: barWindow.width - 35.0 - root.cornerStrokeOffset
+            y: root.barSize - 1.0 + root.midnightCornerRadius
           }
           PathLine { x: barWindow.width - 34; y: root.barSize + root.midnightCornerRadius }
           PathLine { x: barWindow.width - 34; y: root.barSize }
@@ -3429,32 +3465,32 @@ Item {
           joinStyle: ShapePath.RoundJoin
           capStyle: ShapePath.FlatCap
 
-          startX: barWindow.width - 35.5 - root.midnightCornerRadius
-          startY: root.barSize - 0.5 + root.cornerStrokeOffset
+          startX: barWindow.width - 35.0 - root.midnightCornerRadius
+          startY: root.barSize - 1.0 + root.cornerStrokeOffset
 
           PathCubic {
-            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
-            control1Y: root.barSize - 0.5 + root.cornerStrokeOffset
-            control2X: barWindow.width - 35.5 - root.cornerStrokeOffset
-            control2Y: root.barSize - 0.5 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
-            x: barWindow.width - 35.5 - root.cornerStrokeOffset
-            y: root.barSize - 0.5 + root.midnightCornerRadius
+            control1X: barWindow.width - 35.0 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            control1Y: root.barSize - 1.0 + root.cornerStrokeOffset
+            control2X: barWindow.width - 35.0 - root.cornerStrokeOffset
+            control2Y: root.barSize - 1.0 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            x: barWindow.width - 35.0 - root.cornerStrokeOffset
+            y: root.barSize - 1.0 + root.midnightCornerRadius
           }
         }
 
         // Top bar bottom border
         ShapePath {
-          strokeWidth: 1.0
+          strokeWidth: 2.0
           strokeColor: Commons.Color.accent
           fillColor: "transparent"
           joinStyle: ShapePath.MiterJoin
           capStyle: ShapePath.FlatCap
 
-          startX: (root.barsMeet && root.sideBarPosition === "left") ? (35.5 + root.midnightCornerRadius) : 0
-          startY: root.barSize - 0.5
+          startX: (root.barsMeet && root.sideBarPosition === "left") ? (35.0 + root.midnightCornerRadius) : 0
+          startY: root.barSize - 1.0
           PathLine {
-            x: (root.barsMeet && root.sideBarPosition === "right") ? (barWindow.width - 35.5 - root.midnightCornerRadius) : barWindow.width
-            y: root.barSize - 0.5
+            x: (root.barsMeet && root.sideBarPosition === "right") ? (barWindow.width - 35.0 - root.midnightCornerRadius) : barWindow.width
+            y: root.barSize - 1.0
           }
         }
       }
@@ -3480,15 +3516,15 @@ Item {
 
           startX: 34
           startY: midnightBottomBorderShape.height - root.barSize
-          PathLine { x: 35.5 + root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize }
-          PathLine { x: 35.5 + root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize + 0.5 }
+          PathLine { x: 35.0 + root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize }
+          PathLine { x: 35.0 + root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.cornerStrokeOffset }
           PathCubic {
-            control1X: 35.5 + root.midnightCornerRadius - (root.midnightCornerRadius * 0.55228475)
-            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5
-            control2X: 35.5
-            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
-            x: 35.5
-            y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
+            control1X: 35.0 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            control1Y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.cornerStrokeOffset
+            control2X: 35.0 + root.cornerStrokeOffset
+            control2Y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            x: 35.0 + root.cornerStrokeOffset
+            y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.midnightCornerRadius
           }
           PathLine { x: 34; y: midnightBottomBorderShape.height - root.barSize - root.midnightCornerRadius }
           PathLine { x: 34; y: midnightBottomBorderShape.height - root.barSize }
@@ -3502,16 +3538,16 @@ Item {
           joinStyle: ShapePath.RoundJoin
           capStyle: ShapePath.FlatCap
 
-          startX: 35.5 + root.cornerStrokeOffset
-          startY: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
+          startX: 35.0 + root.cornerStrokeOffset
+          startY: midnightBottomBorderShape.height - root.barSize + 1.0 - root.midnightCornerRadius
 
           PathCubic {
-            control1X: 35.5 + root.cornerStrokeOffset
-            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
-            control2X: 35.5 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
-            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.cornerStrokeOffset
-            x: 35.5 + root.midnightCornerRadius
-            y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.cornerStrokeOffset
+            control1X: 35.0 + root.cornerStrokeOffset
+            control1Y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            control2X: 35.0 + root.midnightCornerRadius - (root.cornerEffectiveRadius * 0.55228475)
+            control2Y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.cornerStrokeOffset
+            x: 35.0 + root.midnightCornerRadius
+            y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.cornerStrokeOffset
           }
         }
 
@@ -3523,15 +3559,15 @@ Item {
 
           startX: barWindow.width - 34
           startY: midnightBottomBorderShape.height - root.barSize
-          PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize }
-          PathLine { x: barWindow.width - 35.5 - root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize + 0.5 }
+          PathLine { x: barWindow.width - 35.0 - root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize }
+          PathLine { x: barWindow.width - 35.0 - root.midnightCornerRadius; y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.cornerStrokeOffset }
           PathCubic {
-            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
-            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5
-            control2X: barWindow.width - 35.5
-            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.midnightCornerRadius * 0.55228475)
-            x: barWindow.width - 35.5
-            y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
+            control1X: barWindow.width - 35.0 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            control1Y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.cornerStrokeOffset
+            control2X: barWindow.width - 35.0 - root.cornerStrokeOffset
+            control2Y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            x: barWindow.width - 35.0 - root.cornerStrokeOffset
+            y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.midnightCornerRadius
           }
           PathLine { x: barWindow.width - 34; y: midnightBottomBorderShape.height - root.barSize - root.midnightCornerRadius }
           PathLine { x: barWindow.width - 34; y: midnightBottomBorderShape.height - root.barSize }
@@ -3545,32 +3581,32 @@ Item {
           joinStyle: ShapePath.RoundJoin
           capStyle: ShapePath.FlatCap
 
-          startX: barWindow.width - 35.5 - root.midnightCornerRadius
-          startY: midnightBottomBorderShape.height - root.barSize + 0.5 - root.cornerStrokeOffset
+          startX: barWindow.width - 35.0 - root.midnightCornerRadius
+          startY: midnightBottomBorderShape.height - root.barSize + 1.0 - root.cornerStrokeOffset
 
           PathCubic {
-            control1X: barWindow.width - 35.5 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
-            control1Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.cornerStrokeOffset
-            control2X: barWindow.width - 35.5 - root.cornerStrokeOffset
-            control2Y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
-            x: barWindow.width - 35.5 - root.cornerStrokeOffset
-            y: midnightBottomBorderShape.height - root.barSize + 0.5 - root.midnightCornerRadius
+            control1X: barWindow.width - 35.0 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            control1Y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.cornerStrokeOffset
+            control2X: barWindow.width - 35.0 - root.cornerStrokeOffset
+            control2Y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.midnightCornerRadius + (root.cornerEffectiveRadius * 0.55228475)
+            x: barWindow.width - 35.0 - root.cornerStrokeOffset
+            y: midnightBottomBorderShape.height - root.barSize + 1.0 - root.midnightCornerRadius
           }
         }
 
         // Bottom bar top border
         ShapePath {
-          strokeWidth: 1.0
+          strokeWidth: 2.0
           strokeColor: Commons.Color.accent
           fillColor: "transparent"
           joinStyle: ShapePath.MiterJoin
           capStyle: ShapePath.FlatCap
 
-          startX: (root.barsMeet && root.sideBarPosition === "left") ? (35.5 + root.midnightCornerRadius) : 0
-          startY: midnightBottomBorderShape.height - root.barSize + 0.5
+          startX: (root.barsMeet && root.sideBarPosition === "left") ? (35.0 + root.midnightCornerRadius) : 0
+          startY: midnightBottomBorderShape.height - root.barSize + 1.0
           PathLine {
-            x: (root.barsMeet && root.sideBarPosition === "right") ? (barWindow.width - 35.5 - root.midnightCornerRadius) : barWindow.width
-            y: midnightBottomBorderShape.height - root.barSize + 0.5
+            x: (root.barsMeet && root.sideBarPosition === "right") ? (barWindow.width - 35.0 - root.midnightCornerRadius) : barWindow.width
+            y: midnightBottomBorderShape.height - root.barSize + 1.0
           }
         }
       }
