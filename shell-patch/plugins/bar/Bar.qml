@@ -419,15 +419,9 @@ Item {
 
     var inCorner = false
     if (activeIpc && checkInCorner(activeIpc)) {
-      inCorner = true
-    } else {
-      // Check if any tiled window on this workspace is in the corner
-      for (var k = 0; k < toplevels.length; k++) {
-        var topK = toplevels[k]
-        if (topK && checkInCorner(topK.lastIpcObject)) {
-          inCorner = true
-          break
-        }
+      var actWsId = (activeTop && activeTop.workspace) ? (activeTop.workspace.id || activeTop.workspace) : (activeIpc.workspace ? (activeIpc.workspace.id || activeIpc.workspace) : null)
+      if (!actWsId || !ws || actWsId === ws.id) {
+        inCorner = true
       }
     }
 
