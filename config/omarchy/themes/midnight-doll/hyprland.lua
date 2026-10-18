@@ -31,3 +31,6 @@ o.window({ tag = "terminal" }, { opacity = "0.90 0.90" })
 hl.layer_rule({ match = { namespace = "omarchy-bar" }, order = 10 })
 hl.layer_rule({ match = { namespace = "omarchy-midnight-left-bar" }, order = 1 })
 
+-- Midnight Doll Control Center floating window
+o.window({ class = "^org.quickshell$", title = ".*Control Center.*" }, { float = true, center = true, size = { 740, 660 } })
+

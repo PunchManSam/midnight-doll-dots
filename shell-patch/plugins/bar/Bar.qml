@@ -159,11 +159,25 @@ Item {
     sideBarEnabled: true,
     sideBarPosition: "left",
     primaryAccent: "#ff51c5",
-    secondaryAccent: "#bb9af7"
+    secondaryAccent: "#bb9af7",
+    barOpacity: 1.0
   })
 
   readonly property bool sideBarEnabled: (root.midnightConfig && root.midnightConfig.sideBarEnabled !== undefined) ? root.midnightConfig.sideBarEnabled : true
   readonly property string sideBarPosition: (root.midnightConfig && root.midnightConfig.sideBarPosition) ? root.midnightConfig.sideBarPosition : "left"
+  readonly property real configuredBarOpacity: (root.midnightConfig && root.midnightConfig.barOpacity !== undefined) ? Number(root.midnightConfig.barOpacity) : 1.0
+  readonly property real barOpacity: root.transparent ? 0.0 : root.configuredBarOpacity
+
+  function setBarOpacity(val) {
+    val = Math.max(0.0, Math.min(1.0, Math.round(val * 100) / 100))
+    var cfg = Object.assign({}, root.midnightConfig, { barOpacity: val })
+    root.saveMidnightConfig(cfg)
+    if (val === 0.0) {
+      if (!root.requestedTransparent) root.setRequestedTransparency(true)
+    } else {
+      if (root.requestedTransparent) root.setRequestedTransparency(false)
+    }
+  }
 
   FileView {
     id: midnightConfigFile
@@ -184,7 +198,8 @@ Item {
             sideBarEnabled: true,
             sideBarPosition: "left",
             primaryAccent: "#ff51c5",
-            secondaryAccent: "#bb9af7"
+            secondaryAccent: "#bb9af7",
+            barOpacity: 1.0
           }, parsed)
           midnightConfig = updated
           return
@@ -1952,15 +1967,35 @@ Item {
     }
   }
 
-  Variants {
-    model: Quickshell.screens
+  MidnightThemeCenterWindow {
+    id: themeCenterFloatingWindow
+  }
 
-    delegate: Component {
-      MidnightThemeCenterDialog {
-        required property var modelData
-
-        ghostScreen: modelData
+  Connections {
+    target: root
+    function onMidnightThemeCenterOpenChanged() {
+      if (themeCenterFloatingWindow) {
+        themeCenterFloatingWindow.visible = root.isMidnightDoll && root.midnightThemeCenterOpen
       }
+    }
+  }
+
+  Commons.ShellIpc {
+    target: "midnight-doll.control-center"
+    function toggle() {
+      root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
+    }
+    function open() {
+      root.midnightThemeCenterOpen = true
+    }
+    function close() {
+      root.midnightThemeCenterOpen = false
+    }
+    function setOpacity(val) {
+      root.setBarOpacity(Number(val))
+    }
+    function setTab(idx) {
+      if (themeCenterFloatingWindow) themeCenterFloatingWindow.activeTab = Number(idx)
     }
   }
 
@@ -2263,95 +2298,108 @@ Item {
     }
   }
 
-  component MidnightThemeCenterDialog: PanelWindow {
-    id: themeCenterModalWindow
-    required property var ghostScreen
-    screen: ghostScreen
-
+  component MidnightThemeCenterWindow: FloatingWindow {
+    id: themeCenterWindow
+    title: "Midnight Doll // Control Center"
+    color: "#050505"
+    implicitWidth: 740
+    implicitHeight: 660
+    minimumSize: Qt.size(680, 580)
     visible: root.isMidnightDoll && root.midnightThemeCenterOpen
-    color: "transparent"
-    surfaceFormat.opaque: false
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "omarchy-midnight-theme-center-modal"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    property alias activeTab: modalContainer.activeTab
 
-    anchors {
-      top: true
-      bottom: true
-      left: true
-      right: true
+    onVisibleChanged: {
+      if (!visible) {
+        root.midnightThemeCenterOpen = false
+      } else {
+        modalFocusScope.forceActiveFocus()
+      }
     }
 
-    MouseArea {
+    FocusScope {
+      id: modalFocusScope
       anchors.fill: parent
-      onClicked: root.midnightThemeCenterOpen = false
-    }
-
-    Item {
       focus: true
-      Keys.onEscapePressed: root.midnightThemeCenterOpen = false
-    }
 
-    Rectangle {
-      id: modalContainer
-      anchors.centerIn: parent
-      width: 720
-      height: 600
-      color: "#050505"
-      border.color: Commons.Color.accent
-      border.width: 2
-      radius: 0
-
-      property int activeTab: 0
-
-      MouseArea {
-        anchors.fill: parent
+      Keys.priority: Keys.BeforeItem
+      Keys.onEscapePressed: function(event) {
+        root.midnightThemeCenterOpen = false
+        event.accepted = true
       }
 
-      ColumnLayout {
+      Rectangle {
+        id: modalContainer
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 10
+        color: "#050505"
+        border.color: Commons.Color.accent
+        border.width: 2
+        radius: 0
 
-        // 1. Header Bar
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: 8
+        property int activeTab: 0
 
-          Text {
-            text: "󰒓"
-            font.family: root.fontFamily
-            font.pixelSize: 22
-            color: Commons.Color.accent
-          }
+        ColumnLayout {
+          anchors.fill: parent
+          anchors.margins: 16
+          spacing: 10
 
-          ColumnLayout {
+          // 1. Header Bar (Draggable window header)
+          RowLayout {
             Layout.fillWidth: true
-            spacing: 1
+            spacing: 8
 
-            Text {
-              text: "MIDNIGHT-DOLL // CONTROL CENTER"
-              font.family: root.fontFamily
-              font.bold: true
-              font.pixelSize: Style.font.title
-              color: Commons.Color.accent
+            MouseArea {
+              Layout.fillWidth: true
+              Layout.preferredHeight: 36
+              acceptedButtons: Qt.LeftButton
+              cursorShape: Qt.SizeAllCursor
+              onPressed: {
+                if (typeof themeCenterWindow.startSystemMove === "function") {
+                  themeCenterWindow.startSystemMove()
+                }
+              }
+
+              RowLayout {
+                anchors.fill: parent
+                spacing: 8
+
+                Text {
+                  text: "󰒓"
+                  font.family: root.fontFamily
+                  font.pixelSize: 22
+                  color: Commons.Color.accent
+                }
+
+                ColumnLayout {
+                  Layout.fillWidth: true
+                  spacing: 1
+
+                  Text {
+                    text: "MIDNIGHT-DOLL // CONTROL CENTER"
+                    font.family: root.fontFamily
+                    font.bold: true
+                    font.pixelSize: Style.font.title
+                    color: Commons.Color.accent
+                  }
+
+                  Text {
+                    text: "CYBERDECK THEME ENGINE & CONTENT LOADER"
+                    font.family: root.fontFamily
+                    font.pixelSize: 10
+                    color: Qt.rgba(1, 1, 1, 0.5)
+                  }
+                }
+              }
             }
 
-            Text {
-              text: "CYBERDECK THEME ENGINE & CONTENT LOADER"
-              font.family: root.fontFamily
-              font.pixelSize: 10
-              color: Qt.rgba(1, 1, 1, 0.5)
+            Button {
+              text: "✕"
+              fontFamily: root.fontFamily
+              fontSize: 12
+              Layout.preferredWidth: 32
+              Layout.preferredHeight: 32
+              onClicked: root.midnightThemeCenterOpen = false
             }
           }
-
-          Button {
-            text: "✕"
-            fontFamily: root.fontFamily
-            onClicked: root.midnightThemeCenterOpen = false
-          }
-        }
 
         // Cyberpunk separator
         Rectangle {
@@ -2409,6 +2457,7 @@ Item {
 
           // TAB 0: ACCENTS & PALETTE
           ColumnLayout {
+            id: tab0Layout
             anchors.fill: parent
             visible: modalContainer.activeTab === 0
             spacing: 10
@@ -2421,7 +2470,7 @@ Item {
               Layout.fillWidth: true
               height: 48
               color: "#0a0a0a"
-              border.color: parent.priColor
+              border.color: tab0Layout.priColor
               border.width: 1
 
               RowLayout {
@@ -2434,7 +2483,7 @@ Item {
                   font.family: root.fontFamily
                   font.bold: true
                   font.pixelSize: 13
-                  color: parent.parent.parent.secColor
+                  color: tab0Layout.secColor
                 }
 
                 Text {
@@ -2449,7 +2498,7 @@ Item {
                 Rectangle {
                   width: 70
                   height: 24
-                  color: parent.parent.parent.priColor
+                  color: tab0Layout.priColor
                   Text {
                     anchors.centerIn: parent
                     text: "ACTIVE"
@@ -2464,14 +2513,14 @@ Item {
                   width: 70
                   height: 24
                   color: "transparent"
-                  border.color: parent.parent.parent.secColor
+                  border.color: tab0Layout.secColor
                   border.width: 1
                   Text {
                     anchors.centerIn: parent
                     text: "COMPLIMENT"
                     font.family: root.fontFamily
                     font.pixelSize: 9
-                    color: parent.parent.parent.secColor
+                    color: tab0Layout.secColor
                   }
                 }
               }
@@ -2787,40 +2836,169 @@ Item {
               color: Qt.rgba(1, 1, 1, 0.1)
             }
 
-            Text {
-              text: "SURFACE BACKGROUND OPACITY"
-              font.family: root.fontFamily
-              font.bold: true
-              font.pixelSize: Style.font.caption
-              color: Commons.Color.accent
-            }
-
             RowLayout {
               Layout.fillWidth: true
-              spacing: 10
 
-              Button {
-                text: "󰈈 OPAQUE CYBERDECK (#010101)"
-                fontFamily: root.fontFamily
-                selected: !root.requestedTransparent
-                bordered: true
-                accent: Commons.Color.accent
+              Text {
+                text: "SURFACE BACKGROUND OPACITY"
+                font.family: root.fontFamily
+                font.bold: true
+                font.pixelSize: Style.font.caption
+                color: Commons.Color.accent
                 Layout.fillWidth: true
-                onClicked: {
-                  if (root.requestedTransparent) root.toggleTransparency()
+              }
+
+              Text {
+                text: {
+                  var pct = Math.round(root.barOpacity * 100)
+                  var label = "SOLID"
+                  if (pct === 0) label = "GLASS"
+                  else if (pct <= 25) label = "TINT"
+                  else if (pct <= 50) label = "SMOKE"
+                  else if (pct <= 75) label = "SHADE"
+                  return pct + "% [" + label + "]"
+                }
+                font.family: root.fontFamily
+                font.bold: true
+                font.pixelSize: 11
+                color: root.barOpacity === 0 ? root.secondaryColor : Commons.Color.accent
+              }
+            }
+
+            // Slider Track Item
+            Item {
+              id: opacitySlider
+              Layout.fillWidth: true
+              height: 32
+
+              // Background rail track
+              Rectangle {
+                id: sliderTrack
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                height: 8
+                radius: 0
+                color: "#121218"
+                border.color: Qt.rgba(1, 1, 1, 0.2)
+                border.width: 1
+
+                // Active fill bar
+                Rectangle {
+                  anchors.left: parent.left
+                  anchors.top: parent.top
+                  anchors.bottom: parent.bottom
+                  width: Math.max(0, Math.min(parent.width, parent.width * root.barOpacity))
+                  color: Commons.Color.accent
+                  opacity: 0.85
                 }
               }
 
+              // Cyberpunk Knob Handle
+              Rectangle {
+                id: sliderKnob
+                width: 16
+                height: 24
+                radius: 0
+                anchors.verticalCenter: parent.verticalCenter
+                x: Math.max(0, Math.min(opacitySlider.width - width, Math.round((opacitySlider.width - width) * root.barOpacity)))
+                color: sliderMouse.containsMouse || sliderMouse.pressed ? "#ffffff" : Commons.Color.accent
+                border.color: "#050505"
+                border.width: 2
+
+                Rectangle {
+                  anchors.centerIn: parent
+                  width: 2
+                  height: 12
+                  color: "#050505"
+                }
+              }
+
+              MouseArea {
+                id: sliderMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                preventStealing: true
+
+                function updateFromPos(mouseX) {
+                  var knobW = sliderKnob.width
+                  var effectiveW = opacitySlider.width - knobW
+                  if (effectiveW <= 0) return
+                  var ratio = Math.max(0.0, Math.min(1.0, (mouseX - (knobW / 2)) / effectiveW))
+                  root.setBarOpacity(ratio)
+                }
+
+                onPressed: function(mouse) {
+                  updateFromPos(mouse.x)
+                }
+
+                onPositionChanged: function(mouse) {
+                  if (pressed) {
+                    updateFromPos(mouse.x)
+                  }
+                }
+              }
+            }
+
+            // Preset Buttons Row
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 6
+
               Button {
-                text: "󰈉 GLASS / TRANSPARENT"
+                text: "0% GLASS"
                 fontFamily: root.fontFamily
-                selected: root.requestedTransparent
+                fontSize: 10
+                selected: root.barOpacity === 0.0
                 bordered: true
                 accent: Commons.Color.accent
                 Layout.fillWidth: true
-                onClicked: {
-                  if (!root.requestedTransparent) root.toggleTransparency()
-                }
+                onClicked: root.setBarOpacity(0.0)
+              }
+
+              Button {
+                text: "25% TINT"
+                fontFamily: root.fontFamily
+                fontSize: 10
+                selected: Math.abs(root.barOpacity - 0.25) < 0.05
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: root.setBarOpacity(0.25)
+              }
+
+              Button {
+                text: "50% SMOKE"
+                fontFamily: root.fontFamily
+                fontSize: 10
+                selected: Math.abs(root.barOpacity - 0.50) < 0.05
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: root.setBarOpacity(0.50)
+              }
+
+              Button {
+                text: "75% SHADE"
+                fontFamily: root.fontFamily
+                fontSize: 10
+                selected: Math.abs(root.barOpacity - 0.75) < 0.05
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: root.setBarOpacity(0.75)
+              }
+
+              Button {
+                text: "100% SOLID"
+                fontFamily: root.fontFamily
+                fontSize: 10
+                selected: Math.abs(root.barOpacity - 1.0) < 0.05
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.fillWidth: true
+                onClicked: root.setBarOpacity(1.0)
               }
             }
 
@@ -2968,8 +3146,38 @@ Item {
             }
           }
         }
+
+        // 4. Bottom Footer Bar
+        Rectangle {
+          Layout.fillWidth: true
+          height: 1
+          color: Qt.rgba(1, 1, 1, 0.15)
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: 12
+
+          Text {
+            text: "PRESS ESC OR SUPER+W TO CLOSE // DRAG HEADER TO MOVE"
+            font.family: root.fontFamily
+            font.pixelSize: 10
+            color: Qt.rgba(1, 1, 1, 0.45)
+            Layout.fillWidth: true
+          }
+
+          Button {
+            text: "✕ CLOSE WINDOW"
+            fontFamily: root.fontFamily
+            fontSize: 11
+            accent: Commons.Color.accent
+            bordered: true
+            onClicked: root.midnightThemeCenterOpen = false
+          }
+        }
       }
     }
+  }
   }
 
   component MidnightLeftPanel: PanelWindow {
@@ -3044,6 +3252,8 @@ Item {
             bottom: parent.bottom
           }
           color: "#010101"
+          opacity: root.barOpacity
+          Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
         }
 
         Rectangle {
@@ -3327,7 +3537,7 @@ Item {
         height: root.barHidden ? 0 : root.barSize
       }
       Region {
-        item: (root.barsMeet && !root.transparent) ? midnightCornerFillet : null
+        item: (root.barsMeet && !root.transparent && root.barOpacity > 0.0) ? midnightCornerFillet : null
       }
       Region {
         item: (root.isMidnightDoll && root.position === "top" && midnightWorkspacesChamferStrip.visible && !root.barHidden) ? midnightWorkspacesChamferStrip : null
@@ -3351,7 +3561,7 @@ Item {
         anchors.right: parent.right
         height: root.barSize
         color: root.isMidnightDoll ? "#010101" : root.background
-        opacity: root.transparent ? 0.0 : 1.0
+        opacity: root.barOpacity
         Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.InOutCubic } }
         z: -1
       }
@@ -3362,7 +3572,7 @@ Item {
         y: root.position === "bottom" ? (barWindow.height - root.barSize - (root.midnightCornerRadius + 4)) : root.barSize
         width: root.midnightCornerRadius + 6
         height: root.midnightCornerRadius + 6
-        visible: root.barsMeet && !root.transparent
+        visible: root.barsMeet && !root.transparent && root.barOpacity > 0.0
       }
 
       Item {
@@ -3391,7 +3601,7 @@ Item {
         ShapePath {
           strokeWidth: 0
           strokeColor: "transparent"
-          fillColor: (root.barsMeet && root.sideBarPosition === "left") ? "#010101" : "transparent"
+          fillColor: (root.barsMeet && root.sideBarPosition === "left") ? Qt.rgba(1/255, 1/255, 1/255, root.barOpacity) : "transparent"
 
           startX: 34
           startY: root.barSize
@@ -3434,7 +3644,7 @@ Item {
         ShapePath {
           strokeWidth: 0
           strokeColor: "transparent"
-          fillColor: (root.barsMeet && root.sideBarPosition === "right") ? "#010101" : "transparent"
+          fillColor: (root.barsMeet && root.sideBarPosition === "right") ? Qt.rgba(1/255, 1/255, 1/255, root.barOpacity) : "transparent"
 
           startX: barWindow.width - 34
           startY: root.barSize
@@ -3507,7 +3717,7 @@ Item {
         ShapePath {
           strokeWidth: 0
           strokeColor: "transparent"
-          fillColor: (root.barsMeet && root.sideBarPosition === "left") ? "#010101" : "transparent"
+          fillColor: (root.barsMeet && root.sideBarPosition === "left") ? Qt.rgba(1/255, 1/255, 1/255, root.barOpacity) : "transparent"
 
           startX: 34
           startY: midnightBottomBorderShape.height - root.barSize
@@ -3550,7 +3760,7 @@ Item {
         ShapePath {
           strokeWidth: 0
           strokeColor: "transparent"
-          fillColor: (root.barsMeet && root.sideBarPosition === "right") ? "#010101" : "transparent"
+          fillColor: (root.barsMeet && root.sideBarPosition === "right") ? Qt.rgba(1/255, 1/255, 1/255, root.barOpacity) : "transparent"
 
           startX: barWindow.width - 34
           startY: midnightBottomBorderShape.height - root.barSize
@@ -5038,7 +5248,7 @@ Item {
                   ShapePath {
                     strokeWidth: 0
                     strokeColor: "transparent"
-                    fillColor: "#010101"
+                    fillColor: Qt.rgba(1/255, 1/255, 1/255, root.barOpacity)
 
                     startX: 0
                     startY: -2

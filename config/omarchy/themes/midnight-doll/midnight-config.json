@@ -2,5 +2,6 @@
   "sideBarEnabled": true,
   "sideBarPosition": "left",
   "primaryAccent": "#ff51c5",
-  "secondaryAccent": "#bb9af7"
+  "secondaryAccent": "#bb9af7",
+  "barOpacity": 1.0
 }
