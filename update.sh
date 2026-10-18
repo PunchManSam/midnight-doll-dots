@@ -39,8 +39,12 @@ if [ -n "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR/config/omarchy/themes/midnight-doll
   DOTS_DIR="$SCRIPT_DIR"
   echo -e "${VIOLET}[*] Running from local repository:${RESET} ${DOTS_DIR}"
   if [ -d "$DOTS_DIR/.git" ]; then
-    echo -e "${CYAN}[*] Pulling latest updates from GitHub...${RESET}"
-    git -C "$DOTS_DIR" pull --ff-only origin master 2>/dev/null || git -C "$DOTS_DIR" pull origin master || true
+    echo -e "${CYAN}[*] Checking for updates from GitHub...${RESET}"
+    if git -C "$DOTS_DIR" diff --quiet 2>/dev/null; then
+      git -C "$DOTS_DIR" pull --ff-only origin master 2>/dev/null || git -C "$DOTS_DIR" pull origin master 2>/dev/null || true
+    else
+      echo -e "${YELLOW}[!] Local modifications detected; skipping git pull.${RESET}"
+    fi
   fi
 else
   # If executed via curl/pipe, check common clone locations or clone to temp
@@ -108,15 +112,15 @@ mkdir -p "${THEME_DIR}/bin"
 cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${THEME_DIR}/"
 chmod +x "${THEME_DIR}/bin/"* 2>/dev/null || true
 
-# Restore user shortcuts if they existed
-if [ -n "$USER_SHORTCUTS" ] && [ -f "$USER_SHORTCUTS" ]; then
-  cp "$USER_SHORTCUTS" "${THEME_DIR}/midnight-shortcuts.json"
+# Restore user shortcuts if backed up
+if [ -f "${BACKUP_DIR}/midnight-shortcuts.json" ]; then
+  cp "${BACKUP_DIR}/midnight-shortcuts.json" "${THEME_DIR}/midnight-shortcuts.json"
   echo -e "    ${GREEN}✓ Restored user launcher shortcuts${RESET}"
 fi
 
-# Restore user config if existed
-if [ -n "$USER_CONFIG" ] && [ -f "$USER_CONFIG" ]; then
-  cp "$USER_CONFIG" "${THEME_DIR}/midnight-config.json"
+# Restore user config if backed up
+if [ -f "${BACKUP_DIR}/midnight-config.json" ]; then
+  cp "${BACKUP_DIR}/midnight-config.json" "${THEME_DIR}/midnight-config.json"
   echo -e "    ${GREEN}✓ Restored user accent & layout configuration${RESET}"
 fi
 
