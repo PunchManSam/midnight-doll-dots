@@ -3,5 +3,11 @@
   "sideBarPosition": "left",
   "primaryAccent": "#ff51c5",
   "secondaryAccent": "#bb9af7",
-  "barOpacity": 1.0
+  "barOpacity": 1.0,
+  "menuIcon": "󰚌",
+  "menuIconColor": "primary",
+  "hudTitle": "MIDNIGHT-DOLL",
+  "hudTitleColor": "secondary",
+  "hudSubtitle": "HUD",
+  "hudSubtitleColor": "primary"
 }

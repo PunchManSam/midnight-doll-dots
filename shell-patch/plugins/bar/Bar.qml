@@ -160,13 +160,74 @@ Item {
     sideBarPosition: "left",
     primaryAccent: "#ff51c5",
     secondaryAccent: "#bb9af7",
-    barOpacity: 1.0
+    barOpacity: 1.0,
+    menuIcon: "󰚌",
+    menuIconColor: "primary",
+    hudTitle: "MIDNIGHT-DOLL",
+    hudTitleColor: "secondary",
+    hudSubtitle: "HUD",
+    hudSubtitleColor: "primary"
   })
 
   readonly property bool sideBarEnabled: (root.midnightConfig && root.midnightConfig.sideBarEnabled !== undefined) ? root.midnightConfig.sideBarEnabled : true
   readonly property string sideBarPosition: (root.midnightConfig && root.midnightConfig.sideBarPosition) ? root.midnightConfig.sideBarPosition : "left"
   readonly property real configuredBarOpacity: (root.midnightConfig && root.midnightConfig.barOpacity !== undefined) ? Number(root.midnightConfig.barOpacity) : 1.0
   readonly property real barOpacity: root.transparent ? 0.0 : root.configuredBarOpacity
+
+  function resolveHudColor(mode, fallback) {
+    if (!mode || mode === "primary") {
+      return (root.midnightConfig && root.midnightConfig.primaryAccent) ? root.midnightConfig.primaryAccent : Commons.Color.accent
+    }
+    if (mode === "secondary") {
+      return (root.midnightConfig && root.midnightConfig.secondaryAccent) ? root.midnightConfig.secondaryAccent : root.secondaryColor
+    }
+    if (mode === "white") return "#ffffff"
+    if (typeof mode === "string" && mode.charAt(0) === "#") return mode
+    return fallback || Commons.Color.accent
+  }
+
+  readonly property string effectiveMenuIcon: (root.midnightConfig && root.midnightConfig.menuIcon !== undefined) ? String(root.midnightConfig.menuIcon) : root.menuIcon
+  readonly property string effectiveMenuIconColor: (root.midnightConfig && root.midnightConfig.menuIconColor) ? String(root.midnightConfig.menuIconColor) : "primary"
+  readonly property color resolvedMenuIconColor: root.resolveHudColor(root.effectiveMenuIconColor, Commons.Color.accent)
+
+  readonly property string effectiveHudTitle: (root.midnightConfig && root.midnightConfig.hudTitle !== undefined) ? String(root.midnightConfig.hudTitle) : root.hudTitle
+  readonly property string effectiveHudTitleColor: (root.midnightConfig && root.midnightConfig.hudTitleColor) ? String(root.midnightConfig.hudTitleColor) : "secondary"
+  readonly property color resolvedHudTitleColor: root.resolveHudColor(root.effectiveHudTitleColor, root.secondaryColor)
+
+  readonly property string effectiveHudSubtitle: (root.midnightConfig && root.midnightConfig.hudSubtitle !== undefined) ? String(root.midnightConfig.hudSubtitle) : root.hudSubtitle
+  readonly property string effectiveHudSubtitleColor: (root.midnightConfig && root.midnightConfig.hudSubtitleColor) ? String(root.midnightConfig.hudSubtitleColor) : "primary"
+  readonly property color resolvedHudSubtitleColor: root.resolveHudColor(root.effectiveHudSubtitleColor, Commons.Color.accent)
+
+  // Live telemetry metrics mirrored for previews and HUD consumers
+  property int liveCpuVal: 24
+  property int liveCpuTemp: 48
+  property int liveMemVal: 38
+  property string liveMemGb: "6.2G"
+  property int liveDskVal: 45
+
+  function saveHudBranding(icon, iconColor, title, titleColor, sub, subColor) {
+    var cfg = Object.assign({}, root.midnightConfig, {
+      menuIcon: icon !== undefined ? icon : root.effectiveMenuIcon,
+      menuIconColor: iconColor !== undefined ? iconColor : root.effectiveMenuIconColor,
+      hudTitle: title !== undefined ? title : root.effectiveHudTitle,
+      hudTitleColor: titleColor !== undefined ? titleColor : root.effectiveHudTitleColor,
+      hudSubtitle: sub !== undefined ? sub : root.effectiveHudSubtitle,
+      hudSubtitleColor: subColor !== undefined ? subColor : root.effectiveHudSubtitleColor
+    })
+    root.saveMidnightConfig(cfg)
+  }
+
+  function resetHudBrandingDefaults() {
+    var cfg = Object.assign({}, root.midnightConfig, {
+      menuIcon: root.menuIcon,
+      menuIconColor: "primary",
+      hudTitle: root.hudTitle,
+      hudTitleColor: "secondary",
+      hudSubtitle: root.hudSubtitle,
+      hudSubtitleColor: "primary"
+    })
+    root.saveMidnightConfig(cfg)
+  }
 
   function setBarOpacity(val) {
     val = Math.max(0.0, Math.min(1.0, Math.round(val * 100) / 100))
@@ -199,7 +260,13 @@ Item {
             sideBarPosition: "left",
             primaryAccent: "#ff51c5",
             secondaryAccent: "#bb9af7",
-            barOpacity: 1.0
+            barOpacity: 1.0,
+            menuIcon: root.menuIcon,
+            menuIconColor: "primary",
+            hudTitle: root.hudTitle,
+            hudTitleColor: "secondary",
+            hudSubtitle: root.hudSubtitle,
+            hudSubtitleColor: "primary"
           }, parsed)
           midnightConfig = updated
           return
@@ -1997,6 +2064,27 @@ Item {
     function setTab(idx) {
       if (themeCenterFloatingWindow) themeCenterFloatingWindow.activeTab = Number(idx)
     }
+    function setIcon(glyph) {
+      root.saveHudBranding(String(glyph))
+    }
+    function setIconColor(colorMode) {
+      root.saveHudBranding(undefined, String(colorMode))
+    }
+    function setTitle(title) {
+      root.saveHudBranding(undefined, undefined, String(title))
+    }
+    function setTitleColor(colorMode) {
+      root.saveHudBranding(undefined, undefined, undefined, String(colorMode))
+    }
+    function setSubtitle(sub) {
+      root.saveHudBranding(undefined, undefined, undefined, undefined, String(sub))
+    }
+    function setSubtitleColor(colorMode) {
+      root.saveHudBranding(undefined, undefined, undefined, undefined, undefined, String(colorMode))
+    }
+    function resetBranding() {
+      root.resetHudBrandingDefaults()
+    }
   }
 
   component MidnightShortcutEditorDialog: PanelWindow {
@@ -2302,8 +2390,8 @@ Item {
     id: themeCenterWindow
     title: "Midnight Doll // Control Center"
     color: "#050505"
-    implicitWidth: 740
-    implicitHeight: 660
+    implicitWidth: 760
+    implicitHeight: 680
     minimumSize: Qt.size(680, 580)
     visible: root.isMidnightDoll && root.midnightThemeCenterOpen
     property alias activeTab: modalContainer.activeTab
@@ -2401,133 +2489,858 @@ Item {
             }
           }
 
-        // Cyberpunk separator
-        Rectangle {
-          Layout.fillWidth: true
-          height: 1
-          color: Qt.rgba(1, 1, 1, 0.15)
-        }
-
-        // 2. Navigation Tabs
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: 6
-
-          Button {
-            text: "󰏘 ACCENTS & PALETTE"
-            fontFamily: root.fontFamily
-            accent: Commons.Color.accent
-            bordered: true
-            selected: modalContainer.activeTab === 0
+          // Cyberpunk separator
+          Rectangle {
             Layout.fillWidth: true
-            onClicked: modalContainer.activeTab = 0
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.15)
           }
 
-          Button {
-            text: "󰍹 BAR & LAYOUT"
-            fontFamily: root.fontFamily
-            accent: Commons.Color.accent
-            bordered: true
-            selected: modalContainer.activeTab === 1
+          // Persistent Live Preview Strip (Accurate 1:1 HUD & Hardware Telemetry Gauges)
+          Rectangle {
+            id: liveHudPreviewStrip
             Layout.fillWidth: true
-            onClicked: modalContainer.activeTab = 1
-          }
+            height: 44
+            color: "#08080c"
+            border.color: Commons.Color.accent
+            border.width: 1
 
-          Button {
-            text: "󰒓 WIDGETS & CONTENT"
-            fontFamily: root.fontFamily
-            accent: Commons.Color.accent
-            bordered: true
-            selected: modalContainer.activeTab === 2
-            Layout.fillWidth: true
-            onClicked: modalContainer.activeTab = 2
-          }
-        }
+            RowLayout {
+              anchors.fill: parent
+              anchors.leftMargin: 10
+              anchors.rightMargin: 10
+              spacing: 10
 
-        Rectangle {
-          Layout.fillWidth: true
-          height: 1
-          color: Qt.rgba(1, 1, 1, 0.1)
-        }
-
-        // 3. Tab Contents
-        Item {
-          Layout.fillWidth: true
-          Layout.fillHeight: true
-
-          // TAB 0: ACCENTS & PALETTE
-          ColumnLayout {
-            id: tab0Layout
-            anchors.fill: parent
-            visible: modalContainer.activeTab === 0
-            spacing: 10
-
-            property string priColor: root.midnightConfig.primaryAccent || Commons.Color.accent || "#ff51c5"
-            property string secColor: root.midnightConfig.secondaryAccent || root.secondaryColor || "#bb9af7"
-
-            // Live Preview Strip
-            Rectangle {
-              Layout.fillWidth: true
-              height: 48
-              color: "#0a0a0a"
-              border.color: tab0Layout.priColor
-              border.width: 1
-
-              RowLayout {
-                anchors.fill: parent
-                anchors.margins: 10
-                spacing: 12
+              // Left: HUD Menu Icon
+              Rectangle {
+                width: 26
+                height: 26
+                color: Qt.rgba(1, 1, 1, 0.05)
+                border.color: Qt.rgba(1, 1, 1, 0.15)
+                border.width: 1
 
                 Text {
-                  text: "MIDNIGHT-DOLL // HUD"
+                  anchors.centerIn: parent
+                  text: root.effectiveMenuIcon
+                  font.family: root.fontFamily
+                  font.pixelSize: 17
+                  color: root.resolvedMenuIconColor
+                }
+              }
+
+              // HUD Title // Sub-Text
+              Row {
+                spacing: 0
+                anchors.verticalCenter: parent.verticalCenter
+
+                Text {
+                  visible: root.effectiveHudTitle !== ""
+                  text: root.effectiveHudTitle
                   font.family: root.fontFamily
                   font.bold: true
-                  font.pixelSize: 13
-                  color: tab0Layout.secColor
+                  font.pixelSize: 11
+                  color: root.resolvedHudTitleColor
+                  anchors.verticalCenter: parent.verticalCenter
                 }
 
                 Text {
-                  text: "CPU: 24% | RAM: 6.2G"
+                  visible: root.effectiveHudTitle !== "" && root.effectiveHudSubtitle !== ""
+                  text: " // "
                   font.family: root.fontFamily
+                  font.bold: true
                   font.pixelSize: 11
-                  color: Qt.rgba(1, 1, 1, 0.7)
+                  color: Qt.rgba(1, 1, 1, 0.4)
+                  anchors.verticalCenter: parent.verticalCenter
                 }
 
-                Item { Layout.fillWidth: true }
+                Text {
+                  visible: root.effectiveHudSubtitle !== ""
+                  text: root.effectiveHudSubtitle
+                  font.family: root.fontFamily
+                  font.bold: true
+                  font.pixelSize: 11
+                  color: root.resolvedHudSubtitleColor
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+              }
 
-                Rectangle {
-                  width: 70
-                  height: 24
-                  color: tab0Layout.priColor
+              // Divider
+              Text {
+                text: "|"
+                font.family: root.fontFamily
+                font.pixelSize: 9
+                color: Qt.rgba(1, 1, 1, 0.22)
+                anchors.verticalCenter: parent.verticalCenter
+              }
+
+              // Authentic Hardware Telemetry Usage Indicator matching MidnightSystemHud
+              Row {
+                spacing: 8
+                anchors.verticalCenter: parent.verticalCenter
+
+                // CPU Gauge
+                Row {
+                  spacing: 4
+                  anchors.verticalCenter: parent.verticalCenter
                   Text {
-                    anchors.centerIn: parent
-                    text: "ACTIVE"
+                    text: "CPU"
                     font.family: root.fontFamily
+                    font.pixelSize: 8
                     font.bold: true
-                    font.pixelSize: 10
-                    color: "#010101"
+                    color: root.secondaryColor
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                  Rectangle {
+                    width: 22
+                    height: 4
+                    color: Qt.rgba(1, 1, 1, 0.15)
+                    anchors.verticalCenter: parent.verticalCenter
+                    Rectangle {
+                      anchors.left: parent.left
+                      height: parent.height
+                      width: Math.max(1, Math.round(parent.width * (root.liveCpuVal / 100.0)))
+                      color: root.liveCpuVal > 80 ? root.urgent : Commons.Color.accent
+                    }
+                  }
+                  Text {
+                    text: root.liveCpuVal + "%"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    color: Commons.Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                  Text {
+                    visible: root.liveCpuTemp > 0
+                    text: root.liveCpuTemp + "°C"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    color: root.liveCpuTemp > 80 ? root.urgent : Commons.Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                }
+
+                // Divider
+                Text {
+                  text: "|"
+                  font.family: root.fontFamily
+                  font.pixelSize: 8
+                  color: Qt.rgba(1, 1, 1, 0.22)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // RAM Gauge
+                Row {
+                  spacing: 4
+                  anchors.verticalCenter: parent.verticalCenter
+                  Text {
+                    text: "RAM"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    font.bold: true
+                    color: root.secondaryColor
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                  Rectangle {
+                    width: 22
+                    height: 4
+                    color: Qt.rgba(1, 1, 1, 0.15)
+                    anchors.verticalCenter: parent.verticalCenter
+                    Rectangle {
+                      anchors.left: parent.left
+                      height: parent.height
+                      width: Math.max(1, Math.round(parent.width * (root.liveMemVal / 100.0)))
+                      color: root.liveMemVal > 85 ? root.urgent : Commons.Color.accent
+                    }
+                  }
+                  Text {
+                    text: root.liveMemVal + "%"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    color: Commons.Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                }
+
+                // Divider
+                Text {
+                  text: "|"
+                  font.family: root.fontFamily
+                  font.pixelSize: 8
+                  color: Qt.rgba(1, 1, 1, 0.22)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // DSK Gauge
+                Row {
+                  spacing: 4
+                  anchors.verticalCenter: parent.verticalCenter
+                  Text {
+                    text: "DSK"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    font.bold: true
+                    color: root.secondaryColor
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                  Rectangle {
+                    width: 22
+                    height: 4
+                    color: Qt.rgba(1, 1, 1, 0.15)
+                    anchors.verticalCenter: parent.verticalCenter
+                    Rectangle {
+                      anchors.left: parent.left
+                      height: parent.height
+                      width: Math.max(1, Math.round(parent.width * (root.liveDskVal / 100.0)))
+                      color: root.liveDskVal > 90 ? root.urgent : Commons.Color.accent
+                    }
+                  }
+                  Text {
+                    text: root.liveDskVal + "%"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    color: Commons.Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                }
+              }
+
+              Item { Layout.fillWidth: true }
+
+              // Live HUD badge
+              Rectangle {
+                width: 96
+                height: 22
+                color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.15)
+                border.color: Commons.Color.accent
+                border.width: 1
+
+                Text {
+                  anchors.centerIn: parent
+                  text: "LIVE HUD STRIP"
+                  font.family: root.fontFamily
+                  font.bold: true
+                  font.pixelSize: 9
+                  color: Commons.Color.accent
+                }
+              }
+            }
+          }
+
+          // Cyberpunk separator
+          Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.15)
+          }
+
+          // 2. Navigation Tabs
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            Button {
+              text: "󰚌 HUD BRANDING"
+              fontFamily: root.fontFamily
+              accent: Commons.Color.accent
+              bordered: true
+              selected: modalContainer.activeTab === 0
+              Layout.fillWidth: true
+              onClicked: modalContainer.activeTab = 0
+            }
+
+            Button {
+              text: "󰏘 ACCENTS & PALETTE"
+              fontFamily: root.fontFamily
+              accent: Commons.Color.accent
+              bordered: true
+              selected: modalContainer.activeTab === 1
+              Layout.fillWidth: true
+              onClicked: modalContainer.activeTab = 1
+            }
+
+            Button {
+              text: "󰍹 BAR & LAYOUT"
+              fontFamily: root.fontFamily
+              accent: Commons.Color.accent
+              bordered: true
+              selected: modalContainer.activeTab === 2
+              Layout.fillWidth: true
+              onClicked: modalContainer.activeTab = 2
+            }
+
+            Button {
+              text: "󰒓 WIDGETS & CONTENT"
+              fontFamily: root.fontFamily
+              accent: Commons.Color.accent
+              bordered: true
+              selected: modalContainer.activeTab === 3
+              Layout.fillWidth: true
+              onClicked: modalContainer.activeTab = 3
+            }
+          }
+
+          Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.1)
+          }
+
+          // 3. Tab Contents
+          Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            // TAB 0: HUD BRANDING (ICON, TITLE, SUB-TEXT & COLORS)
+            ColumnLayout {
+              id: tabHudBranding
+              anchors.fill: parent
+              visible: modalContainer.activeTab === 0
+              spacing: 8
+
+              property string iconColorMode: root.effectiveMenuIconColor
+              property string titleColorMode: root.effectiveHudTitleColor
+              property string subColorMode: root.effectiveHudSubtitleColor
+
+              Connections {
+                target: root
+                function onEffectiveMenuIconColorChanged() {
+                  tabHudBranding.iconColorMode = root.effectiveMenuIconColor
+                }
+                function onEffectiveHudTitleColorChanged() {
+                  tabHudBranding.titleColorMode = root.effectiveHudTitleColor
+                }
+                function onEffectiveHudSubtitleColorChanged() {
+                  tabHudBranding.subColorMode = root.effectiveHudSubtitleColor
+                }
+                function onEffectiveMenuIconChanged() {
+                  if (!iconInputField.activeFocus) iconInputField.text = root.effectiveMenuIcon
+                }
+                function onEffectiveHudTitleChanged() {
+                  if (!titleInputField.activeFocus) titleInputField.text = root.effectiveHudTitle
+                }
+                function onEffectiveHudSubtitleChanged() {
+                  if (!subInputField.activeFocus) subInputField.text = root.effectiveHudSubtitle
+                }
+              }
+
+              // 1. HUD MENU ICON
+              RowLayout {
+                Layout.fillWidth: true
+                Text {
+                  text: "HUD MENU ICON GLYPH & COLOR"
+                  font.family: root.fontFamily
+                  font.bold: true
+                  font.pixelSize: Style.font.caption
+                  color: Commons.Color.accent
+                  Layout.fillWidth: true
+                }
+              }
+
+              Flow {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Repeater {
+                  model: [
+                    { icon: "󰚌", name: "Skull" },
+                    { icon: "󰣇", name: "Arch" },
+                    { icon: "󰅟", name: "Ghost" },
+                    { icon: "󰈸", name: "Flame" },
+                    { icon: "󰓥", name: "Hazard" },
+                    { icon: "󰄛", name: "Cat" },
+                    { icon: "󰒓", name: "Gear" },
+                    { icon: "󱗗", name: "Term" },
+                    { icon: "󰊠", name: "Pacman" },
+                    { icon: "󰀘", name: "Tux" },
+                    { icon: "󰚥", name: "Heart" },
+                    { icon: "󰊤", name: "Git" }
+                  ]
+
+                  delegate: Rectangle {
+                    required property var modelData
+
+                    readonly property bool isSelected: iconInputField.text === modelData.icon
+
+                    width: 54
+                    height: 28
+                    color: iconHover.hovered ? Qt.rgba(1, 1, 1, 0.12) : (isSelected ? Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.25) : Qt.rgba(1, 1, 1, 0.04))
+                    border.color: isSelected ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.2)
+                    border.width: isSelected ? 2 : 1
+
+                    HoverHandler { id: iconHover }
+
+                    Text {
+                      anchors.centerIn: parent
+                      text: modelData.icon
+                      font.family: root.fontFamily
+                      font.pixelSize: 15
+                      color: isSelected ? Commons.Color.accent : Commons.Color.foreground
+                    }
+
+                    MouseArea {
+                      anchors.fill: parent
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: {
+                        iconInputField.text = modelData.icon
+                        root.saveHudBranding(modelData.icon, tabHudBranding.iconColorMode, titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, tabHudBranding.subColorMode)
+                      }
+                    }
+                  }
+                }
+              }
+
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Text {
+                  text: "CUSTOM GLYPH:"
+                  font.family: root.fontFamily
+                  font.pixelSize: 11
+                  color: Commons.Color.foreground
+                  Layout.preferredWidth: 95
+                }
+
+                TextField {
+                  id: iconInputField
+                  text: root.effectiveMenuIcon
+                  font.family: root.fontFamily
+                  Layout.preferredWidth: 60
+                  color: Commons.Color.foreground
+                  horizontalAlignment: Text.AlignHCenter
+                  onEditingFinished: {
+                    root.saveHudBranding(text, tabHudBranding.iconColorMode, titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, tabHudBranding.subColorMode)
                   }
                 }
 
                 Rectangle {
-                  width: 70
-                  height: 24
-                  color: "transparent"
-                  border.color: tab0Layout.secColor
+                  width: 28
+                  height: 28
+                  color: Qt.rgba(1, 1, 1, 0.05)
+                  border.color: Qt.rgba(1, 1, 1, 0.2)
                   border.width: 1
+
                   Text {
                     anchors.centerIn: parent
-                    text: "COMPLIMENT"
+                    text: iconInputField.text
                     font.family: root.fontFamily
-                    font.pixelSize: 9
-                    color: tab0Layout.secColor
+                    font.pixelSize: 17
+                    color: root.resolveHudColor(tabHudBranding.iconColorMode, Commons.Color.accent)
+                  }
+                }
+
+                Text {
+                  text: "COLOR:"
+                  font.family: root.fontFamily
+                  font.pixelSize: 11
+                  color: Commons.Color.foreground
+                  leftPadding: 6
+                }
+
+                Button {
+                  text: "PRIMARY"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.iconColorMode === "primary"
+                  bordered: true
+                  accent: Commons.Color.accent
+                  onClicked: {
+                    tabHudBranding.iconColorMode = "primary"
+                    root.saveHudBranding(iconInputField.text, "primary", titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, tabHudBranding.subColorMode)
+                  }
+                }
+
+                Button {
+                  text: "COMPLIMENT"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.iconColorMode === "secondary"
+                  bordered: true
+                  accent: root.secondaryColor
+                  onClicked: {
+                    tabHudBranding.iconColorMode = "secondary"
+                    root.saveHudBranding(iconInputField.text, "secondary", titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, tabHudBranding.subColorMode)
+                  }
+                }
+
+                Button {
+                  text: "WHITE"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.iconColorMode === "white"
+                  bordered: true
+                  accent: "#ffffff"
+                  onClicked: {
+                    tabHudBranding.iconColorMode = "white"
+                    root.saveHudBranding(iconInputField.text, "white", titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, tabHudBranding.subColorMode)
+                  }
+                }
+
+                TextField {
+                  id: iconCustomHexField
+                  text: tabHudBranding.iconColorMode.charAt(0) === "#" ? tabHudBranding.iconColorMode : ""
+                  placeholderText: "#HEX"
+                  font.family: root.fontFamily
+                  Layout.preferredWidth: 70
+                  color: Commons.Color.foreground
+                  onEditingFinished: {
+                    if (text.match(/^#[0-9a-fA-F]{6}$/)) {
+                      tabHudBranding.iconColorMode = text
+                      root.saveHudBranding(iconInputField.text, text, titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, tabHudBranding.subColorMode)
+                    }
+                  }
+                }
+
+                Rectangle {
+                  width: 24
+                  height: 24
+                  color: root.resolveHudColor(tabHudBranding.iconColorMode, Commons.Color.accent)
+                  border.color: Qt.rgba(1, 1, 1, 0.3)
+                  border.width: 1
+                }
+              }
+
+              Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.1)
+              }
+
+              // 2. HUD TITLE TEXT
+              RowLayout {
+                Layout.fillWidth: true
+                Text {
+                  text: "HUD TITLE TEXT & COLOR"
+                  font.family: root.fontFamily
+                  font.bold: true
+                  font.pixelSize: Style.font.caption
+                  color: Commons.Color.accent
+                  Layout.fillWidth: true
+                }
+              }
+
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Text {
+                  text: "TITLE STRING:"
+                  font.family: root.fontFamily
+                  font.pixelSize: 11
+                  color: Commons.Color.foreground
+                  Layout.preferredWidth: 95
+                }
+
+                TextField {
+                  id: titleInputField
+                  text: root.effectiveHudTitle
+                  font.family: root.fontFamily
+                  Layout.fillWidth: true
+                  color: Commons.Color.foreground
+                  onEditingFinished: {
+                    root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, text, tabHudBranding.titleColorMode, subInputField.text, tabHudBranding.subColorMode)
+                  }
+                }
+
+                Text {
+                  text: "COLOR:"
+                  font.family: root.fontFamily
+                  font.pixelSize: 11
+                  color: Commons.Color.foreground
+                  leftPadding: 6
+                }
+
+                Button {
+                  text: "PRIMARY"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.titleColorMode === "primary"
+                  bordered: true
+                  accent: Commons.Color.accent
+                  onClicked: {
+                    tabHudBranding.titleColorMode = "primary"
+                    root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, "primary", subInputField.text, tabHudBranding.subColorMode)
+                  }
+                }
+
+                Button {
+                  text: "COMPLIMENT"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.titleColorMode === "secondary"
+                  bordered: true
+                  accent: root.secondaryColor
+                  onClicked: {
+                    tabHudBranding.titleColorMode = "secondary"
+                    root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, "secondary", subInputField.text, tabHudBranding.subColorMode)
+                  }
+                }
+
+                Button {
+                  text: "WHITE"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.titleColorMode === "white"
+                  bordered: true
+                  accent: "#ffffff"
+                  onClicked: {
+                    tabHudBranding.titleColorMode = "white"
+                    root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, "white", subInputField.text, tabHudBranding.subColorMode)
+                  }
+                }
+
+                TextField {
+                  id: titleCustomHexField
+                  text: tabHudBranding.titleColorMode.charAt(0) === "#" ? tabHudBranding.titleColorMode : ""
+                  placeholderText: "#HEX"
+                  font.family: root.fontFamily
+                  Layout.preferredWidth: 70
+                  color: Commons.Color.foreground
+                  onEditingFinished: {
+                    if (text.match(/^#[0-9a-fA-F]{6}$/)) {
+                      tabHudBranding.titleColorMode = text
+                      root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, text, subInputField.text, tabHudBranding.subColorMode)
+                    }
+                  }
+                }
+
+                Rectangle {
+                  width: 24
+                  height: 24
+                  color: root.resolveHudColor(tabHudBranding.titleColorMode, root.secondaryColor)
+                  border.color: Qt.rgba(1, 1, 1, 0.3)
+                  border.width: 1
+                }
+              }
+
+              // Quick Title Presets
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Text {
+                  text: "PRESETS:"
+                  font.family: root.fontFamily
+                  font.pixelSize: 10
+                  color: Qt.rgba(1, 1, 1, 0.45)
+                  Layout.preferredWidth: 95
+                }
+
+                Repeater {
+                  model: ["MIDNIGHT-DOLL", "CYBERDECK", "ARCH LINUX", "TERMINAL"]
+                  Button {
+                    text: modelData
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    selected: titleInputField.text === modelData
+                    onClicked: {
+                      titleInputField.text = modelData
+                      root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, modelData, tabHudBranding.titleColorMode, subInputField.text, tabHudBranding.subColorMode)
+                    }
+                  }
+                }
+              }
+
+              Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.1)
+              }
+
+              // 3. HUD SUB-TEXT
+              RowLayout {
+                Layout.fillWidth: true
+                Text {
+                  text: "HUD SUB-TEXT & COLOR"
+                  font.family: root.fontFamily
+                  font.bold: true
+                  font.pixelSize: Style.font.caption
+                  color: Commons.Color.accent
+                  Layout.fillWidth: true
+                }
+              }
+
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Text {
+                  text: "SUB-TEXT:"
+                  font.family: root.fontFamily
+                  font.pixelSize: 11
+                  color: Commons.Color.foreground
+                  Layout.preferredWidth: 95
+                }
+
+                TextField {
+                  id: subInputField
+                  text: root.effectiveHudSubtitle
+                  font.family: root.fontFamily
+                  Layout.fillWidth: true
+                  color: Commons.Color.foreground
+                  onEditingFinished: {
+                    root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, tabHudBranding.titleColorMode, text, tabHudBranding.subColorMode)
+                  }
+                }
+
+                Text {
+                  text: "COLOR:"
+                  font.family: root.fontFamily
+                  font.pixelSize: 11
+                  color: Commons.Color.foreground
+                  leftPadding: 6
+                }
+
+                Button {
+                  text: "PRIMARY"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.subColorMode === "primary"
+                  bordered: true
+                  accent: Commons.Color.accent
+                  onClicked: {
+                    tabHudBranding.subColorMode = "primary"
+                    root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, "primary")
+                  }
+                }
+
+                Button {
+                  text: "COMPLIMENT"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.subColorMode === "secondary"
+                  bordered: true
+                  accent: root.secondaryColor
+                  onClicked: {
+                    tabHudBranding.subColorMode = "secondary"
+                    root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, "secondary")
+                  }
+                }
+
+                Button {
+                  text: "WHITE"
+                  fontFamily: root.fontFamily
+                  fontSize: 10
+                  selected: tabHudBranding.subColorMode === "white"
+                  bordered: true
+                  accent: "#ffffff"
+                  onClicked: {
+                    tabHudBranding.subColorMode = "white"
+                    root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, "white")
+                  }
+                }
+
+                TextField {
+                  id: subCustomHexField
+                  text: tabHudBranding.subColorMode.charAt(0) === "#" ? tabHudBranding.subColorMode : ""
+                  placeholderText: "#HEX"
+                  font.family: root.fontFamily
+                  Layout.preferredWidth: 70
+                  color: Commons.Color.foreground
+                  onEditingFinished: {
+                    if (text.match(/^#[0-9a-fA-F]{6}$/)) {
+                      tabHudBranding.subColorMode = text
+                      root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, tabHudBranding.titleColorMode, subInputField.text, text)
+                    }
+                  }
+                }
+
+                Rectangle {
+                  width: 24
+                  height: 24
+                  color: root.resolveHudColor(tabHudBranding.subColorMode, Commons.Color.accent)
+                  border.color: Qt.rgba(1, 1, 1, 0.3)
+                  border.width: 1
+                }
+              }
+
+              // Quick Subtitle Presets
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Text {
+                  text: "PRESETS:"
+                  font.family: root.fontFamily
+                  font.pixelSize: 10
+                  color: Qt.rgba(1, 1, 1, 0.45)
+                  Layout.preferredWidth: 95
+                }
+
+                Repeater {
+                  model: ["HUD", "CORE", "DECK", "ROOT", "SHELL"]
+                  Button {
+                    text: modelData
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    selected: subInputField.text === modelData
+                    onClicked: {
+                      subInputField.text = modelData
+                      root.saveHudBranding(iconInputField.text, tabHudBranding.iconColorMode, titleInputField.text, tabHudBranding.titleColorMode, modelData, tabHudBranding.subColorMode)
+                    }
+                  }
+                }
+              }
+
+              Item { Layout.fillHeight: true }
+
+              // Action row at bottom of Tab 0
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Button {
+                  text: "↺ RESET BRANDING DEFAULTS"
+                  fontFamily: root.fontFamily
+                  accent: Commons.Color.accent
+                  bordered: true
+                  Layout.preferredWidth: 230
+                  Layout.preferredHeight: 36
+                  onClicked: {
+                    root.resetHudBrandingDefaults()
+                    iconInputField.text = root.menuIcon
+                    tabHudBranding.iconColorMode = "primary"
+                    titleInputField.text = root.hudTitle
+                    tabHudBranding.titleColorMode = "secondary"
+                    subInputField.text = root.hudSubtitle
+                    tabHudBranding.subColorMode = "primary"
+                  }
+                }
+
+                Button {
+                  text: "⚡ SAVE & APPLY BRANDING LIVE"
+                  fontFamily: root.fontFamily
+                  accent: Commons.Color.accent
+                  bordered: true
+                  selected: true
+                  Layout.fillWidth: true
+                  Layout.preferredHeight: 36
+                  onClicked: {
+                    root.saveHudBranding(
+                      iconInputField.text.trim() || root.menuIcon,
+                      tabHudBranding.iconColorMode,
+                      titleInputField.text.trim(),
+                      tabHudBranding.titleColorMode,
+                      subInputField.text.trim(),
+                      tabHudBranding.subColorMode
+                    )
                   }
                 }
               }
             }
 
-            Text {
-              text: "CYBERDECK PALETTE PRESETS"
+            // TAB 1: ACCENTS & PALETTE
+            ColumnLayout {
+              id: tab1Layout
+              anchors.fill: parent
+              visible: modalContainer.activeTab === 1
+              spacing: 10
+
+              property string priColor: root.midnightConfig.primaryAccent || Commons.Color.accent || "#ff51c5"
+              property string secColor: root.midnightConfig.secondaryAccent || root.secondaryColor || "#bb9af7"
+
+              Text {
+                text: "CYBERDECK PALETTE PRESETS"
               font.family: root.fontFamily
               font.bold: true
               font.pixelSize: Style.font.caption
@@ -2699,10 +3512,10 @@ Item {
             }
           }
 
-          // TAB 1: BAR & LAYOUT
+          // TAB 2: BAR & LAYOUT
           ColumnLayout {
             anchors.fill: parent
-            visible: modalContainer.activeTab === 1
+            visible: modalContainer.activeTab === 2
             spacing: 12
 
             Text {
@@ -3005,10 +3818,10 @@ Item {
             Item { Layout.fillHeight: true }
           }
 
-          // TAB 2: WIDGETS & CONTENT
+          // TAB 3: WIDGETS & CONTENT
           ColumnLayout {
             anchors.fill: parent
-            visible: modalContainer.activeTab === 2
+            visible: modalContainer.activeTab === 3
             spacing: 8
 
             RowLayout {
@@ -5426,10 +6239,10 @@ Item {
 
           Text {
             anchors.centerIn: parent
-            text: root.menuIcon
+            text: root.effectiveMenuIcon
             font.family: root.fontFamily
             font.pixelSize: 19
-            color: menuMouse.containsMouse ? root.urgent : Commons.Color.accent
+            color: menuMouse.containsMouse ? root.urgent : root.resolvedMenuIconColor
 
             Behavior on color {
               ColorAnimation { duration: 120 }
@@ -5460,7 +6273,7 @@ Item {
           rightPadding: 8
 
           Item {
-            visible: root.hudTitle !== ""
+            visible: root.effectiveHudTitle !== ""
             width: hudTitleText.implicitWidth
             height: hudTitleText.implicitHeight
             anchors.verticalCenter: parent.verticalCenter
@@ -5468,11 +6281,11 @@ Item {
             Text {
               id: hudTitleText
               anchors.fill: parent
-              text: root.hudTitle
+              text: root.effectiveHudTitle
               font.family: root.fontFamily
               font.bold: true
               font.pixelSize: 12
-              color: hudTitleMouse.containsMouse ? Commons.Color.accent : root.secondaryColor
+              color: hudTitleMouse.containsMouse ? Commons.Color.accent : root.resolvedHudTitleColor
               anchors.verticalCenter: parent.verticalCenter
             }
 
@@ -5488,7 +6301,7 @@ Item {
             }
           }
           Text {
-            visible: root.hudTitle !== "" && root.hudSubtitle !== ""
+            visible: root.effectiveHudTitle !== "" && root.effectiveHudSubtitle !== ""
             text: " // "
             font.family: root.fontFamily
             font.bold: true
@@ -5497,7 +6310,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
           }
           Item {
-            visible: root.hudSubtitle !== ""
+            visible: root.effectiveHudSubtitle !== ""
             width: hudSubtitleText.implicitWidth
             height: hudSubtitleText.implicitHeight
             anchors.verticalCenter: parent.verticalCenter
@@ -5505,11 +6318,11 @@ Item {
             Text {
               id: hudSubtitleText
               anchors.fill: parent
-              text: root.hudSubtitle
+              text: root.effectiveHudSubtitle
               font.family: root.fontFamily
               font.bold: true
               font.pixelSize: 12
-              color: (hudSubMouse.enabled && hudSubMouse.containsMouse) ? "#ffffff" : Commons.Color.accent
+              color: (hudSubMouse.enabled && hudSubMouse.containsMouse) ? "#ffffff" : root.resolvedHudSubtitleColor
 
               Behavior on color {
                 ColorAnimation { duration: 120 }
@@ -5661,6 +6474,11 @@ Item {
           else if (k === "CONNS") connsVal = parseInt(v, 10) || 0
         }
       }
+      root.liveCpuVal = cpuVal
+      root.liveCpuTemp = cpuTemp
+      root.liveMemVal = memVal
+      root.liveMemGb = memGb
+      root.liveDskVal = dskVal
     }
 
     Process {
