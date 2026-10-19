@@ -139,6 +139,11 @@ def update_colors_file(path):
     c = re.sub(r'^muted = "#[0-9a-fA-F]{6}"', f'muted = "{sec_hex}"', c, flags=re.MULTILINE)
     c = re.sub(r'^magenta = "#[0-9a-fA-F]{6}"', f'magenta = "{pri_hex}"', c, flags=re.MULTILINE)
     c = re.sub(r'^bright_magenta = "#[0-9a-fA-F]{6}"', f'bright_magenta = "{sec_hex}"', c, flags=re.MULTILINE)
+    if 'hyprland_active_border' in c:
+        c = re.sub(r'^hyprland_active_border = ".*?"', f'hyprland_active_border = "rgb({raw_pri})"', c, flags=re.MULTILINE)
+        c = re.sub(r'^hyprland_inactive_border = ".*?"', f'hyprland_inactive_border = "rgb({inactive_border})"', c, flags=re.MULTILINE)
+    else:
+        c += f'\nhyprland_active_border = "rgb({raw_pri})"\nhyprland_inactive_border = "rgb({inactive_border})"\n'
     with open(path, 'w', encoding='utf-8') as f:
         f.write(c)
 
@@ -166,26 +171,33 @@ def update_kitty_file(path):
     with open(path, 'w', encoding='utf-8') as f:
         f.write(k)
 
+def update_hyprland_file(path):
+    if not os.path.exists(path): return
+    with open(path, 'r', encoding='utf-8') as f:
+        h = f.read()
+    h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({raw_pri})"', h)
+    h = re.sub(r'inactive_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'inactive_border_color = "rgb({inactive_border})"', h)
+    if 'QML_IMPORT_PATH' not in h:
+        h = '-- Ensure Quickshell inherits QML_IMPORT_PATH for Midnight Doll\'s shelf drawer panels\nhl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "") .. "/.config/omarchy/themes/midnight-doll/qml")\n\n' + h
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(h)
+
 # 1. Update theme directory files
 update_colors_file(colors_path)
 update_ghostty_file(ghostty_path)
 update_kitty_file(kitty_path)
+update_hyprland_file(hypr_path)
 
 # Also update active state copies if present
 home = os.path.expanduser("~")
 update_colors_file(os.path.join(home, ".local/state/omarchy/current/theme/colors.toml"))
 update_ghostty_file(os.path.join(home, ".local/state/omarchy/current/theme/ghostty.conf"))
 update_kitty_file(os.path.join(home, ".local/state/omarchy/current/theme/kitty.conf"))
-
-# 2. hyprland.lua
-if os.path.exists(hypr_path):
-    with open(hypr_path, 'r', encoding='utf-8') as f:
-        h = f.read()
-    h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({raw_pri})"', h)
-    h = re.sub(r'inactive_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'inactive_border_color = "rgb({inactive_border})"', h)
-    with open(hypr_path, 'w', encoding='utf-8') as f:
-        f.write(h)
+update_hyprland_file(os.path.join(home, ".local/state/omarchy/current/theme/hyprland.lua"))
 EOF
+
+# Ensure theme directory has no .git to prevent Omarchy from treating it as an untrusted git theme
+rm -rf "${HOME}/.config/omarchy/themes/midnight-doll/.git"
 
 # 2. Update Bar.qml
 BAR_QML="${HOME}/.config/omarchy/plugins/midnight-doll.bar/Bar.qml"
@@ -221,6 +233,22 @@ try:
 except Exception:
     pass
 EOF
+fi
+
+# 4. Live injection of QML_IMPORT_PATH and Hyprland border colors & 0 gaps
+RAW_PRI="${PRIMARY#\#}"
+INACTIVE_BORDER=$(python3 -c "s='$SECONDARY'.lstrip('#'); sr,sg,sb=int(s[0:2],16),int(s[2:4],16),int(s[4:6],16); print(f'{int(sr*0.22):02x}{int(sg*0.22):02x}{int(sb*0.22):02x}')" 2>/dev/null || echo "292136")
+QML_OVERRIDE_DIR="${HOME}/.config/omarchy/themes/midnight-doll/qml"
+
+if command -v hyprctl &>/dev/null; then
+  hyprctl eval 'hl.env("QML_IMPORT_PATH", "'"${QML_OVERRIDE_DIR}"'")' >/dev/null 2>&1 || true
+  hyprctl eval 'hl.config({ general = { gaps_in = 0, gaps_out = 0, border_size = 2, col = { active_border = "rgb('"${RAW_PRI}"')", inactive_border = "rgb('"${INACTIVE_BORDER}"')" } }, decoration = { rounding = 0 } })' >/dev/null 2>&1 || true
+  hyprctl reload >/dev/null 2>&1 || true
+fi
+
+if command -v systemctl &>/dev/null; then
+  systemctl --user set-environment QML_IMPORT_PATH="${QML_OVERRIDE_DIR}" 2>/dev/null || true
+  systemctl --user import-environment QML_IMPORT_PATH 2>/dev/null || true
 fi
 
 if command -v omarchy &> /dev/null; then

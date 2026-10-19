@@ -108,9 +108,11 @@ echo -e "    ${GREEN}✓ Backup created at:${RESET} ${BACKUP_DIR}"
 echo -e "\n${VIOLET}[*] Step 2: Deploying centralized theme directory & binaries...${RESET}"
 mkdir -p "${THEME_DIR}/bin"
 
-# Deploy theme configs
+## Deploy theme configs
 cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${THEME_DIR}/"
 chmod +x "${THEME_DIR}/bin/"* 2>/dev/null || true
+# Strip .git from theme dir so Omarchy never treats it as an untrusted git clone
+rm -rf "${THEME_DIR}/.git"
 
 # Restore user shortcuts if backed up
 if [ -f "${BACKUP_DIR}/midnight-shortcuts.json" ]; then
@@ -144,41 +146,62 @@ try:
     inactive_border = f"{int(sr * 0.22):02x}{int(sg * 0.22):02x}{int(sb * 0.22):02x}"
     raw_pri = pri_hex.lstrip('#')
 
-    if os.path.exists(colors_path):
-        with open(colors_path, 'r', encoding='utf-8') as f: c = f.read()
+    def update_colors(p):
+        if not os.path.exists(p): return
+        with open(p, 'r', encoding='utf-8') as f: c = f.read()
         c = re.sub(r'^accent = "#[0-9a-fA-F]{6}"', f'accent = "{pri_hex}"', c, flags=re.MULTILINE)
         c = re.sub(r'^selection = "#[0-9a-fA-F]{6}"', f'selection = "{sel_hex}"', c, flags=re.MULTILINE)
         c = re.sub(r'^muted = "#[0-9a-fA-F]{6}"', f'muted = "{sec_hex}"', c, flags=re.MULTILINE)
         c = re.sub(r'^magenta = "#[0-9a-fA-F]{6}"', f'magenta = "{pri_hex}"', c, flags=re.MULTILINE)
         c = re.sub(r'^bright_magenta = "#[0-9a-fA-F]{6}"', f'bright_magenta = "{sec_hex}"', c, flags=re.MULTILINE)
-        with open(colors_path, 'w', encoding='utf-8') as f: f.write(c)
+        if 'hyprland_active_border' in c:
+            c = re.sub(r'^hyprland_active_border = ".*?"', f'hyprland_active_border = "rgb({raw_pri})"', c, flags=re.MULTILINE)
+            c = re.sub(r'^hyprland_inactive_border = ".*?"', f'hyprland_inactive_border = "rgb({inactive_border})"', c, flags=re.MULTILINE)
+        else:
+            c += f'\nhyprland_active_border = "rgb({raw_pri})"\nhyprland_inactive_border = "rgb({inactive_border})"\n'
+        with open(p, 'w', encoding='utf-8') as f: f.write(c)
 
-    if os.path.exists(ghostty_path):
-        with open(ghostty_path, 'r', encoding='utf-8') as f: g = f.read()
+    def update_ghostty(p):
+        if not os.path.exists(p): return
+        with open(p, 'r', encoding='utf-8') as f: g = f.read()
         g = re.sub(r'^selection-background = #[0-9a-fA-F]{6}', f'selection-background = {sel_hex}', g, flags=re.MULTILINE)
         g = re.sub(r'^palette = 5=#[0-9a-fA-F]{6}', f'palette = 5={pri_hex}', g, flags=re.MULTILINE)
         g = re.sub(r'^palette = 13=#[0-9a-fA-F]{6}', f'palette = 13={sec_hex}', g, flags=re.MULTILINE)
-        with open(ghostty_path, 'w', encoding='utf-8') as f: f.write(g)
+        with open(p, 'w', encoding='utf-8') as f: f.write(g)
 
-    if os.path.exists(kitty_path):
-        with open(kitty_path, 'r', encoding='utf-8') as f: k = f.read()
+    def update_kitty(p):
+        if not os.path.exists(p): return
+        with open(p, 'r', encoding='utf-8') as f: k = f.read()
         k = re.sub(r'^selection_background #[0-9a-fA-F]{6}', f'selection_background {sel_hex}', k, flags=re.MULTILINE)
         k = re.sub(r'^active_border_color #[0-9a-fA-F]{6}', f'active_border_color {pri_hex}', k, flags=re.MULTILINE)
         k = re.sub(r'^active_tab_background #[0-9a-fA-F]{6}', f'active_tab_background {pri_hex}', k, flags=re.MULTILINE)
         k = re.sub(r'^color5 #[0-9a-fA-F]{6}', f'color5 {pri_hex}', k, flags=re.MULTILINE)
         k = re.sub(r'^color13 #[0-9a-fA-F]{6}', f'color13 {sec_hex}', k, flags=re.MULTILINE)
-        with open(kitty_path, 'w', encoding='utf-8') as f: f.write(k)
+        with open(p, 'w', encoding='utf-8') as f: f.write(k)
 
-    if os.path.exists(hypr_path):
-        with open(hypr_path, 'r', encoding='utf-8') as f: h = f.read()
+    def update_hypr(p):
+        if not os.path.exists(p): return
+        with open(p, 'r', encoding='utf-8') as f: h = f.read()
         h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({raw_pri})"', h)
         h = re.sub(r'inactive_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'inactive_border_color = "rgb({inactive_border})"', h)
-        with open(hypr_path, 'w', encoding='utf-8') as f: h.write(h)
+        if 'QML_IMPORT_PATH' not in h:
+            h = '-- Ensure Quickshell inherits QML_IMPORT_PATH for Midnight Doll\'s shelf drawer panels\nhl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "") .. "/.config/omarchy/themes/midnight-doll/qml")\n\n' + h
+        with open(p, 'w', encoding='utf-8') as f: f.write(h)
+
+    update_colors(colors_path)
+    update_ghostty(ghostty_path)
+    update_kitty(kitty_path)
+    update_hypr(hypr_path)
+
+    home = os.path.expanduser("~")
+    update_colors(os.path.join(home, ".local/state/omarchy/current/theme/colors.toml"))
+    update_ghostty(os.path.join(home, ".local/state/omarchy/current/theme/ghostty.conf"))
+    update_kitty(os.path.join(home, ".local/state/omarchy/current/theme/kitty.conf"))
+    update_hypr(os.path.join(home, ".local/state/omarchy/current/theme/hyprland.lua"))
 except Exception:
     pass
 EOF
 fi
-
 
 # Clean up legacy loose files from ~/.config/omarchy root
 echo -e "\n${VIOLET}[*] Step 3: Cleaning up legacy un-namespaced files from ~/.config/omarchy/...${RESET}"
@@ -212,15 +235,28 @@ cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/PopupCard.qml" "${QML_OVERRIDE_DIR}/qs/Ui/
 # Remove legacy global ~/.config/omarchy/qml if present
 rm -rf "${OMARCHY_DIR}/qml"
 
-# Configure QML_IMPORT_PATH to point to theme directory
+# Configure QML_IMPORT_PATH and live inject into Hyprland & systemd
 mkdir -p "${HOME}/.config/environment.d"
 echo "QML_IMPORT_PATH=${QML_OVERRIDE_DIR}" > "${HOME}/.config/environment.d/qml.conf"
 if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
   sed -i '/QML_IMPORT_PATH/d' "${HOME}/.config/hypr/autostart.lua"
   sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "'"${HOME}"'") .. "/.config/omarchy/themes/midnight-doll/qml")' "${HOME}/.config/hypr/autostart.lua"
 fi
+
+# Fetch active accents for live Hyprland styling
+PRI_HEX=$(python3 -c "import json; print(json.load(open('${THEME_DIR}/midnight-config.json')).get('primaryAccent', '#ff51c5'))" 2>/dev/null || echo "#ff51c5")
+SEC_HEX=$(python3 -c "import json; print(json.load(open('${THEME_DIR}/midnight-config.json')).get('secondaryAccent', '#bb9af7'))" 2>/dev/null || echo "#bb9af7")
+RAW_PRI="${PRI_HEX#\#}"
+INACTIVE_BORDER=$(python3 -c "s='$SEC_HEX'.lstrip('#'); sr,sg,sb=int(s[0:2],16),int(s[2:4],16),int(s[4:6],16); print(f'{int(sr*0.22):02x}{int(sg*0.22):02x}{int(sb*0.22):02x}')" 2>/dev/null || echo "292136")
+
 if command -v hyprctl &>/dev/null; then
+  hyprctl eval 'hl.env("QML_IMPORT_PATH", "'"${QML_OVERRIDE_DIR}"'")' >/dev/null 2>&1 || true
+  hyprctl eval 'hl.config({ general = { gaps_in = 0, gaps_out = 0, border_size = 2, col = { active_border = "rgb('"${RAW_PRI}"')", inactive_border = "rgb('"${INACTIVE_BORDER}"')" } }, decoration = { rounding = 0 } })' >/dev/null 2>&1 || true
   hyprctl reload >/dev/null 2>&1 || true
+fi
+if command -v systemctl &>/dev/null; then
+  systemctl --user set-environment QML_IMPORT_PATH="${QML_OVERRIDE_DIR}" 2>/dev/null || true
+  systemctl --user import-environment QML_IMPORT_PATH 2>/dev/null || true
 fi
 export QML_IMPORT_PATH="${QML_OVERRIDE_DIR}"
 echo -e "    ${GREEN}✓ Attached shelf drawers & drawer animations deployed${RESET}"

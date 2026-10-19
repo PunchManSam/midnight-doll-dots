@@ -439,6 +439,8 @@ echo -e "\n${VIOLET}[*] Deploying Theme & Scripts to ~/.config/omarchy/themes/mi
 THEME_DEST="${HOME}/.config/omarchy/themes/midnight-doll"
 mkdir -p "${THEME_DEST}/bin"
 cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${THEME_DEST}/"
+# Strip .git from theme dir so Omarchy never treats it as an untrusted git clone
+rm -rf "${THEME_DEST}/.git"
 rm -f "${THEME_DEST}/backgrounds/omarchy.webp" \
       "${THEME_DEST}/backgrounds/0-winding-road.webp" \
       "${THEME_DEST}/backgrounds/1-quattro.webp" \
@@ -475,15 +477,12 @@ for old_cfg in "sys-hud.sh" "cava.conf" "set-accent.sh" "launch-comms.sh" "midni
   rm -f "${HOME}/.config/omarchy/${old_cfg}"
 done
 
-
-
-
 # Apply customized accent & complimentary colors to theme configs
 echo -e "    ✓ Applying dual-tone color scheme (${CHOSEN_PRIMARY} / ${CHOSEN_SECONDARY}) to theme configs..."
-python3 - "${HOME}/.config/omarchy/themes/midnight-doll/colors.toml" \
-  "${HOME}/.config/omarchy/themes/midnight-doll/ghostty.conf" \
-  "${HOME}/.config/omarchy/themes/midnight-doll/kitty.conf" \
-  "${HOME}/.config/omarchy/themes/midnight-doll/hyprland.lua" \
+python3 - "${THEME_DEST}/colors.toml" \
+  "${THEME_DEST}/ghostty.conf" \
+  "${THEME_DEST}/kitty.conf" \
+  "${THEME_DEST}/hyprland.lua" \
   "${CHOSEN_PRIMARY}" \
   "${CHOSEN_SECONDARY}" << 'EOF'
 import sys, os, re
@@ -507,9 +506,9 @@ except Exception:
 
 raw_pri = pri_hex.lstrip('#')
 
-# 1. Update colors.toml
-if os.path.exists(colors_path):
-    with open(colors_path, 'r', encoding='utf-8') as f:
+def update_colors(p):
+    if not os.path.exists(p): return
+    with open(p, 'r', encoding='utf-8') as f:
         c = f.read()
     c = re.sub(r'^accent = "#[0-9a-fA-F]{6}"', f'accent = "{pri_hex}"', c, flags=re.MULTILINE)
     c = re.sub(r'^foreground = "#[0-9a-fA-F]{6}"', 'foreground = "#d0d0d0"', c, flags=re.MULTILINE)
@@ -520,23 +519,28 @@ if os.path.exists(colors_path):
     c = re.sub(r'^muted = "#[0-9a-fA-F]{6}"', f'muted = "{sec_hex}"', c, flags=re.MULTILINE)
     c = re.sub(r'^magenta = "#[0-9a-fA-F]{6}"', f'magenta = "{pri_hex}"', c, flags=re.MULTILINE)
     c = re.sub(r'^bright_magenta = "#[0-9a-fA-F]{6}"', f'bright_magenta = "{sec_hex}"', c, flags=re.MULTILINE)
-    with open(colors_path, 'w', encoding='utf-8') as f:
+    if 'hyprland_active_border' in c:
+        c = re.sub(r'^hyprland_active_border = ".*?"', f'hyprland_active_border = "rgb({raw_pri})"', c, flags=re.MULTILINE)
+        c = re.sub(r'^hyprland_inactive_border = ".*?"', f'hyprland_inactive_border = "rgb({inactive_border})"', c, flags=re.MULTILINE)
+    else:
+        c += f'\nhyprland_active_border = "rgb({raw_pri})"\nhyprland_inactive_border = "rgb({inactive_border})"\n'
+    with open(p, 'w', encoding='utf-8') as f:
         f.write(c)
 
-# 2. Update ghostty.conf
-if os.path.exists(ghostty_path):
-    with open(ghostty_path, 'r', encoding='utf-8') as f:
+def update_ghostty(p):
+    if not os.path.exists(p): return
+    with open(p, 'r', encoding='utf-8') as f:
         g = f.read()
     g = re.sub(r'^foreground = #[0-9a-fA-F]{6}', 'foreground = #d0d0d0', g, flags=re.MULTILINE)
     g = re.sub(r'^selection-background = #[0-9a-fA-F]{6}', f'selection-background = {sel_hex}', g, flags=re.MULTILINE)
     g = re.sub(r'^palette = 5=#[0-9a-fA-F]{6}', f'palette = 5={pri_hex}', g, flags=re.MULTILINE)
     g = re.sub(r'^palette = 13=#[0-9a-fA-F]{6}', f'palette = 13={sec_hex}', g, flags=re.MULTILINE)
-    with open(ghostty_path, 'w', encoding='utf-8') as f:
+    with open(p, 'w', encoding='utf-8') as f:
         f.write(g)
 
-# 3. Update kitty.conf
-if os.path.exists(kitty_path):
-    with open(kitty_path, 'r', encoding='utf-8') as f:
+def update_kitty(p):
+    if not os.path.exists(p): return
+    with open(p, 'r', encoding='utf-8') as f:
         k = f.read()
     k = re.sub(r'^foreground #[0-9a-fA-F]{6}', 'foreground #d0d0d0', k, flags=re.MULTILINE)
     k = re.sub(r'^selection_background #[0-9a-fA-F]{6}', f'selection_background {sel_hex}', k, flags=re.MULTILINE)
@@ -544,17 +548,30 @@ if os.path.exists(kitty_path):
     k = re.sub(r'^active_tab_background #[0-9a-fA-F]{6}', f'active_tab_background {pri_hex}', k, flags=re.MULTILINE)
     k = re.sub(r'^color5 #[0-9a-fA-F]{6}', f'color5 {pri_hex}', k, flags=re.MULTILINE)
     k = re.sub(r'^color13 #[0-9a-fA-F]{6}', f'color13 {sec_hex}', k, flags=re.MULTILINE)
-    with open(kitty_path, 'w', encoding='utf-8') as f:
+    with open(p, 'w', encoding='utf-8') as f:
         f.write(k)
 
-# 4. Update hyprland.lua
-if os.path.exists(hypr_path):
-    with open(hypr_path, 'r', encoding='utf-8') as f:
+def update_hypr(p):
+    if not os.path.exists(p): return
+    with open(p, 'r', encoding='utf-8') as f:
         h = f.read()
     h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({raw_pri})"', h)
     h = re.sub(r'inactive_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'inactive_border_color = "rgb({inactive_border})"', h)
-    with open(hypr_path, 'w', encoding='utf-8') as f:
+    if 'QML_IMPORT_PATH' not in h:
+        h = '-- Ensure Quickshell inherits QML_IMPORT_PATH for Midnight Doll\'s shelf drawer panels\nhl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "") .. "/.config/omarchy/themes/midnight-doll/qml")\n\n' + h
+    with open(p, 'w', encoding='utf-8') as f:
         f.write(h)
+
+update_colors(colors_path)
+update_ghostty(ghostty_path)
+update_kitty(kitty_path)
+update_hypr(hypr_path)
+
+home = os.path.expanduser("~")
+update_colors(os.path.join(home, ".local/state/omarchy/current/theme/colors.toml"))
+update_ghostty(os.path.join(home, ".local/state/omarchy/current/theme/ghostty.conf"))
+update_kitty(os.path.join(home, ".local/state/omarchy/current/theme/kitty.conf"))
+update_hypr(os.path.join(home, ".local/state/omarchy/current/theme/hyprland.lua"))
 EOF
 
 # Deploy user defaults to midnight-config.json
@@ -693,8 +710,16 @@ if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
   sed -i '/QML_IMPORT_PATH/d' "${HOME}/.config/hypr/autostart.lua"
   sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "'"${HOME}"'") .. "/.config/omarchy/themes/midnight-doll/qml")' "${HOME}/.config/hypr/autostart.lua"
 fi
+
+# Live Hyprland & systemd environment and 0-margin border injection
 if command -v hyprctl &>/dev/null; then
+  hyprctl eval 'hl.env("QML_IMPORT_PATH", "'"${QML_OVERRIDE_DIR}"'")' >/dev/null 2>&1 || true
+  hyprctl eval 'hl.config({ general = { gaps_in = 0, gaps_out = 0, border_size = 2, col = { active_border = "rgb('"${raw_pri}"')", inactive_border = "rgb('"${inactive_border}"')" } }, decoration = { rounding = 0 } })' >/dev/null 2>&1 || true
   hyprctl reload >/dev/null 2>&1 || true
+fi
+if command -v systemctl &>/dev/null; then
+  systemctl --user set-environment QML_IMPORT_PATH="${QML_OVERRIDE_DIR}" 2>/dev/null || true
+  systemctl --user import-environment QML_IMPORT_PATH 2>/dev/null || true
 fi
 export QML_IMPORT_PATH="${QML_OVERRIDE_DIR}"
 

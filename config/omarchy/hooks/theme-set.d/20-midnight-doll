@@ -14,15 +14,37 @@ NORM_THEME="$(echo "$NEW_THEME" | tr '[:upper:]' '[:lower:]' | tr -d ' -_')"
 
 if [[ "$NORM_THEME" == "midnightdoll" ]]; then
   # Switching to Midnight Doll: activate bar, modular plugins, and scoped QML path
+  QML_DIR="$HOME/.config/omarchy/themes/midnight-doll/qml"
   mkdir -p "$HOME/.config/environment.d"
-  echo "QML_IMPORT_PATH=$HOME/.config/omarchy/themes/midnight-doll/qml" > "$HOME/.config/environment.d/qml.conf"
+  echo "QML_IMPORT_PATH=$QML_DIR" > "$HOME/.config/environment.d/qml.conf"
   if [ -f "$HOME/.config/hypr/autostart.lua" ]; then
     sed -i '/QML_IMPORT_PATH/d' "$HOME/.config/hypr/autostart.lua"
     sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "") .. "/.config/omarchy/themes/midnight-doll/qml")' "$HOME/.config/hypr/autostart.lua"
   fi
   if command -v hyprctl &>/dev/null; then
+    hyprctl eval 'hl.env("QML_IMPORT_PATH", "'"$QML_DIR"'")' >/dev/null 2>&1 || true
+  fi
+  if command -v systemctl &>/dev/null; then
+    systemctl --user set-environment QML_IMPORT_PATH="$QML_DIR" 2>/dev/null || true
+    systemctl --user import-environment QML_IMPORT_PATH 2>/dev/null || true
+  fi
+
+  # Apply Hyprland zero margins & border colors live
+  CFG_FILE="$HOME/.config/omarchy/themes/midnight-doll/midnight-config.json"
+  PRI_HEX="#ff51c5"
+  SEC_HEX="#bb9af7"
+  if [ -f "$CFG_FILE" ]; then
+    PRI_HEX=$(python3 -c "import json; print(json.load(open('$CFG_FILE')).get('primaryAccent', '#ff51c5'))" 2>/dev/null || echo "#ff51c5")
+    SEC_HEX=$(python3 -c "import json; print(json.load(open('$CFG_FILE')).get('secondaryAccent', '#bb9af7'))" 2>/dev/null || echo "#bb9af7")
+  fi
+  RAW_PRI="${PRI_HEX#\#}"
+  INACTIVE_BORDER=$(python3 -c "s='$SEC_HEX'.lstrip('#'); sr,sg,sb=int(s[0:2],16),int(s[2:4],16),int(s[4:6],16); print(f'{int(sr*0.22):02x}{int(sg*0.22):02x}{int(sb*0.22):02x}')" 2>/dev/null || echo "292136")
+
+  if command -v hyprctl &>/dev/null; then
+    hyprctl eval 'hl.config({ general = { gaps_in = 0, gaps_out = 0, border_size = 2, col = { active_border = "rgb('"${RAW_PRI}"')", inactive_border = "rgb('"${INACTIVE_BORDER}"')" } }, decoration = { rounding = 0 } })' >/dev/null 2>&1 || true
     hyprctl reload >/dev/null 2>&1 || true
   fi
+
   if command -v omarchy &>/dev/null; then
     CURRENT_BAR=$(python3 -c "import json; data=json.load(open('$HOME/.config/omarchy/shell.json')); print(data.get('bar', {}).get('id', ''))" 2>/dev/null || true)
     if [[ "$CURRENT_BAR" != "midnight-doll.bar" ]]; then
@@ -41,7 +63,11 @@ else
     sed -i '/QML_IMPORT_PATH/d' "$HOME/.config/hypr/autostart.lua"
   fi
   if command -v hyprctl &>/dev/null; then
+    hyprctl eval 'hl.env("QML_IMPORT_PATH", "")' >/dev/null 2>&1 || true
     hyprctl reload >/dev/null 2>&1 || true
+  fi
+  if command -v systemctl &>/dev/null; then
+    systemctl --user unset-environment QML_IMPORT_PATH 2>/dev/null || true
   fi
   if command -v omarchy &>/dev/null; then
     CURRENT_BAR=$(python3 -c "import json; data=json.load(open('$HOME/.config/omarchy/shell.json')); print(data.get('bar', {}).get('id', ''))" 2>/dev/null || true)

@@ -1,3 +1,6 @@
+-- Ensure Quickshell inherits QML_IMPORT_PATH for Midnight Doll's shelf drawer panels
+hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "") .. "/.config/omarchy/themes/midnight-doll/qml")
+
 local active_border_color = "rgb(ff51c5)"
 local inactive_border_color = "rgb(292136)"
 
