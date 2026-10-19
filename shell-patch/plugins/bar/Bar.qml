@@ -2058,28 +2058,28 @@ Item {
     function close() {
       root.midnightThemeCenterOpen = false
     }
-    function setOpacity(val) {
+    function setOpacity(val: real) {
       root.setBarOpacity(Number(val))
     }
-    function setTab(idx) {
+    function setTab(idx: int) {
       if (themeCenterFloatingWindow) themeCenterFloatingWindow.activeTab = Number(idx)
     }
-    function setIcon(glyph) {
+    function setIcon(glyph: string) {
       root.saveHudBranding(String(glyph))
     }
-    function setIconColor(colorMode) {
+    function setIconColor(colorMode: string) {
       root.saveHudBranding(undefined, String(colorMode))
     }
-    function setTitle(title) {
+    function setTitle(title: string) {
       root.saveHudBranding(undefined, undefined, String(title))
     }
-    function setTitleColor(colorMode) {
+    function setTitleColor(colorMode: string) {
       root.saveHudBranding(undefined, undefined, undefined, String(colorMode))
     }
-    function setSubtitle(sub) {
+    function setSubtitle(sub: string) {
       root.saveHudBranding(undefined, undefined, undefined, undefined, String(sub))
     }
-    function setSubtitleColor(colorMode) {
+    function setSubtitleColor(colorMode: string) {
       root.saveHudBranding(undefined, undefined, undefined, undefined, undefined, String(colorMode))
     }
     function resetBranding() {
