@@ -33,6 +33,15 @@ echo -e "${RESET}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
 DOTS_DIR=""
 TEMP_CLONE=""
+SYNC_WALLPAPERS=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --force-wallpapers|--sync-wallpapers)
+      SYNC_WALLPAPERS=true
+      ;;
+  esac
+done
 
 # Determine source repository directory
 if [ -n "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR/config/omarchy/themes/midnight-doll" ]; then
@@ -100,6 +109,13 @@ elif [ -f "${OMARCHY_DIR}/midnight-config.json" ]; then
   USER_CONFIG="${OMARCHY_DIR}/midnight-config.json"
 fi
 
+# Preserve user wallpapers if present in theme dir
+if [ -d "${THEME_DIR}/backgrounds" ]; then
+  mkdir -p "${BACKUP_DIR}/backgrounds"
+  cp -r "${THEME_DIR}/backgrounds/"* "${BACKUP_DIR}/backgrounds/" 2>/dev/null || true
+  echo -e "    ${GREEN}✓ Preserved existing wallpapers in backup${RESET}"
+fi
+
 if [ -f "${OMARCHY_DIR}/shell.json" ]; then
   cp "${OMARCHY_DIR}/shell.json" "${BACKUP_DIR}/"
 fi
@@ -108,11 +124,36 @@ echo -e "    ${GREEN}✓ Backup created at:${RESET} ${BACKUP_DIR}"
 echo -e "\n${VIOLET}[*] Step 2: Deploying centralized theme directory & binaries...${RESET}"
 mkdir -p "${THEME_DIR}/bin"
 
-## Deploy theme configs
-cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${THEME_DIR}/"
+## Deploy theme configs (preserving existing wallpapers unless missing or --force-wallpapers specified)
+for item in "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"*; do
+  base="$(basename "$item")"
+  if [ "$base" = "backgrounds" ]; then
+    if [ "$SYNC_WALLPAPERS" = true ]; then
+      echo -e "    ${CYAN}• Force-syncing wallpapers from repository...${RESET}"
+      mkdir -p "${THEME_DIR}/backgrounds"
+      cp -r "$item/"* "${THEME_DIR}/backgrounds/"
+    elif [ ! -d "${THEME_DIR}/backgrounds" ] || [ -z "$(ls -A "${THEME_DIR}/backgrounds" 2>/dev/null)" ]; then
+      echo -e "    ${CYAN}• Deploying initial bundled wallpapers...${RESET}"
+      mkdir -p "${THEME_DIR}/backgrounds"
+      cp -r "$item/"* "${THEME_DIR}/backgrounds/"
+    else
+      echo -e "    ${CYAN}• Preserving existing wallpapers in ${THEME_DIR}/backgrounds/ (skipping re-copy)${RESET}"
+    fi
+  else
+    cp -r "$item" "${THEME_DIR}/"
+  fi
+done
 chmod +x "${THEME_DIR}/bin/"* 2>/dev/null || true
 # Strip .git from theme dir so Omarchy never treats it as an untrusted git clone
 rm -rf "${THEME_DIR}/.git"
+
+# Restore any custom wallpapers from backup if they were present
+if [ -d "${BACKUP_DIR}/backgrounds" ]; then
+  cp -rn "${BACKUP_DIR}/backgrounds/"* "${THEME_DIR}/backgrounds/" 2>/dev/null || true
+fi
+
+# Ensure user background folder exists for Omarchy
+mkdir -p "${OMARCHY_DIR}/backgrounds/midnight-doll"
 
 # Restore user shortcuts if backed up
 if [ -f "${BACKUP_DIR}/midnight-shortcuts.json" ]; then
@@ -346,4 +387,7 @@ fi
 echo -e "\n${GREEN}${BOLD}✓ Midnight-Doll successfully updated to the latest isolated architecture!${RESET}"
 echo -e "    ${PINK}• Architecture:${RESET} 100% theme-isolated; zero root config pollution"
 echo -e "    ${PINK}• Updates:${RESET}      System packages ('omarchy update') remain 100% safe"
-echo -e "    ${PINK}• Switching:${RESET}    Switching themes automatically resets to stock Omarchy bar\n"
+echo -e "    ${PINK}• Switching:${RESET}    Switching themes automatically resets to stock Omarchy bar"
+echo -e "    ${PINK}• Wallpapers:${RESET}   Preserved existing wallpapers; custom wallpapers go in:"
+echo -e "                    ${CYAN}~/.config/omarchy/backgrounds/midnight-doll/${RESET}"
+echo -e "                    (Run 'omarchy theme bg install' to open folder)\n"

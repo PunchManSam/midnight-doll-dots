@@ -438,6 +438,7 @@ MANIFEST
 echo -e "\n${VIOLET}[*] Deploying Theme & Scripts to ~/.config/omarchy/themes/midnight-doll/...${RESET}"
 THEME_DEST="${HOME}/.config/omarchy/themes/midnight-doll"
 mkdir -p "${THEME_DEST}/bin"
+mkdir -p "${HOME}/.config/omarchy/backgrounds/midnight-doll"
 cp -r "${DOTS_DIR}/config/omarchy/themes/midnight-doll/"* "${THEME_DEST}/"
 # Strip .git from theme dir so Omarchy never treats it as an untrusted git clone
 rm -rf "${THEME_DEST}/.git"
@@ -450,6 +451,11 @@ rm -f "${THEME_DEST}/backgrounds/omarchy.webp" \
       "${THEME_DEST}/backgrounds/5-oma-cityscape.jpg" \
       "${THEME_DEST}/backgrounds/6-oma.webp" \
       "${THEME_DEST}/shell.lock.toml"
+
+# Merge back any previously existing user wallpapers from backup
+if [ -d "${BACKUP_DIR}/existing-midnight-doll/backgrounds" ]; then
+  cp -rn "${BACKUP_DIR}/existing-midnight-doll/backgrounds/"* "${THEME_DEST}/backgrounds/" 2>/dev/null || true
+fi
 
 # Filter blocked shortcuts if shortcuts file exists
 if [ -f "${THEME_DEST}/midnight-shortcuts.json" ]; then
