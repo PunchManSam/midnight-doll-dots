@@ -37,6 +37,7 @@ Item {
   }
 
   property string home: Quickshell.env("HOME")
+  readonly property string midnightThemeDir: root.home + "/.config/omarchy/themes/midnight-doll"
   function triggerFullscreenSync() {
     var ws = Hyprland.focusedWorkspace
     var fs = ws ? Boolean(ws.hasFullscreen) : false
