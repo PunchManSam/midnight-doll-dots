@@ -1893,21 +1893,61 @@ Item {
   // changes land in quick succession, stranding the bar off screen until the
   // shell restarts. `omarchy-toggle-bar` nudges this after flipping the flag
   // so the probe re-reads it even when the watch has gone quiet.
-  ShellIpc {
+  IpcHandler {
+    id: omarchyBarIpc
     target: "omarchy.bar"
+
+    Component.onCompleted: {
+      try {
+        if (typeof Commons !== "undefined" && Commons.IpcRegistry) {
+          Commons.IpcRegistry.register(omarchyBarIpc)
+        } else if (typeof IpcRegistry !== "undefined") {
+          IpcRegistry.register(omarchyBarIpc)
+        }
+      } catch (e) {}
+    }
+    Component.onDestruction: {
+      try {
+        if (typeof Commons !== "undefined" && Commons.IpcRegistry) {
+          Commons.IpcRegistry.unregister(omarchyBarIpc)
+        } else if (typeof IpcRegistry !== "undefined") {
+          IpcRegistry.unregister(omarchyBarIpc)
+        }
+      } catch (e) {}
+    }
 
     // Start rather than restart: a probe already in flight was launched by the
     // directory watch after the flag flipped, so its answer is current, and
     // killing it here can swallow the result entirely.
-    function syncHidden(): void {
+    function syncHidden() {
       barHiddenProbe.running = true
     }
   }
 
-  ShellIpc {
+  IpcHandler {
+    id: midnightDollBarIpc
     target: "midnight-doll.bar"
 
-    function toggleTransparency(): void {
+    Component.onCompleted: {
+      try {
+        if (typeof Commons !== "undefined" && Commons.IpcRegistry) {
+          Commons.IpcRegistry.register(midnightDollBarIpc)
+        } else if (typeof IpcRegistry !== "undefined") {
+          IpcRegistry.register(midnightDollBarIpc)
+        }
+      } catch (e) {}
+    }
+    Component.onDestruction: {
+      try {
+        if (typeof Commons !== "undefined" && Commons.IpcRegistry) {
+          Commons.IpcRegistry.unregister(midnightDollBarIpc)
+        } else if (typeof IpcRegistry !== "undefined") {
+          IpcRegistry.unregister(midnightDollBarIpc)
+        }
+      } catch (e) {}
+    }
+
+    function toggleTransparency() {
       root.toggleTransparency()
     }
 
@@ -2033,8 +2073,28 @@ Item {
     }
   }
 
-  Commons.ShellIpc {
+  IpcHandler {
+    id: controlCenterIpc
     target: "midnight-doll.control-center"
+
+    Component.onCompleted: {
+      try {
+        if (typeof Commons !== "undefined" && Commons.IpcRegistry) {
+          Commons.IpcRegistry.register(controlCenterIpc)
+        } else if (typeof IpcRegistry !== "undefined") {
+          IpcRegistry.register(controlCenterIpc)
+        }
+      } catch (e) {}
+    }
+    Component.onDestruction: {
+      try {
+        if (typeof Commons !== "undefined" && Commons.IpcRegistry) {
+          Commons.IpcRegistry.unregister(controlCenterIpc)
+        } else if (typeof IpcRegistry !== "undefined") {
+          IpcRegistry.unregister(controlCenterIpc)
+        }
+      } catch (e) {}
+    }
     function toggle() {
       root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
     }

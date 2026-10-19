@@ -546,10 +546,7 @@ OMARCHY_SYS_PLUGINS="${OMARCHY_PATH:-/usr/share/omarchy}/shell/plugins"
 # 1. Bar plugin (Dual-bar HUD, CAVA visualizer, live telemetry)
 mkdir -p "${PLUGINS_DIR}/midnight-doll.bar"
 rm -rf "${PLUGINS_DIR}/midnight-doll.bar/widgets" "${PLUGINS_DIR}/midnight-doll.bar/indicators"
-cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.bar/"
-if [ -f "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" ]; then
-  cp "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" "${PLUGINS_DIR}/midnight-doll.bar/"
-fi
+cp -r "${DOTS_DIR}/shell-patch/plugins/bar/"* "${PLUGINS_DIR}/midnight-doll.bar/"
 python3 - "${PLUGINS_DIR}/midnight-doll.bar/Bar.qml" "${HUD_TITLE}" "${HUD_SUBTITLE}" "${HUD_CMD}" "${CHOSEN_SECONDARY}" "${MENU_GLYPH}" << 'EOF'
 import sys, re
 target_bar, title, subtitle, cmd, sec_color, glyph = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]

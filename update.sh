@@ -151,10 +151,7 @@ echo -e "    ${GREEN}✓ Installed lifecycle hook at:${RESET} ${HOOKS_DIR}/20-mi
 echo -e "\n${VIOLET}[*] Step 6: Updating Midnight-Doll Cyberdeck plugins...${RESET}"
 # 1. Bar plugin
 mkdir -p "${PLUGINS_DIR}/midnight-doll.bar"
-cp "${DOTS_DIR}/shell-patch/plugins/bar/Bar.qml" "${PLUGINS_DIR}/midnight-doll.bar/"
-if [ -f "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" ]; then
-  cp "${DOTS_DIR}/shell-patch/plugins/bar/BarModel.js" "${PLUGINS_DIR}/midnight-doll.bar/"
-fi
+cp -r "${DOTS_DIR}/shell-patch/plugins/bar/"* "${PLUGINS_DIR}/midnight-doll.bar/"
 
 # 2. Sys-hud plugin
 mkdir -p "${PLUGINS_DIR}/midnight-doll.sys-hud"
