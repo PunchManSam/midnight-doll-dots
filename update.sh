@@ -145,7 +145,11 @@ if [ -d "/usr/share/omarchy/shell/Ui" ]; then
     fi
   done
 fi
-cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
+if [ -f "/usr/share/omarchy/shell/Ui/qmldir" ]; then
+  cp "/usr/share/omarchy/shell/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/qmldir"
+else
+  cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
+fi
 cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/KeyboardPanel.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
 cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/PopupCard.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
 
@@ -196,6 +200,43 @@ if [ -f "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" ]; then
   mkdir -p "${HOME}/.local/bin"
   cp "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" "${HOME}/.local/bin/"
   chmod +x "${HOME}/.local/bin/omarchy-fullscreen-bar-sync"
+fi
+
+# 5. Safe layout synchronization in shell.json
+if [ -f "${HOME}/.config/omarchy/shell.json" ]; then
+  python3 - "${HOME}/.config/omarchy/shell.json" << 'EOF'
+import sys, json
+
+shell_path = sys.argv[1]
+try:
+    with open(shell_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    bar = data.setdefault("bar", {})
+    layout = bar.setdefault("layout", {})
+
+    def get_id(item):
+        if isinstance(item, dict): return item.get("id", "")
+        return str(item) if item else ""
+
+    raw_mr = layout.get("midnightRight")
+    if not isinstance(raw_mr, list) or not raw_mr:
+        layout["midnightRight"] = [
+            {"id": "midnight-doll.sys-hud"},
+            {"id": "midnight-doll.visualizer"}
+        ]
+    plugins = data.setdefault("plugins", [])
+    seen_plugins = {get_id(p) for p in plugins}
+    for req_p in ["midnight-doll.notifications", "midnight-doll.sys-hud", "midnight-doll.visualizer"]:
+        if req_p not in seen_plugins:
+            plugins.append({"id": req_p})
+            seen_plugins.add(req_p)
+
+    with open(shell_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+except Exception:
+    pass
+EOF
 fi
 
 echo -e "\n${VIOLET}[*] Step 7: Rescanning plugins and hot-reloading shell...${RESET}"

@@ -628,7 +628,11 @@ if [ -d "/usr/share/omarchy/shell/Ui" ]; then
     fi
   done
 fi
-cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
+if [ -f "/usr/share/omarchy/shell/Ui/qmldir" ]; then
+  cp "/usr/share/omarchy/shell/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/qmldir"
+else
+  cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
+fi
 cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/KeyboardPanel.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
 cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/PopupCard.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
 

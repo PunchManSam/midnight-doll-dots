@@ -2739,7 +2739,7 @@ Item {
             spacing: 6
 
             Button {
-              text: "󰚌 HUD BRANDING"
+              text: "󰚌 BRANDING"
               fontFamily: root.fontFamily
               accent: Commons.Color.accent
               bordered: true
@@ -2749,7 +2749,7 @@ Item {
             }
 
             Button {
-              text: "󰏘 ACCENTS & PALETTE"
+              text: "󰏘 ACCENTS"
               fontFamily: root.fontFamily
               accent: Commons.Color.accent
               bordered: true
@@ -2759,7 +2759,7 @@ Item {
             }
 
             Button {
-              text: "󰍹 BAR & LAYOUT"
+              text: "󰍹 LAYOUT"
               fontFamily: root.fontFamily
               accent: Commons.Color.accent
               bordered: true
@@ -2769,13 +2769,23 @@ Item {
             }
 
             Button {
-              text: "󰒓 WIDGETS & CONTENT"
+              text: "󰒓 WIDGETS"
               fontFamily: root.fontFamily
               accent: Commons.Color.accent
               bordered: true
               selected: modalContainer.activeTab === 3
               Layout.fillWidth: true
               onClicked: modalContainer.activeTab = 3
+            }
+
+            Button {
+              text: "󰈙 QUICK LINKS"
+              fontFamily: root.fontFamily
+              accent: Commons.Color.accent
+              bordered: true
+              selected: modalContainer.activeTab === 4
+              Layout.fillWidth: true
+              onClicked: modalContainer.activeTab = 4
             }
           }
 
@@ -3958,6 +3968,158 @@ Item {
               }
             }
           }
+
+          // TAB 4: QUICK LINKS & CONFIG EDITORS
+          ColumnLayout {
+            anchors.fill: parent
+            visible: modalContainer.activeTab === 4
+            spacing: 8
+
+            RowLayout {
+              Layout.fillWidth: true
+              Text {
+                text: "CONFIGURATION FILES & SHORTCUT EDITORS"
+                font.family: root.fontFamily
+                font.bold: true
+                font.pixelSize: Style.font.caption
+                color: Commons.Color.accent
+                Layout.fillWidth: true
+              }
+            }
+
+            Text {
+              text: "Quickly open any theme, shortcut, keybinding, or Omarchy system config file in your default editor."
+              font.family: root.fontFamily
+              font.pixelSize: 10
+              color: Qt.rgba(1, 1, 1, 0.5)
+            }
+
+            ListView {
+              id: linksListView
+              Layout.fillWidth: true
+              Layout.fillHeight: true
+              clip: true
+              spacing: 6
+
+              model: [
+                {
+                  title: "Side Rail Launcher Shortcuts",
+                  desc: "Interactive visual shortcuts and custom app launchers on the vertical dock.",
+                  path: root.midnightThemeDir + "/midnight-shortcuts.json",
+                  hasVisual: true
+                },
+                {
+                  title: "Midnight Doll Theme Settings",
+                  desc: "Theme configuration JSON (branding glyphs, opacity, side rail position).",
+                  path: root.midnightThemeDir + "/midnight-config.json"
+                },
+                {
+                  title: "Theme Colors & Palette",
+                  desc: "Tokyo Night / Cyberdeck color values, foreground, and accent specifications.",
+                  path: root.midnightThemeDir + "/colors.toml"
+                },
+                {
+                  title: "Hyprland Theme Rules & Borders",
+                  desc: "Window border colors, gaps, rounding, and theme-specific layer rules.",
+                  path: root.midnightThemeDir + "/hyprland.lua"
+                },
+                {
+                  title: "Audio Visualizer (CAVA) Settings",
+                  desc: "Bar count, framerate, gradient colors, and audio sensitivity parameters.",
+                  path: root.midnightThemeDir + "/cava.conf"
+                },
+                {
+                  title: "System Telemetry Fetcher Script",
+                  desc: "Bash script reporting live CPU, Fan RPM, RAM, Disk, and socket connections.",
+                  path: root.midnightThemeDir + "/bin/sys-hud.sh"
+                },
+                {
+                  title: "Omarchy Status Bar Layout",
+                  desc: "Central shell configuration managing active plugins, widgets, and idle timers.",
+                  path: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
+                },
+                {
+                  title: "Hyprland User Keybindings",
+                  desc: "Custom user hotkeys, application bindings, and workspace navigation rules.",
+                  path: Quickshell.env("HOME") + "/.config/hypr/bindings.lua"
+                },
+                {
+                  title: "Omarchy Menu Extensions",
+                  desc: "Custom user categories, commands, and launcher shortcuts in the Omarchy menu.",
+                  path: Quickshell.env("HOME") + "/.config/omarchy/extensions/omarchy-menu.jsonc"
+                }
+              ]
+
+              delegate: Rectangle {
+                required property var modelData
+                required property int index
+
+                width: linksListView.width
+                height: 48
+                color: linkHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : (index % 2 === 0 ? Qt.rgba(1, 1, 1, 0.03) : "transparent")
+                border.color: linkHover.hovered ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.12)
+                border.width: 1
+
+                HoverHandler { id: linkHover }
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.margins: 8
+                  spacing: 10
+
+                  Text {
+                    text: "󰈙"
+                    font.family: root.fontFamily
+                    font.pixelSize: 18
+                    color: linkHover.hovered ? Commons.Color.accent : root.secondaryColor
+                  }
+
+                  ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    Text {
+                      text: modelData.title
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 11
+                      color: Commons.Color.foreground
+                    }
+
+                    Text {
+                      text: modelData.desc
+                      font.family: root.fontFamily
+                      font.pixelSize: 9
+                      color: Qt.rgba(1, 1, 1, 0.5)
+                      elide: Text.ElideRight
+                      Layout.fillWidth: true
+                    }
+                  }
+
+                  Button {
+                    visible: !!modelData.hasVisual
+                    text: "󰐕 VISUAL"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: Commons.Color.accent
+                    Layout.preferredHeight: 26
+                    onClicked: root.midnightShortcutEditorOpen = true
+                  }
+
+                  Button {
+                    text: "󰏫 EDIT FILE"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: root.secondaryColor
+                    Layout.preferredHeight: 26
+                    onClicked: root.run("omarchy-launch-editor " + modelData.path)
+                  }
+                }
+              }
+            }
+          }
         }
 
         // 4. Bottom Footer Bar
@@ -4379,6 +4541,22 @@ Item {
         z: -1
       }
 
+      MouseArea {
+        id: topBarRightClickArea
+        anchors.left: parent.left
+        anchors.right: parent.right
+        y: root.position === "bottom" ? (parent.height - root.barSize) : 0
+        height: root.barSize
+        acceptedButtons: Qt.RightButton
+        z: 0
+        cursorShape: Qt.ArrowCursor
+        onClicked: function(mouse) {
+          if (mouse.button === Qt.RightButton) {
+            root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
+          }
+        }
+      }
+
       Item {
         id: midnightCornerFillet
         x: (root.sideBarPosition === "right") ? (barWindow.width - 34 - (root.midnightCornerRadius + 6)) : 34
@@ -4720,6 +4898,18 @@ Item {
       Item {
         anchors.fill: parent
 
+        MouseArea {
+          anchors.fill: parent
+          acceptedButtons: Qt.RightButton
+          cursorShape: Qt.ArrowCursor
+          z: -1
+          onClicked: function(mouse) {
+            if (mouse.button === Qt.RightButton) {
+              root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
+            }
+          }
+        }
+
         CenterModules { anchors.fill: parent }
 
         Row {
@@ -4749,6 +4939,18 @@ Item {
 
       Item {
         anchors.fill: parent
+
+        MouseArea {
+          anchors.fill: parent
+          acceptedButtons: Qt.RightButton
+          cursorShape: Qt.ArrowCursor
+          z: -1
+          onClicked: function(mouse) {
+            if (mouse.button === Qt.RightButton) {
+              root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
+            }
+          }
+        }
 
         CenterModules { anchors.fill: parent }
 
