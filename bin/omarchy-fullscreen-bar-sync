@@ -81,25 +81,17 @@ def get_fullscreen_window_on_active_ws(clients, active_ws, active_win=None):
     # 1. Prefer active_win if it is on the active workspace and has fullscreen active
     if active_win and active_win.get("workspace", {}).get("id") == ws_id:
         fs = active_win.get("fullscreen", 0)
-        if fs > 0:
+        fsc = active_win.get("fullscreenClient", 0)
+        if fs > 0 or fsc > 0:
             return active_win
 
     # 2. Check all clients on active workspace with fullscreen active
     for c in clients:
         if c.get("workspace", {}).get("id") == ws_id:
             fs = c.get("fullscreen", 0)
-            if fs > 0:
+            fsc = c.get("fullscreenClient", 0)
+            if fs > 0 or fsc > 0:
                 return c
-
-    # 3. If Hyprland reports workspace hasfullscreen == True, check fullscreenClient fallback
-    if active_ws.get("hasfullscreen", False):
-        if active_win and active_win.get("workspace", {}).get("id") == ws_id:
-            if active_win.get("fullscreenClient", 0) > 0:
-                return active_win
-        for c in clients:
-            if c.get("workspace", {}).get("id") == ws_id:
-                if c.get("fullscreenClient", 0) > 0:
-                    return c
 
     return None
 
@@ -135,13 +127,11 @@ def sync():
         is_overridden = (addr in manual_windows) or (ws_id in manual_workspaces)
 
         if is_overridden:
-            # Workspace or window has manual override to show bars over fullscreen
             manual_windows.add(addr)
             if ws_id is not None:
                 manual_workspaces.add(ws_id)
             state["manual_override_windows"] = list(manual_windows)
             state["manual_override_workspaces"] = list(manual_workspaces)
-            state["auto_hidden"] = False
             save_fs_state(state)
 
             if is_bar_hidden():
@@ -150,96 +140,21 @@ def sync():
             if fs != 1:
                 run_dispatch(f"hl.dsp.window.fullscreen_state({{ window = 'address:{addr}', internal = 1, client = 2 }})")
         else:
-            # Default behavior: fullscreen hides bars!
-            if not is_bar_hidden():
-                state["auto_hidden"] = True
-                save_fs_state(state)
-                set_bar_hidden(True)
-            else:
-                save_fs_state(state)
-
-            if fs != 2:
-                run_dispatch(f"hl.dsp.window.fullscreen_state({{ window = 'address:{addr}', internal = 2, client = 2 }})")
+            save_fs_state(state)
     else:
-        # No fullscreen window on the active workspace
         if ws_id is not None and ws_id in manual_workspaces:
             manual_workspaces.discard(ws_id)
             state["manual_override_workspaces"] = list(manual_workspaces)
 
-        was_auto_hidden = state.get("auto_hidden", False)
         desktop_hidden = state.get("desktop_bar_hidden", False)
-        state["auto_hidden"] = False
         save_fs_state(state)
-        # Restore bars only if they were auto-hidden by fullscreen and not explicitly hidden on desktop
-        if was_auto_hidden and not desktop_hidden and is_bar_hidden():
+        # Restore bars if they were not explicitly hidden on desktop
+        if not desktop_hidden and is_bar_hidden():
             set_bar_hidden(False)
 
 def toggle_window():
-    clients, active_ws, active_win = get_active_workspace_and_windows()
-    fs_win = get_fullscreen_window_on_active_ws(clients, active_ws, active_win)
-    ws_id = active_ws.get("id") if active_ws else None
-
-    state = load_fs_state()
-    manual_windows = set(state.get("manual_override_windows", []))
-    manual_workspaces = {
-        int(w) for w in state.get("manual_override_workspaces", [])
-        if isinstance(w, int) or (isinstance(w, str) and w.isdigit())
-    }
-
-    if fs_win:
-        # A window is already fullscreen on this workspace -> EXIT fullscreen!
-        addr = fs_win.get("address")
-        if ws_id is not None:
-            manual_workspaces.discard(ws_id)
-            ws_addrs = {c.get("address") for c in clients if c.get("workspace", {}).get("id") == ws_id}
-            manual_windows.difference_update(ws_addrs)
-        if addr in manual_windows:
-            manual_windows.remove(addr)
-
-        state["manual_override_windows"] = list(manual_windows)
-        state["manual_override_workspaces"] = list(manual_workspaces)
-
-        was_auto_hidden = state.get("auto_hidden", False)
-        desktop_hidden = state.get("desktop_bar_hidden", False)
-        state["auto_hidden"] = False
-        state["fullscreen_active"] = False
-        state["fullscreen_address"] = ""
-        state["fullscreen_title"] = ""
-        state["fullscreen_workspace"] = ws_id
-        save_fs_state(state)
-
-        run_dispatch(f"hl.dsp.window.fullscreen_state({{ window = 'address:{addr}', internal = 0, client = 0 }})")
-
-        # Restore bars if they were auto-hidden by fullscreen and not explicitly hidden on desktop
-        if was_auto_hidden and not desktop_hidden and is_bar_hidden():
-            set_bar_hidden(False)
-    else:
-        # No window is fullscreen on this workspace -> ENTER fullscreen on active_win!
-        if not active_win or not active_win.get("address"):
-            return
-        addr = active_win.get("address")
-
-        if ws_id is not None:
-            manual_workspaces.discard(ws_id)
-        if addr in manual_windows:
-            manual_windows.remove(addr)
-        state["manual_override_windows"] = list(manual_windows)
-        state["manual_override_workspaces"] = list(manual_workspaces)
-
-        already_hidden = is_bar_hidden()
-        state["desktop_bar_hidden"] = already_hidden
-        state["auto_hidden"] = not already_hidden
-        state["fullscreen_active"] = True
-        state["fullscreen_address"] = addr
-        state["fullscreen_title"] = active_win.get("title", "")
-        state["fullscreen_workspace"] = ws_id
-        save_fs_state(state)
-
-        if not already_hidden:
-            set_bar_hidden(True)
-
-        # Full edge-to-edge
-        run_dispatch(f"hl.dsp.window.fullscreen_state({{ window = 'address:{addr}', internal = 2, client = 2 }})")
+    # Direct native toggle on active window - zero focus shifting
+    run_dispatch("hl.dsp.window.fullscreen({ mode = 'fullscreen' })")
 
 def toggle_bar():
     clients, active_ws, active_win = get_active_workspace_and_windows()
@@ -259,7 +174,6 @@ def toggle_bar():
     state["fullscreen_address"] = fs_win.get("address", "") if fs_win else ""
     state["fullscreen_title"] = fs_win.get("title", "") if fs_win else ""
     state["fullscreen_workspace"] = ws_id
-    state["auto_hidden"] = False
 
     if fs_win:
         addr = fs_win.get("address", "")
