@@ -2511,9 +2511,9 @@ Item {
     id: themeCenterWindow
     title: "Midnight Doll // Control Center"
     color: "#050505"
-    implicitWidth: 760
-    implicitHeight: 680
-    minimumSize: Qt.size(680, 580)
+    implicitWidth: 800
+    implicitHeight: 700
+    minimumSize: Qt.size(760, 600)
     visible: root.isMidnightDoll && root.midnightThemeCenterOpen
     property alias activeTab: modalContainer.activeTab
 
@@ -2951,7 +2951,7 @@ Item {
 
               // Live HUD badge
               Rectangle {
-                width: 96
+                width: 76
                 height: 22
                 color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.15)
                 border.color: Commons.Color.accent
@@ -2959,7 +2959,7 @@ Item {
 
                 Text {
                   anchors.centerIn: parent
-                  text: "LIVE HUD STRIP"
+                  text: "LIVE STRIP"
                   font.family: root.fontFamily
                   font.bold: true
                   font.pixelSize: 9
@@ -3022,7 +3022,7 @@ Item {
             }
 
             Button {
-              text: "󰘚 USAGE METERS"
+              text: "󰘚 METERS"
               fontFamily: root.fontFamily
               accent: Commons.Color.accent
               bordered: true
@@ -4308,7 +4308,7 @@ Item {
             }
 
             Text {
-              text: "Manage which hardware sensors and communication metrics are rendered in the live status bar."
+              text: "Configure live telemetry meters rendered in the status bar. Click any card to toggle."
               font.family: root.fontFamily
               font.pixelSize: 10
               color: Qt.rgba(1, 1, 1, 0.5)
@@ -4325,38 +4325,32 @@ Item {
                 model: [
                   {
                     key: "cpu",
-                    title: "CPU GAUGE & TEMP",
-                    desc: "Processor load percentage and core thermal sensor.",
+                    title: "CPU LOAD & THERMALS",
                     previewText: root.liveCpuVal + "% " + (root.liveCpuTemp > 0 ? (root.liveCpuTemp + "°C") : "")
                   },
                   {
                     key: "fan",
-                    title: "FAN RPM & SPEED BARS",
-                    desc: "Cooling fan tachometer RPM and multi-fan load bars.",
+                    title: "COOLING FAN RPM",
                     previewText: "2.4k RPM"
                   },
                   {
                     key: "ram",
                     title: "RAM MEMORY USAGE",
-                    desc: "System physical RAM utilization percentage.",
                     previewText: root.liveMemVal + "% (" + root.liveMemGb + ")"
                   },
                   {
                     key: "dsk",
-                    title: "DSK ROOT STORAGE",
-                    desc: "Root filesystem NVMe/SSD storage capacity usage.",
+                    title: "ROOT DISK STORAGE",
                     previewText: root.liveDskVal + "%"
                   },
                   {
                     key: "conns",
-                    title: "CONNS SOCKET COUNTER",
-                    desc: "Real-time active TCP & UDP socket connections count.",
+                    title: "ACTIVE SOCKET CONNS",
                     previewText: "14 CONNS"
                   },
                   {
                     key: "net",
                     title: "NET BANDWIDTH RATES",
-                    desc: "Live uplink (TX) and downlink (RX) network throughput.",
                     previewText: "▲4.2K ▼28K"
                   }
                 ]
@@ -4366,7 +4360,7 @@ Item {
                   readonly property bool isMeterActive: root.isHudMeterEnabled(modelData.key)
 
                   Layout.fillWidth: true
-                  Layout.preferredHeight: 52
+                  Layout.preferredHeight: 38
                   color: meterHover.hovered
                          ? Qt.rgba(1, 1, 1, 0.08)
                          : (isMeterActive
@@ -4385,7 +4379,8 @@ Item {
 
                   RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
                     spacing: 8
 
                     // Tag Badge
@@ -4403,42 +4398,29 @@ Item {
                       }
                     }
 
-                    ColumnLayout {
+                    // Title
+                    Text {
+                      text: modelData.title
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 10
+                      color: isMeterActive ? Commons.Color.foreground : Qt.rgba(1, 1, 1, 0.5)
                       Layout.fillWidth: true
-                      spacing: 1
-
-                      RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Text {
-                          text: modelData.title
-                          font.family: root.fontFamily
-                          font.bold: true
-                          font.pixelSize: 10
-                          color: Commons.Color.foreground
-                        }
-                        Text {
-                          text: "[" + modelData.previewText + "]"
-                          font.family: root.fontFamily
-                          font.pixelSize: 9
-                          color: isMeterActive ? root.secondaryColor : Qt.rgba(1, 1, 1, 0.3)
-                        }
-                      }
-
-                      Text {
-                        text: modelData.desc
-                        font.family: root.fontFamily
-                        font.pixelSize: 8
-                        color: Qt.rgba(1, 1, 1, 0.5)
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                      }
+                      elide: Text.ElideRight
                     }
 
-                    // ON / OFF Pill
+                    // Live preview value
+                    Text {
+                      text: modelData.previewText
+                      font.family: root.fontFamily
+                      font.pixelSize: 9
+                      color: isMeterActive ? root.secondaryColor : Qt.rgba(1, 1, 1, 0.3)
+                    }
+
+                    // Toggle pill
                     Rectangle {
-                      width: 42
-                      height: 22
+                      width: 38
+                      height: 20
                       color: isMeterActive ? Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.25) : Qt.rgba(1, 1, 1, 0.05)
                       border.color: isMeterActive ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.2)
                       border.width: 1
@@ -4466,18 +4448,30 @@ Item {
             // Section 2 Header: Network & Comms Tools
             RowLayout {
               Layout.fillWidth: true
+              spacing: 8
+
               Text {
-                text: "NETWORK TRAFFIC INSPECTION & MONITORING TOOLS"
+                text: "NETWORK TRAFFIC MONITORING TOOLS"
                 font.family: root.fontFamily
                 font.bold: true
                 font.pixelSize: Style.font.caption
                 color: Commons.Color.accent
                 Layout.fillWidth: true
               }
+
+              Button {
+                text: "󱗗 COMMS INSPECTOR"
+                fontFamily: root.fontFamily
+                fontSize: 9
+                bordered: true
+                accent: Commons.Color.accent
+                Layout.preferredHeight: 24
+                onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float " + root.midnightThemeDir + "/bin/launch-comms.sh")
+              }
             }
 
             Text {
-              text: "Quickly install or launch interactive per-process network bandwidth analyzers."
+              text: "Per-process bandwidth and socket inspection utilities (require sudo privileges)."
               font.family: root.fontFamily
               font.pixelSize: 10
               color: Qt.rgba(1, 1, 1, 0.5)
@@ -4490,50 +4484,48 @@ Item {
               // bandwhich card
               Rectangle {
                 Layout.fillWidth: true
-                height: 50
+                height: 38
                 color: Qt.rgba(1, 1, 1, 0.04)
-                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.3)
+                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.25)
                 border.width: 1
 
                 RowLayout {
                   anchors.fill: parent
-                  anchors.margins: 8
+                  anchors.leftMargin: 10
+                  anchors.rightMargin: 10
                   spacing: 10
 
                   Text {
                     text: "󰛳"
                     font.family: root.fontFamily
-                    font.pixelSize: 18
+                    font.pixelSize: 15
                     color: Commons.Color.accent
                   }
 
-                  ColumnLayout {
+                  Text {
+                    text: "bandwhich"
+                    font.family: root.fontFamily
+                    font.bold: true
+                    font.pixelSize: 11
+                    color: Commons.Color.foreground
+                  }
+
+                  Text {
+                    text: "— Real-time bandwidth utilization by process & remote socket"
+                    font.family: root.fontFamily
+                    font.pixelSize: 9
+                    color: Qt.rgba(1, 1, 1, 0.45)
                     Layout.fillWidth: true
-                    spacing: 2
-                    Text {
-                      text: "bandwhich (Terminal Bandwidth Utilization Tool)"
-                      font.family: root.fontFamily
-                      font.bold: true
-                      font.pixelSize: 11
-                      color: Commons.Color.foreground
-                    }
-                    Text {
-                      text: "Displays current network utilization by process, connection, and remote host."
-                      font.family: root.fontFamily
-                      font.pixelSize: 9
-                      color: Qt.rgba(1, 1, 1, 0.5)
-                      elide: Text.ElideRight
-                      Layout.fillWidth: true
-                    }
+                    elide: Text.ElideRight
                   }
 
                   Button {
-                    text: "⚡ INSTALL BANDWHICH"
+                    text: "⚡ INSTALL"
                     fontFamily: root.fontFamily
                     fontSize: 9
                     bordered: true
                     accent: Commons.Color.accent
-                    Layout.preferredHeight: 28
+                    Layout.preferredHeight: 24
                     onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float bash -c \"omarchy pkg add bandwhich; echo ''; read -n 1 -s -r -p 'Press any key to close...'\"")
                   }
 
@@ -4543,7 +4535,7 @@ Item {
                     fontSize: 9
                     bordered: true
                     accent: root.secondaryColor
-                    Layout.preferredHeight: 28
+                    Layout.preferredHeight: 24
                     onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float sudo bandwhich")
                   }
                 }
@@ -4552,50 +4544,48 @@ Item {
               // nethogs card
               Rectangle {
                 Layout.fillWidth: true
-                height: 50
+                height: 38
                 color: Qt.rgba(1, 1, 1, 0.04)
-                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.3)
+                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.25)
                 border.width: 1
 
                 RowLayout {
                   anchors.fill: parent
-                  anchors.margins: 8
+                  anchors.leftMargin: 10
+                  anchors.rightMargin: 10
                   spacing: 10
 
                   Text {
                     text: "󰛳"
                     font.family: root.fontFamily
-                    font.pixelSize: 18
+                    font.pixelSize: 15
                     color: Commons.Color.accent
                   }
 
-                  ColumnLayout {
+                  Text {
+                    text: "nethogs"
+                    font.family: root.fontFamily
+                    font.bold: true
+                    font.pixelSize: 11
+                    color: Commons.Color.foreground
+                  }
+
+                  Text {
+                    text: "— Net top tool grouping packet traffic by process name"
+                    font.family: root.fontFamily
+                    font.pixelSize: 9
+                    color: Qt.rgba(1, 1, 1, 0.45)
                     Layout.fillWidth: true
-                    spacing: 2
-                    Text {
-                      text: "nethogs (Per-Process Network Traffic Top)"
-                      font.family: root.fontFamily
-                      font.bold: true
-                      font.pixelSize: 11
-                      color: Commons.Color.foreground
-                    }
-                    Text {
-                      text: "Net top tool that groups bandwidth by process name instead of per IP subnet."
-                      font.family: root.fontFamily
-                      font.pixelSize: 9
-                      color: Qt.rgba(1, 1, 1, 0.5)
-                      elide: Text.ElideRight
-                      Layout.fillWidth: true
-                    }
+                    elide: Text.ElideRight
                   }
 
                   Button {
-                    text: "⚡ INSTALL NETHOGS"
+                    text: "⚡ INSTALL"
                     fontFamily: root.fontFamily
                     fontSize: 9
                     bordered: true
                     accent: Commons.Color.accent
-                    Layout.preferredHeight: 28
+                    Layout.preferredHeight: 24
                     onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float bash -c \"omarchy pkg add nethogs; echo ''; read -n 1 -s -r -p 'Press any key to close...'\"")
                   }
 
@@ -4605,60 +4595,8 @@ Item {
                     fontSize: 9
                     bordered: true
                     accent: root.secondaryColor
-                    Layout.preferredHeight: 28
+                    Layout.preferredHeight: 24
                     onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float sudo nethogs")
-                  }
-                }
-              }
-
-              // launch-comms inspector card
-              Rectangle {
-                Layout.fillWidth: true
-                height: 50
-                color: Qt.rgba(1, 1, 1, 0.04)
-                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.3)
-                border.width: 1
-
-                RowLayout {
-                  anchors.fill: parent
-                  anchors.margins: 8
-                  spacing: 10
-
-                  Text {
-                    text: "󱗗"
-                    font.family: root.fontFamily
-                    font.pixelSize: 18
-                    color: root.secondaryColor
-                  }
-
-                  ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-                    Text {
-                      text: "Theme Comms & Socket Inspector (launch-comms.sh)"
-                      font.family: root.fontFamily
-                      font.bold: true
-                      font.pixelSize: 11
-                      color: Commons.Color.foreground
-                    }
-                    Text {
-                      text: "Intelligent launcher prioritizing bandwhich → nethogs → sniffnet → iftop → ss."
-                      font.family: root.fontFamily
-                      font.pixelSize: 9
-                      color: Qt.rgba(1, 1, 1, 0.5)
-                      elide: Text.ElideRight
-                      Layout.fillWidth: true
-                    }
-                  }
-
-                  Button {
-                    text: "󰍹 LAUNCH COMMS INSPECTOR"
-                    fontFamily: root.fontFamily
-                    fontSize: 9
-                    bordered: true
-                    accent: Commons.Color.accent
-                    Layout.preferredHeight: 28
-                    onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float " + root.midnightThemeDir + "/bin/launch-comms.sh")
                   }
                 }
               }
