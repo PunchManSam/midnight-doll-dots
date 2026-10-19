@@ -108,10 +108,7 @@ Item {
     if (root.hudCommand.indexOf("btop") !== -1) return "Activity Monitor (btop)"
     return "Run: " + root.hudCommand
   }
-  readonly property bool isMidnightDoll: {
-    var name = activeTheme.toLowerCase().replace(/[\s_-]+/g, "")
-    return name === "midnightdoll"
-  }
+  readonly property bool isMidnightDoll: true
   onIsMidnightDollChanged: applyBarConfig()
   readonly property string midnightShortcutsPath: root.midnightThemeDir + "/midnight-shortcuts.json"
   property var midnightShortcutsList: []
@@ -5435,6 +5432,7 @@ Item {
     readonly property var registryComponent: {
       if (isBlockedInOtherTheme) return null
       if (isMenu) return null
+      if (!root.barWidgetRegistry || !root.barWidgetRegistry.widgets) return null
       var w = root.barWidgetRegistry.widgets
       if (customType) return null
       var registryName = root.canonicalWidgetId(moduleName)
