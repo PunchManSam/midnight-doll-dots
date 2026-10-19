@@ -19,7 +19,11 @@ elif command -v nethogs &>/dev/null; then
 elif command -v sniffnet &>/dev/null; then
   exec sniffnet "$@"
 elif command -v iftop &>/dev/null; then
-  exec iftop "$@"
+  if (( EUID == 0 )); then
+    exec iftop "$@"
+  else
+    exec sudo iftop "$@"
+  fi
 elif command -v bmon &>/dev/null; then
   exec bmon "$@"
 elif command -v termshark &>/dev/null; then
