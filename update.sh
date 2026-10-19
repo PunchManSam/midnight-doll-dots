@@ -217,8 +217,12 @@ if command -v omarchy-shell &>/dev/null; then
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 fi
 if command -v omarchy &>/dev/null; then
-  # Re-apply theme and ensure custom bar is active
+  # Re-apply theme, enable plugins, and ensure custom bar is active
   omarchy theme set "Midnight Doll" >/dev/null 2>&1 || true
+  omarchy plugin enable midnight-doll.bar >/dev/null 2>&1 || true
+  omarchy plugin enable midnight-doll.notifications >/dev/null 2>&1 || true
+  omarchy plugin enable midnight-doll.sys-hud >/dev/null 2>&1 || true
+  omarchy plugin enable midnight-doll.visualizer >/dev/null 2>&1 || true
   omarchy bar use midnight-doll.bar >/dev/null 2>&1 || true
   omarchy restart shell >/dev/null 2>&1 || true
 fi

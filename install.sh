@@ -713,11 +713,14 @@ if command -v omarchy &> /dev/null; then
   echo -e "${PINK}[*] Activating Midnight-Doll theme & cyberdeck bar...${RESET}"
   omarchy theme set "Midnight Doll" || true
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
-  omarchy bar use midnight-doll.bar || true
+  omarchy plugin enable midnight-doll.bar || true
+  omarchy plugin enable midnight-doll.notifications || true
+  omarchy plugin enable midnight-doll.sys-hud || true
+  omarchy plugin enable midnight-doll.visualizer || true
   omarchy plugin enable omarchy.workspaces || true
   omarchy plugin enable omarchy.clock || true
-  omarchy plugin enable midnight-doll.notifications || true
   omarchy plugin enable omarchy.menu || true
+  omarchy bar use midnight-doll.bar || true
   omarchy restart shell || true
 fi
 

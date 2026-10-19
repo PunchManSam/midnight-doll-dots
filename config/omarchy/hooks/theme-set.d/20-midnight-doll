@@ -21,6 +21,7 @@ if [[ "$NORM_THEME" == "midnightdoll" ]]; then
       omarchy bar use midnight-doll.bar >/dev/null 2>&1 || true
       omarchy restart shell >/dev/null 2>&1 || true
     fi
+    omarchy plugin enable midnight-doll.bar >/dev/null 2>&1 || true
     omarchy plugin enable midnight-doll.notifications >/dev/null 2>&1 || true
     omarchy plugin enable midnight-doll.sys-hud >/dev/null 2>&1 || true
     omarchy plugin enable midnight-doll.visualizer >/dev/null 2>&1 || true
