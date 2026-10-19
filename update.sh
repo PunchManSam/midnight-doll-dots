@@ -384,10 +384,4 @@ if command -v omarchy &>/dev/null; then
   omarchy restart shell >/dev/null 2>&1 || true
 fi
 
-echo -e "\n${GREEN}${BOLD}✓ Midnight-Doll successfully updated to the latest isolated architecture!${RESET}"
-echo -e "    ${PINK}• Architecture:${RESET} 100% theme-isolated; zero root config pollution"
-echo -e "    ${PINK}• Updates:${RESET}      System packages ('omarchy update') remain 100% safe"
-echo -e "    ${PINK}• Switching:${RESET}    Switching themes automatically resets to stock Omarchy bar"
-echo -e "    ${PINK}• Wallpapers:${RESET}   Preserved existing wallpapers; custom wallpapers go in:"
-echo -e "                    ${CYAN}~/.config/omarchy/backgrounds/midnight-doll/${RESET}"
-echo -e "                    (Run 'omarchy theme bg install' to open folder)\n"
+echo -e "\n${GREEN}${BOLD}✓ Midnight-Doll successfully updated!${RESET}\n"
