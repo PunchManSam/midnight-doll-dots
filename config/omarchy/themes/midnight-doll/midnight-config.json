@@ -9,5 +9,6 @@
   "hudTitle": "MIDNIGHT-DOLL",
   "hudTitleColor": "secondary",
   "hudSubtitle": "HUD",
-  "hudSubtitleColor": "primary"
+  "hudSubtitleColor": "primary",
+  "hudCommand": "omarchy-launch-or-focus-tui btop"
 }

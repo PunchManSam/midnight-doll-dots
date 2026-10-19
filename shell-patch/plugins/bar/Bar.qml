@@ -100,13 +100,14 @@ Item {
   property string hudTitle: "MIDNIGHT-DOLL"
   property string hudSubtitle: "HUD"
   property string hudCommand: "omarchy-launch-or-focus-tui btop"
+  readonly property string effectiveHudCommand: (root.midnightConfig && root.midnightConfig.hudCommand !== undefined) ? String(root.midnightConfig.hudCommand) : root.hudCommand
   property color secondaryColor: "#bb9af7"
   property string menuIcon: "󰚌"
 
   function hudTooltipText() {
-    if (!root.hudCommand || root.hudCommand.trim() === "") return ""
-    if (root.hudCommand.indexOf("btop") !== -1) return "Activity Monitor (btop)"
-    return "Run: " + root.hudCommand
+    if (!root.effectiveHudCommand || root.effectiveHudCommand.trim() === "") return ""
+    if (root.effectiveHudCommand.indexOf("btop") !== -1) return "Activity Monitor (btop)"
+    return "Run: " + root.effectiveHudCommand
   }
   readonly property bool isMidnightDoll: true
   onIsMidnightDollChanged: applyBarConfig()
@@ -152,7 +153,8 @@ Item {
     hudTitle: "MIDNIGHT-DOLL",
     hudTitleColor: "secondary",
     hudSubtitle: "HUD",
-    hudSubtitleColor: "primary"
+    hudSubtitleColor: "primary",
+    hudCommand: "omarchy-launch-or-focus-tui btop"
   })
 
   readonly property bool sideBarEnabled: (root.midnightConfig && root.midnightConfig.sideBarEnabled !== undefined) ? root.midnightConfig.sideBarEnabled : true
@@ -210,7 +212,8 @@ Item {
       hudTitle: root.hudTitle,
       hudTitleColor: "secondary",
       hudSubtitle: root.hudSubtitle,
-      hudSubtitleColor: "primary"
+      hudSubtitleColor: "primary",
+      hudCommand: root.hudCommand
     })
     root.saveMidnightConfig(cfg)
   }
@@ -252,7 +255,8 @@ Item {
             hudTitle: root.hudTitle,
             hudTitleColor: "secondary",
             hudSubtitle: root.hudSubtitle,
-            hudSubtitleColor: "primary"
+            hudSubtitleColor: "primary",
+            hudCommand: root.hudCommand
           }, parsed)
           midnightConfig = updated
           return
@@ -4587,22 +4591,6 @@ Item {
         z: -1
       }
 
-      MouseArea {
-        id: topBarRightClickArea
-        anchors.left: parent.left
-        anchors.right: parent.right
-        y: root.position === "bottom" ? (parent.height - root.barSize) : 0
-        height: root.barSize
-        acceptedButtons: Qt.RightButton
-        z: 0
-        cursorShape: Qt.ArrowCursor
-        onClicked: function(mouse) {
-          if (mouse.button === Qt.RightButton) {
-            root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
-          }
-        }
-      }
-
       Item {
         id: midnightCornerFillet
         x: (root.sideBarPosition === "right") ? (barWindow.width - 34 - (root.midnightCornerRadius + 6)) : 34
@@ -4872,6 +4860,20 @@ Item {
         Component.onDestruction: if (hovered) root.setBarHovered(false)
       }
     }
+
+    MouseArea {
+      id: topBarRightClickArea
+      anchors.fill: barLoader
+      acceptedButtons: Qt.RightButton
+      z: 1001
+      cursorShape: Qt.ArrowCursor
+      onClicked: function(mouse) {
+        if (mouse.button === Qt.RightButton) {
+          root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
+          mouse.accepted = true
+        }
+      }
+    }
   }
 
     PopupWindow {
@@ -4944,18 +4946,6 @@ Item {
       Item {
         anchors.fill: parent
 
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.RightButton
-          cursorShape: Qt.ArrowCursor
-          z: -1
-          onClicked: function(mouse) {
-            if (mouse.button === Qt.RightButton) {
-              root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
-            }
-          }
-        }
-
         CenterModules { anchors.fill: parent }
 
         Row {
@@ -4985,18 +4975,6 @@ Item {
 
       Item {
         anchors.fill: parent
-
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.RightButton
-          cursorShape: Qt.ArrowCursor
-          z: -1
-          onClicked: function(mouse) {
-            if (mouse.button === Qt.RightButton) {
-              root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
-            }
-          }
-        }
 
         CenterModules { anchors.fill: parent }
 
@@ -6583,7 +6561,7 @@ Item {
               anchors.centerIn: parent
               width: parent.width + 8
               height: root.barSize
-              enabled: root.hudCommand !== ""
+              enabled: root.effectiveHudCommand !== ""
               hoverEnabled: enabled
               cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
               property bool tooltipHovered: containsMouse
@@ -6593,7 +6571,7 @@ Item {
               }
               onExited: root.hideTooltip(hudSubMouse)
               onClicked: {
-                if (root.hudCommand) root.run(root.hudCommand)
+                if (root.effectiveHudCommand) root.run(root.effectiveHudCommand)
               }
             }
           }
@@ -6676,7 +6654,7 @@ Item {
 
     property bool pressable: true
     function triggerPress(button) {
-      if (root.hudCommand) root.run(root.hudCommand)
+      if (root.effectiveHudCommand) root.run(root.effectiveHudCommand)
     }
 
     property int cpuVal: 0
@@ -6762,7 +6740,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         property bool pressable: true
         function triggerPress(button) {
-          if (root.hudCommand) root.run(root.hudCommand)
+          if (root.effectiveHudCommand) root.run(root.effectiveHudCommand)
         }
         Component.onCompleted: if (typeof root.registerClickTarget === "function") root.registerClickTarget(this)
         Component.onDestruction: if (typeof root.unregisterClickTarget === "function") root.unregisterClickTarget(this)

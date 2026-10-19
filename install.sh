@@ -482,13 +482,14 @@ done
 echo -e "    ✓ Applying dual-tone color scheme (${CHOSEN_PRIMARY} / ${CHOSEN_SECONDARY}) to theme configs..."
 python3 - "${HOME}/.config/omarchy/themes/midnight-doll/colors.toml" \
   "${HOME}/.config/omarchy/themes/midnight-doll/ghostty.conf" \
+  "${HOME}/.config/omarchy/themes/midnight-doll/kitty.conf" \
   "${HOME}/.config/omarchy/themes/midnight-doll/hyprland.lua" \
   "${CHOSEN_PRIMARY}" \
   "${CHOSEN_SECONDARY}" << 'EOF'
-import sys, re
+import sys, os, re
 
-colors_path, ghostty_path, hypr_path = sys.argv[1], sys.argv[2], sys.argv[3]
-pri_hex, sec_hex = sys.argv[4].strip(), sys.argv[5].strip()
+colors_path, ghostty_path, kitty_path, hypr_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+pri_hex, sec_hex = sys.argv[5].strip(), sys.argv[6].strip()
 
 # Derive darker selection background from primary hex
 try:
@@ -507,35 +508,88 @@ except Exception:
 raw_pri = pri_hex.lstrip('#')
 
 # 1. Update colors.toml
-with open(colors_path, 'r', encoding='utf-8') as f:
-    c = f.read()
-c = re.sub(r'^accent = "#[0-9a-fA-F]{6}"', f'accent = "{pri_hex}"', c, flags=re.MULTILINE)
-c = re.sub(r'^foreground = "#[0-9a-fA-F]{6}"', 'foreground = "#d0d0d0"', c, flags=re.MULTILINE)
-c = re.sub(r'^dark_foreground = "#[0-9a-fA-F]{6}"', 'dark_foreground = "#767676"', c, flags=re.MULTILINE)
-c = re.sub(r'^light_foreground = "#[0-9a-fA-F]{6}"', 'light_foreground = "#ebebeb"', c, flags=re.MULTILINE)
-c = re.sub(r'^bright_foreground = "#[0-9a-fA-F]{6}"', 'bright_foreground = "#ffffff"', c, flags=re.MULTILINE)
-c = re.sub(r'^selection = "#[0-9a-fA-F]{6}"', f'selection = "{sel_hex}"', c, flags=re.MULTILINE)
-c = re.sub(r'^muted = "#[0-9a-fA-F]{6}"', f'muted = "{sec_hex}"', c, flags=re.MULTILINE)
-c = re.sub(r'^bright_magenta = "#[0-9a-fA-F]{6}"', f'bright_magenta = "{sec_hex}"', c, flags=re.MULTILINE)
-with open(colors_path, 'w', encoding='utf-8') as f:
-    f.write(c)
+if os.path.exists(colors_path):
+    with open(colors_path, 'r', encoding='utf-8') as f:
+        c = f.read()
+    c = re.sub(r'^accent = "#[0-9a-fA-F]{6}"', f'accent = "{pri_hex}"', c, flags=re.MULTILINE)
+    c = re.sub(r'^foreground = "#[0-9a-fA-F]{6}"', 'foreground = "#d0d0d0"', c, flags=re.MULTILINE)
+    c = re.sub(r'^dark_foreground = "#[0-9a-fA-F]{6}"', 'dark_foreground = "#767676"', c, flags=re.MULTILINE)
+    c = re.sub(r'^light_foreground = "#[0-9a-fA-F]{6}"', 'light_foreground = "#ebebeb"', c, flags=re.MULTILINE)
+    c = re.sub(r'^bright_foreground = "#[0-9a-fA-F]{6}"', 'bright_foreground = "#ffffff"', c, flags=re.MULTILINE)
+    c = re.sub(r'^selection = "#[0-9a-fA-F]{6}"', f'selection = "{sel_hex}"', c, flags=re.MULTILINE)
+    c = re.sub(r'^muted = "#[0-9a-fA-F]{6}"', f'muted = "{sec_hex}"', c, flags=re.MULTILINE)
+    c = re.sub(r'^magenta = "#[0-9a-fA-F]{6}"', f'magenta = "{pri_hex}"', c, flags=re.MULTILINE)
+    c = re.sub(r'^bright_magenta = "#[0-9a-fA-F]{6}"', f'bright_magenta = "{sec_hex}"', c, flags=re.MULTILINE)
+    with open(colors_path, 'w', encoding='utf-8') as f:
+        f.write(c)
 
 # 2. Update ghostty.conf
-with open(ghostty_path, 'r', encoding='utf-8') as f:
-    g = f.read()
-g = re.sub(r'^foreground = #[0-9a-fA-F]{6}', 'foreground = #d0d0d0', g, flags=re.MULTILINE)
-g = re.sub(r'^selection-background = #[0-9a-fA-F]{6}', f'selection-background = {sel_hex}', g, flags=re.MULTILINE)
-g = re.sub(r'^palette = 13=#[0-9a-fA-F]{6}', f'palette = 13={sec_hex}', g, flags=re.MULTILINE)
-with open(ghostty_path, 'w', encoding='utf-8') as f:
-    f.write(g)
+if os.path.exists(ghostty_path):
+    with open(ghostty_path, 'r', encoding='utf-8') as f:
+        g = f.read()
+    g = re.sub(r'^foreground = #[0-9a-fA-F]{6}', 'foreground = #d0d0d0', g, flags=re.MULTILINE)
+    g = re.sub(r'^selection-background = #[0-9a-fA-F]{6}', f'selection-background = {sel_hex}', g, flags=re.MULTILINE)
+    g = re.sub(r'^palette = 5=#[0-9a-fA-F]{6}', f'palette = 5={pri_hex}', g, flags=re.MULTILINE)
+    g = re.sub(r'^palette = 13=#[0-9a-fA-F]{6}', f'palette = 13={sec_hex}', g, flags=re.MULTILINE)
+    with open(ghostty_path, 'w', encoding='utf-8') as f:
+        f.write(g)
 
-# 3. Update hyprland.lua
-with open(hypr_path, 'r', encoding='utf-8') as f:
-    h = f.read()
-h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({raw_pri})"', h)
-h = re.sub(r'inactive_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'inactive_border_color = "rgb({inactive_border})"', h)
-with open(hypr_path, 'w', encoding='utf-8') as f:
-    f.write(h)
+# 3. Update kitty.conf
+if os.path.exists(kitty_path):
+    with open(kitty_path, 'r', encoding='utf-8') as f:
+        k = f.read()
+    k = re.sub(r'^foreground #[0-9a-fA-F]{6}', 'foreground #d0d0d0', k, flags=re.MULTILINE)
+    k = re.sub(r'^selection_background #[0-9a-fA-F]{6}', f'selection_background {sel_hex}', k, flags=re.MULTILINE)
+    k = re.sub(r'^active_border_color #[0-9a-fA-F]{6}', f'active_border_color {pri_hex}', k, flags=re.MULTILINE)
+    k = re.sub(r'^active_tab_background #[0-9a-fA-F]{6}', f'active_tab_background {pri_hex}', k, flags=re.MULTILINE)
+    k = re.sub(r'^color5 #[0-9a-fA-F]{6}', f'color5 {pri_hex}', k, flags=re.MULTILINE)
+    k = re.sub(r'^color13 #[0-9a-fA-F]{6}', f'color13 {sec_hex}', k, flags=re.MULTILINE)
+    with open(kitty_path, 'w', encoding='utf-8') as f:
+        f.write(k)
+
+# 4. Update hyprland.lua
+if os.path.exists(hypr_path):
+    with open(hypr_path, 'r', encoding='utf-8') as f:
+        h = f.read()
+    h = re.sub(r'active_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'active_border_color = "rgb({raw_pri})"', h)
+    h = re.sub(r'inactive_border_color = "rgb\([0-9a-fA-F]{6}\)"', f'inactive_border_color = "rgb({inactive_border})"', h)
+    with open(hypr_path, 'w', encoding='utf-8') as f:
+        f.write(h)
+EOF
+
+# Deploy user defaults to midnight-config.json
+echo -e "    ✓ Writing user defaults to midnight-config.json for Control Center..."
+python3 - "${THEME_DEST}/midnight-config.json" \
+  "${CHOSEN_PRIMARY}" \
+  "${CHOSEN_SECONDARY}" \
+  "${HUD_TITLE}" \
+  "${HUD_SUBTITLE}" \
+  "${HUD_CMD}" \
+  "${MENU_GLYPH}" << 'EOF'
+import sys, json, os
+cfg_path, pri, sec, title, subtitle, cmd, glyph = sys.argv[1:8]
+cfg = {}
+if os.path.exists(cfg_path):
+    try:
+        with open(cfg_path, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+    except Exception:
+        cfg = {}
+cfg["sideBarEnabled"] = True
+cfg["sideBarPosition"] = cfg.get("sideBarPosition", "left")
+cfg["primaryAccent"] = pri
+cfg["secondaryAccent"] = sec
+cfg["barOpacity"] = float(cfg.get("barOpacity", 1.0))
+cfg["menuIcon"] = glyph
+cfg["menuIconColor"] = cfg.get("menuIconColor", "primary")
+cfg["hudTitle"] = title
+cfg["hudTitleColor"] = cfg.get("hudTitleColor", "secondary")
+cfg["hudSubtitle"] = subtitle
+cfg["hudSubtitleColor"] = cfg.get("hudSubtitleColor", "primary")
+cfg["hudCommand"] = cmd
+with open(cfg_path, 'w', encoding='utf-8') as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
 EOF
 
 # Deploy user plugins to ~/.config/omarchy/plugins/
