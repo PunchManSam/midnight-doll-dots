@@ -15,6 +15,13 @@ BarWidget {
   readonly property string fontFam: (shellBar && shellBar.fontFamily) ? shellBar.fontFamily : "JetBrainsMono Nerd Font"
   readonly property string homeDir: Quickshell.env("HOME")
 
+  readonly property bool meterCpu: (shellBar && shellBar.hudMeterCpu !== undefined) ? shellBar.hudMeterCpu : true
+  readonly property bool meterFan: (shellBar && shellBar.hudMeterFan !== undefined) ? shellBar.hudMeterFan : true
+  readonly property bool meterRam: (shellBar && shellBar.hudMeterRam !== undefined) ? shellBar.hudMeterRam : true
+  readonly property bool meterDsk: (shellBar && shellBar.hudMeterDsk !== undefined) ? shellBar.hudMeterDsk : true
+  readonly property bool meterConns: (shellBar && shellBar.hudMeterConns !== undefined) ? shellBar.hudMeterConns : true
+  readonly property bool meterNet: (shellBar && shellBar.hudMeterNet !== undefined) ? shellBar.hudMeterNet : true
+
   implicitWidth: sysHudRow.implicitWidth
   implicitHeight: root.barSize
 
@@ -115,6 +122,7 @@ BarWidget {
     // Hardware Telemetry Group (CPU, FAN, RAM, DSK) -> Launches btop
     Row {
       id: hwGroup
+      visible: root.meterCpu || root.meterFan || root.meterRam || root.meterDsk
       spacing: 6
       width: implicitWidth
       height: root.barSize
@@ -139,6 +147,7 @@ BarWidget {
 
       // CPU Gauge
       Row {
+        visible: root.meterCpu
         spacing: 4
         anchors.verticalCenter: parent.verticalCenter
         Text {
@@ -185,6 +194,7 @@ BarWidget {
 
       // Divider
       Text {
+        visible: root.meterCpu && (root.meterFan || root.meterRam || root.meterDsk)
         text: "|"
         font.family: root.fontFam
         font.pixelSize: 8
@@ -194,6 +204,7 @@ BarWidget {
 
       // FAN Gauge (Vertical Bars per Fan)
       Row {
+        visible: root.meterFan
         spacing: 4
         anchors.verticalCenter: parent.verticalCenter
         Text {
@@ -238,6 +249,7 @@ BarWidget {
 
       // Divider
       Text {
+        visible: root.meterFan && (root.meterRam || root.meterDsk)
         text: "|"
         font.family: root.fontFam
         font.pixelSize: 8
@@ -247,6 +259,7 @@ BarWidget {
 
       // RAM / MEM Gauge
       Row {
+        visible: root.meterRam
         spacing: 4
         anchors.verticalCenter: parent.verticalCenter
         Text {
@@ -283,6 +296,7 @@ BarWidget {
 
       // Divider
       Text {
+        visible: root.meterRam && root.meterDsk
         text: "|"
         font.family: root.fontFam
         font.pixelSize: 8
@@ -292,6 +306,7 @@ BarWidget {
 
       // DISK Gauge
       Row {
+        visible: root.meterDsk
         spacing: 4
         anchors.verticalCenter: parent.verticalCenter
         Text {
@@ -329,6 +344,7 @@ BarWidget {
 
     // Divider
     Text {
+      visible: hwGroup.visible && commsGroup.visible
       text: "|"
       font.family: root.fontFam
       font.pixelSize: 8
@@ -339,6 +355,7 @@ BarWidget {
     // Comms Telemetry Group (CONNS, NET) -> Launches smart comms inspector
     Row {
       id: commsGroup
+      visible: root.meterConns || root.meterNet
       spacing: 6
       width: implicitWidth
       height: root.barSize
@@ -363,6 +380,7 @@ BarWidget {
 
       // Connections Indicator
       Row {
+        visible: root.meterConns
         spacing: 4
         anchors.verticalCenter: parent.verticalCenter
         Text {
@@ -387,6 +405,7 @@ BarWidget {
 
       // Divider
       Text {
+        visible: root.meterConns && root.meterNet
         text: "|"
         font.family: root.fontFam
         font.pixelSize: 8
@@ -396,6 +415,7 @@ BarWidget {
 
       // NET Rates
       Row {
+        visible: root.meterNet
         spacing: 4
         anchors.verticalCenter: parent.verticalCenter
         Text {

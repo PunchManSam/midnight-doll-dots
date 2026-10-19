@@ -10,5 +10,13 @@
   "hudTitleColor": "secondary",
   "hudSubtitle": "HUD",
   "hudSubtitleColor": "primary",
-  "hudCommand": "omarchy-launch-or-focus-tui btop"
+  "hudCommand": "omarchy-launch-or-focus-tui btop",
+  "hudMeters": {
+    "cpu": true,
+    "fan": true,
+    "ram": true,
+    "dsk": true,
+    "conns": true,
+    "net": true
+  }
 }

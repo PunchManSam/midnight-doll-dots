@@ -5,9 +5,17 @@
 printf "\033]0;%s\007" "Midnight Doll // Comms Inspector" 2>/dev/null
 
 if command -v bandwhich &>/dev/null; then
-  exec bandwhich "$@"
+  if (( EUID == 0 )); then
+    exec bandwhich "$@"
+  else
+    exec sudo bandwhich "$@"
+  fi
 elif command -v nethogs &>/dev/null; then
-  exec nethogs "$@"
+  if (( EUID == 0 )); then
+    exec nethogs "$@"
+  else
+    exec sudo nethogs "$@"
+  fi
 elif command -v sniffnet &>/dev/null; then
   exec sniffnet "$@"
 elif command -v iftop &>/dev/null; then

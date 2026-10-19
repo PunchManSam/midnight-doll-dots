@@ -154,8 +154,57 @@ Item {
     hudTitleColor: "secondary",
     hudSubtitle: "HUD",
     hudSubtitleColor: "primary",
-    hudCommand: "omarchy-launch-or-focus-tui btop"
+    hudCommand: "omarchy-launch-or-focus-tui btop",
+    hudMeters: ({
+      cpu: true,
+      fan: true,
+      ram: true,
+      dsk: true,
+      conns: true,
+      net: true
+    })
   })
+
+  readonly property var hudMeters: (root.midnightConfig && root.midnightConfig.hudMeters) ? root.midnightConfig.hudMeters : ({
+    cpu: true, fan: true, ram: true, dsk: true, conns: true, net: true
+  })
+  readonly property bool hudMeterCpu: root.hudMeters.cpu !== false
+  readonly property bool hudMeterFan: root.hudMeters.fan !== false
+  readonly property bool hudMeterRam: root.hudMeters.ram !== false
+  readonly property bool hudMeterDsk: root.hudMeters.dsk !== false
+  readonly property bool hudMeterConns: root.hudMeters.conns !== false
+  readonly property bool hudMeterNet: root.hudMeters.net !== false
+
+  function isHudMeterEnabled(meterKey) {
+    if (root.hudMeters && root.hudMeters[meterKey] !== undefined) {
+      return Boolean(root.hudMeters[meterKey])
+    }
+    return true
+  }
+
+  function toggleHudMeter(meterKey) {
+    var current = Object.assign({
+      cpu: true, fan: true, ram: true, dsk: true, conns: true, net: true
+    }, root.hudMeters || {})
+    current[meterKey] = !current[meterKey]
+    var cfg = Object.assign({}, root.midnightConfig, { hudMeters: current })
+    root.saveMidnightConfig(cfg)
+  }
+
+  function setHudMetersPreset(preset) {
+    var meters = { cpu: true, fan: true, ram: true, dsk: true, conns: true, net: true }
+    if (preset === "all") {
+      meters = { cpu: true, fan: true, ram: true, dsk: true, conns: true, net: true }
+    } else if (preset === "hardware") {
+      meters = { cpu: true, fan: true, ram: true, dsk: true, conns: false, net: false }
+    } else if (preset === "network") {
+      meters = { cpu: false, fan: false, ram: false, dsk: false, conns: true, net: true }
+    } else if (preset === "minimal") {
+      meters = { cpu: true, fan: false, ram: true, dsk: false, conns: false, net: false }
+    }
+    var cfg = Object.assign({}, root.midnightConfig, { hudMeters: meters })
+    root.saveMidnightConfig(cfg)
+  }
 
   readonly property bool sideBarEnabled: (root.midnightConfig && root.midnightConfig.sideBarEnabled !== undefined) ? root.midnightConfig.sideBarEnabled : true
   readonly property string sideBarPosition: (root.midnightConfig && root.midnightConfig.sideBarPosition) ? root.midnightConfig.sideBarPosition : "left"
@@ -213,7 +262,10 @@ Item {
       hudTitleColor: "secondary",
       hudSubtitle: root.hudSubtitle,
       hudSubtitleColor: "primary",
-      hudCommand: root.hudCommand
+      hudCommand: root.hudCommand,
+      hudMeters: ({
+        cpu: true, fan: true, ram: true, dsk: true, conns: true, net: true
+      })
     })
     root.saveMidnightConfig(cfg)
   }
@@ -256,8 +308,21 @@ Item {
             hudTitleColor: "secondary",
             hudSubtitle: root.hudSubtitle,
             hudSubtitleColor: "primary",
-            hudCommand: root.hudCommand
+            hudCommand: root.hudCommand,
+            hudMeters: ({
+              cpu: true,
+              fan: true,
+              ram: true,
+              dsk: true,
+              conns: true,
+              net: true
+            })
           }, parsed)
+          if (parsed.hudMeters && typeof parsed.hudMeters === "object") {
+            updated.hudMeters = Object.assign({
+              cpu: true, fan: true, ram: true, dsk: true, conns: true, net: true
+            }, parsed.hudMeters)
+          }
           midnightConfig = updated
           return
         }
@@ -2135,6 +2200,12 @@ Item {
     function resetBranding() {
       root.resetHudBrandingDefaults()
     }
+    function toggleMeter(meter: string) {
+      root.toggleHudMeter(String(meter))
+    }
+    function setMetersPreset(preset: string) {
+      root.setHudMetersPreset(String(preset))
+    }
   }
 
   component MidnightShortcutEditorDialog: PanelWindow {
@@ -2616,6 +2687,7 @@ Item {
 
               // Divider
               Text {
+                visible: root.hudMeterCpu || root.hudMeterFan || root.hudMeterRam || root.hudMeterDsk || root.hudMeterConns || root.hudMeterNet
                 text: "|"
                 font.family: root.fontFamily
                 font.pixelSize: 9
@@ -2630,6 +2702,7 @@ Item {
 
                 // CPU Gauge
                 Row {
+                  visible: root.hudMeterCpu
                   spacing: 4
                   anchors.verticalCenter: parent.verticalCenter
                   Text {
@@ -2671,6 +2744,59 @@ Item {
 
                 // Divider
                 Text {
+                  visible: root.hudMeterCpu && (root.hudMeterFan || root.hudMeterRam || root.hudMeterDsk || root.hudMeterConns || root.hudMeterNet)
+                  text: "|"
+                  font.family: root.fontFamily
+                  font.pixelSize: 8
+                  color: Qt.rgba(1, 1, 1, 0.22)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // FAN Gauge
+                Row {
+                  visible: root.hudMeterFan
+                  spacing: 4
+                  anchors.verticalCenter: parent.verticalCenter
+                  Text {
+                    text: "FAN"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    font.bold: true
+                    color: root.secondaryColor
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                  Row {
+                    spacing: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    Repeater {
+                      model: [35, 38]
+                      Rectangle {
+                        width: 3
+                        height: 10
+                        color: Qt.rgba(1, 1, 1, 0.15)
+                        anchors.verticalCenter: parent.verticalCenter
+                        Rectangle {
+                          anchors.bottom: parent.bottom
+                          anchors.left: parent.left
+                          anchors.right: parent.right
+                          height: Math.max(1, Math.round(parent.height * (modelData / 100.0)))
+                          color: Commons.Color.accent
+                        }
+                      }
+                    }
+                  }
+                  Text {
+                    text: "2.4k"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    color: Commons.Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                }
+
+                // Divider
+                Text {
+                  visible: root.hudMeterFan && (root.hudMeterRam || root.hudMeterDsk || root.hudMeterConns || root.hudMeterNet)
                   text: "|"
                   font.family: root.fontFamily
                   font.pixelSize: 8
@@ -2680,6 +2806,7 @@ Item {
 
                 // RAM Gauge
                 Row {
+                  visible: root.hudMeterRam
                   spacing: 4
                   anchors.verticalCenter: parent.verticalCenter
                   Text {
@@ -2713,6 +2840,7 @@ Item {
 
                 // Divider
                 Text {
+                  visible: root.hudMeterRam && (root.hudMeterDsk || root.hudMeterConns || root.hudMeterNet)
                   text: "|"
                   font.family: root.fontFamily
                   font.pixelSize: 8
@@ -2722,6 +2850,7 @@ Item {
 
                 // DSK Gauge
                 Row {
+                  visible: root.hudMeterDsk
                   spacing: 4
                   anchors.verticalCenter: parent.verticalCenter
                   Text {
@@ -2749,6 +2878,70 @@ Item {
                     font.family: root.fontFamily
                     font.pixelSize: 8
                     color: Commons.Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                }
+
+                // Divider
+                Text {
+                  visible: root.hudMeterDsk && (root.hudMeterConns || root.hudMeterNet)
+                  text: "|"
+                  font.family: root.fontFamily
+                  font.pixelSize: 8
+                  color: Qt.rgba(1, 1, 1, 0.22)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // CONNS Gauge
+                Row {
+                  visible: root.hudMeterConns
+                  spacing: 4
+                  anchors.verticalCenter: parent.verticalCenter
+                  Text {
+                    text: "CONNS"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    font.bold: true
+                    color: root.secondaryColor
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                  Text {
+                    text: "14"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    color: Commons.Color.accent
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                }
+
+                // Divider
+                Text {
+                  visible: root.hudMeterConns && root.hudMeterNet
+                  text: "|"
+                  font.family: root.fontFamily
+                  font.pixelSize: 8
+                  color: Qt.rgba(1, 1, 1, 0.22)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // NET Gauge
+                Row {
+                  visible: root.hudMeterNet
+                  spacing: 4
+                  anchors.verticalCenter: parent.verticalCenter
+                  Text {
+                    text: "NET"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    font.bold: true
+                    color: root.secondaryColor
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                  Text {
+                    text: "▲4.2K ▼28K"
+                    font.family: root.fontFamily
+                    font.pixelSize: 8
+                    color: Commons.Color.accent
                     anchors.verticalCenter: parent.verticalCenter
                   }
                 }
@@ -2829,13 +3022,23 @@ Item {
             }
 
             Button {
-              text: "󰈙 QUICK LINKS"
+              text: "󰘚 USAGE METERS"
               fontFamily: root.fontFamily
               accent: Commons.Color.accent
               bordered: true
               selected: modalContainer.activeTab === 4
               Layout.fillWidth: true
               onClicked: modalContainer.activeTab = 4
+            }
+
+            Button {
+              text: "󰈙 QUICK LINKS"
+              fontFamily: root.fontFamily
+              accent: Commons.Color.accent
+              bordered: true
+              selected: modalContainer.activeTab === 5
+              Layout.fillWidth: true
+              onClicked: modalContainer.activeTab = 5
             }
           }
 
@@ -3903,6 +4106,36 @@ Item {
               }
             }
 
+            Rectangle {
+              Layout.fillWidth: true
+              height: 32
+              color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.08)
+              border.color: Commons.Color.accent
+              border.width: 1
+
+              RowLayout {
+                anchors.fill: parent
+                anchors.margins: 4
+                spacing: 8
+                Text {
+                  text: "󰘚 SYSTEM TELEMETRY USAGE METERS & NET MONITORS"
+                  font.family: root.fontFamily
+                  font.bold: true
+                  font.pixelSize: 10
+                  color: Commons.Color.accent
+                  Layout.fillWidth: true
+                }
+                Button {
+                  text: "MANAGE USAGE METERS & TOOLS →"
+                  fontFamily: root.fontFamily
+                  fontSize: 9
+                  accent: Commons.Color.accent
+                  bordered: true
+                  onClicked: modalContainer.activeTab = 4
+                }
+              }
+            }
+
             ListView {
               id: widgetListView
               Layout.fillWidth: true
@@ -4019,10 +4252,425 @@ Item {
             }
           }
 
-          // TAB 4: QUICK LINKS & CONFIG EDITORS
+          // TAB 4: USAGE METERS & NET TOOLS
           ColumnLayout {
             anchors.fill: parent
             visible: modalContainer.activeTab === 4
+            spacing: 8
+
+            // Section 1 Header: Telemetry HUD Meters
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 8
+
+              Text {
+                text: "SYSTEM TELEMETRY USAGE METERS (TOP BAR INDICATOR)"
+                font.family: root.fontFamily
+                font.bold: true
+                font.pixelSize: Style.font.caption
+                color: Commons.Color.accent
+                Layout.fillWidth: true
+              }
+
+              // Preset Buttons
+              RowLayout {
+                spacing: 4
+
+                Button {
+                  text: "ALL ON"
+                  fontFamily: root.fontFamily
+                  fontSize: 9
+                  bordered: true
+                  onClicked: root.setHudMetersPreset("all")
+                }
+                Button {
+                  text: "HARDWARE"
+                  fontFamily: root.fontFamily
+                  fontSize: 9
+                  bordered: true
+                  onClicked: root.setHudMetersPreset("hardware")
+                }
+                Button {
+                  text: "NETWORK"
+                  fontFamily: root.fontFamily
+                  fontSize: 9
+                  bordered: true
+                  onClicked: root.setHudMetersPreset("network")
+                }
+                Button {
+                  text: "MINIMAL"
+                  fontFamily: root.fontFamily
+                  fontSize: 9
+                  bordered: true
+                  onClicked: root.setHudMetersPreset("minimal")
+                }
+              }
+            }
+
+            Text {
+              text: "Manage which hardware sensors and communication metrics are rendered in the live status bar."
+              font.family: root.fontFamily
+              font.pixelSize: 10
+              color: Qt.rgba(1, 1, 1, 0.5)
+            }
+
+            // Grid of 6 Meter Toggles (2 columns x 3 rows)
+            GridLayout {
+              Layout.fillWidth: true
+              columns: 2
+              columnSpacing: 8
+              rowSpacing: 6
+
+              Repeater {
+                model: [
+                  {
+                    key: "cpu",
+                    title: "CPU GAUGE & TEMP",
+                    desc: "Processor load percentage and core thermal sensor.",
+                    previewText: root.liveCpuVal + "% " + (root.liveCpuTemp > 0 ? (root.liveCpuTemp + "°C") : "")
+                  },
+                  {
+                    key: "fan",
+                    title: "FAN RPM & SPEED BARS",
+                    desc: "Cooling fan tachometer RPM and multi-fan load bars.",
+                    previewText: "2.4k RPM"
+                  },
+                  {
+                    key: "ram",
+                    title: "RAM MEMORY USAGE",
+                    desc: "System physical RAM utilization percentage.",
+                    previewText: root.liveMemVal + "% (" + root.liveMemGb + ")"
+                  },
+                  {
+                    key: "dsk",
+                    title: "DSK ROOT STORAGE",
+                    desc: "Root filesystem NVMe/SSD storage capacity usage.",
+                    previewText: root.liveDskVal + "%"
+                  },
+                  {
+                    key: "conns",
+                    title: "CONNS SOCKET COUNTER",
+                    desc: "Real-time active TCP & UDP socket connections count.",
+                    previewText: "14 CONNS"
+                  },
+                  {
+                    key: "net",
+                    title: "NET BANDWIDTH RATES",
+                    desc: "Live uplink (TX) and downlink (RX) network throughput.",
+                    previewText: "▲4.2K ▼28K"
+                  }
+                ]
+
+                delegate: Rectangle {
+                  required property var modelData
+                  readonly property bool isMeterActive: root.isHudMeterEnabled(modelData.key)
+
+                  Layout.fillWidth: true
+                  Layout.preferredHeight: 52
+                  color: meterHover.hovered
+                         ? Qt.rgba(1, 1, 1, 0.08)
+                         : (isMeterActive
+                            ? Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.08)
+                            : Qt.rgba(1, 1, 1, 0.03))
+                  border.color: isMeterActive ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.15)
+                  border.width: 1
+
+                  HoverHandler { id: meterHover }
+
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.toggleHudMeter(modelData.key)
+                  }
+
+                  RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 8
+
+                    // Tag Badge
+                    Rectangle {
+                      width: 44
+                      height: 22
+                      color: isMeterActive ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.1)
+                      Text {
+                        anchors.centerIn: parent
+                        text: modelData.key.toUpperCase()
+                        font.family: root.fontFamily
+                        font.bold: true
+                        font.pixelSize: 9
+                        color: isMeterActive ? "#010101" : Qt.rgba(1, 1, 1, 0.6)
+                      }
+                    }
+
+                    ColumnLayout {
+                      Layout.fillWidth: true
+                      spacing: 1
+
+                      RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                          text: modelData.title
+                          font.family: root.fontFamily
+                          font.bold: true
+                          font.pixelSize: 10
+                          color: Commons.Color.foreground
+                        }
+                        Text {
+                          text: "[" + modelData.previewText + "]"
+                          font.family: root.fontFamily
+                          font.pixelSize: 9
+                          color: isMeterActive ? root.secondaryColor : Qt.rgba(1, 1, 1, 0.3)
+                        }
+                      }
+
+                      Text {
+                        text: modelData.desc
+                        font.family: root.fontFamily
+                        font.pixelSize: 8
+                        color: Qt.rgba(1, 1, 1, 0.5)
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                      }
+                    }
+
+                    // ON / OFF Pill
+                    Rectangle {
+                      width: 42
+                      height: 22
+                      color: isMeterActive ? Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.25) : Qt.rgba(1, 1, 1, 0.05)
+                      border.color: isMeterActive ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.2)
+                      border.width: 1
+
+                      Text {
+                        anchors.centerIn: parent
+                        text: isMeterActive ? "ON" : "OFF"
+                        font.family: root.fontFamily
+                        font.bold: true
+                        font.pixelSize: 9
+                        color: isMeterActive ? Commons.Color.accent : Qt.rgba(1, 1, 1, 0.4)
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            Rectangle {
+              Layout.fillWidth: true
+              height: 1
+              color: Qt.rgba(1, 1, 1, 0.12)
+            }
+
+            // Section 2 Header: Network & Comms Tools
+            RowLayout {
+              Layout.fillWidth: true
+              Text {
+                text: "NETWORK TRAFFIC INSPECTION & MONITORING TOOLS"
+                font.family: root.fontFamily
+                font.bold: true
+                font.pixelSize: Style.font.caption
+                color: Commons.Color.accent
+                Layout.fillWidth: true
+              }
+            }
+
+            Text {
+              text: "Quickly install or launch interactive per-process network bandwidth analyzers."
+              font.family: root.fontFamily
+              font.pixelSize: 10
+              color: Qt.rgba(1, 1, 1, 0.5)
+            }
+
+            ColumnLayout {
+              Layout.fillWidth: true
+              spacing: 6
+
+              // bandwhich card
+              Rectangle {
+                Layout.fillWidth: true
+                height: 50
+                color: Qt.rgba(1, 1, 1, 0.04)
+                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.3)
+                border.width: 1
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.margins: 8
+                  spacing: 10
+
+                  Text {
+                    text: "󰛳"
+                    font.family: root.fontFamily
+                    font.pixelSize: 18
+                    color: Commons.Color.accent
+                  }
+
+                  ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                      text: "bandwhich (Terminal Bandwidth Utilization Tool)"
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 11
+                      color: Commons.Color.foreground
+                    }
+                    Text {
+                      text: "Displays current network utilization by process, connection, and remote host."
+                      font.family: root.fontFamily
+                      font.pixelSize: 9
+                      color: Qt.rgba(1, 1, 1, 0.5)
+                      elide: Text.ElideRight
+                      Layout.fillWidth: true
+                    }
+                  }
+
+                  Button {
+                    text: "⚡ INSTALL BANDWHICH"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: Commons.Color.accent
+                    Layout.preferredHeight: 28
+                    onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float bash -c \"omarchy pkg add bandwhich; echo ''; read -n 1 -s -r -p 'Press any key to close...'\"")
+                  }
+
+                  Button {
+                    text: "󰍹 LAUNCH"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: root.secondaryColor
+                    Layout.preferredHeight: 28
+                    onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float sudo bandwhich")
+                  }
+                }
+              }
+
+              // nethogs card
+              Rectangle {
+                Layout.fillWidth: true
+                height: 50
+                color: Qt.rgba(1, 1, 1, 0.04)
+                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.3)
+                border.width: 1
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.margins: 8
+                  spacing: 10
+
+                  Text {
+                    text: "󰛳"
+                    font.family: root.fontFamily
+                    font.pixelSize: 18
+                    color: Commons.Color.accent
+                  }
+
+                  ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                      text: "nethogs (Per-Process Network Traffic Top)"
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 11
+                      color: Commons.Color.foreground
+                    }
+                    Text {
+                      text: "Net top tool that groups bandwidth by process name instead of per IP subnet."
+                      font.family: root.fontFamily
+                      font.pixelSize: 9
+                      color: Qt.rgba(1, 1, 1, 0.5)
+                      elide: Text.ElideRight
+                      Layout.fillWidth: true
+                    }
+                  }
+
+                  Button {
+                    text: "⚡ INSTALL NETHOGS"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: Commons.Color.accent
+                    Layout.preferredHeight: 28
+                    onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float bash -c \"omarchy pkg add nethogs; echo ''; read -n 1 -s -r -p 'Press any key to close...'\"")
+                  }
+
+                  Button {
+                    text: "󰍹 LAUNCH"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: root.secondaryColor
+                    Layout.preferredHeight: 28
+                    onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float sudo nethogs")
+                  }
+                }
+              }
+
+              // launch-comms inspector card
+              Rectangle {
+                Layout.fillWidth: true
+                height: 50
+                color: Qt.rgba(1, 1, 1, 0.04)
+                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.3)
+                border.width: 1
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.margins: 8
+                  spacing: 10
+
+                  Text {
+                    text: "󱗗"
+                    font.family: root.fontFamily
+                    font.pixelSize: 18
+                    color: root.secondaryColor
+                  }
+
+                  ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                      text: "Theme Comms & Socket Inspector (launch-comms.sh)"
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 11
+                      color: Commons.Color.foreground
+                    }
+                    Text {
+                      text: "Intelligent launcher prioritizing bandwhich → nethogs → sniffnet → iftop → ss."
+                      font.family: root.fontFamily
+                      font.pixelSize: 9
+                      color: Qt.rgba(1, 1, 1, 0.5)
+                      elide: Text.ElideRight
+                      Layout.fillWidth: true
+                    }
+                  }
+
+                  Button {
+                    text: "󰍹 LAUNCH COMMS INSPECTOR"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: Commons.Color.accent
+                    Layout.preferredHeight: 28
+                    onClicked: root.run("omarchy-launch-or-focus-tui --app-id=TUI.float " + root.midnightThemeDir + "/bin/launch-comms.sh")
+                  }
+                }
+              }
+            }
+
+            Item { Layout.fillHeight: true }
+          }
+
+          // TAB 5: QUICK LINKS & CONFIG EDITORS
+          ColumnLayout {
+            anchors.fill: parent
+            visible: modalContainer.activeTab === 5
             spacing: 8
 
             RowLayout {
@@ -4097,6 +4745,20 @@ Item {
                   title: "Omarchy Menu Extensions",
                   desc: "Custom user categories, commands, and launcher shortcuts in the Omarchy menu.",
                   path: Quickshell.env("HOME") + "/.config/omarchy/extensions/omarchy-menu.jsonc"
+                },
+                {
+                  title: "Install Bandwhich Network Monitor",
+                  desc: "Terminal bandwidth utilization tool displaying real-time traffic per process and host.",
+                  isInstall: true,
+                  installCmd: "omarchy-launch-or-focus-tui --app-id=TUI.float bash -c \"omarchy pkg add bandwhich; echo ''; read -n 1 -s -r -p 'Press any key to close...'\"",
+                  launchCmd: "omarchy-launch-or-focus-tui --app-id=TUI.float sudo bandwhich"
+                },
+                {
+                  title: "Install Nethogs Traffic Monitor",
+                  desc: "Process-based network traffic monitor grouping bandwidth by application.",
+                  isInstall: true,
+                  installCmd: "omarchy-launch-or-focus-tui --app-id=TUI.float bash -c \"omarchy pkg add nethogs; echo ''; read -n 1 -s -r -p 'Press any key to close...'\"",
+                  launchCmd: "omarchy-launch-or-focus-tui --app-id=TUI.float sudo nethogs"
                 }
               ]
 
@@ -4118,7 +4780,7 @@ Item {
                   spacing: 10
 
                   Text {
-                    text: "󰈙"
+                    text: modelData.isInstall ? "󰛳" : "󰈙"
                     font.family: root.fontFamily
                     font.pixelSize: 18
                     color: linkHover.hovered ? Commons.Color.accent : root.secondaryColor
@@ -4147,7 +4809,29 @@ Item {
                   }
 
                   Button {
-                    visible: !!modelData.hasVisual
+                    visible: !!modelData.isInstall
+                    text: "⚡ INSTALL PKG"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: Commons.Color.accent
+                    Layout.preferredHeight: 26
+                    onClicked: root.run(modelData.installCmd)
+                  }
+
+                  Button {
+                    visible: !!modelData.isInstall
+                    text: "󰍹 LAUNCH"
+                    fontFamily: root.fontFamily
+                    fontSize: 9
+                    bordered: true
+                    accent: root.secondaryColor
+                    Layout.preferredHeight: 26
+                    onClicked: root.run(modelData.launchCmd)
+                  }
+
+                  Button {
+                    visible: !modelData.isInstall && !!modelData.hasVisual
                     text: "󰐕 VISUAL"
                     fontFamily: root.fontFamily
                     fontSize: 9
@@ -4158,6 +4842,7 @@ Item {
                   }
 
                   Button {
+                    visible: !modelData.isInstall
                     text: "󰏫 EDIT FILE"
                     fontFamily: root.fontFamily
                     fontSize: 9
@@ -6797,6 +7482,7 @@ Item {
       // Hardware Telemetry Group (CPU, FAN, RAM, DSK) -> Launches btop
       Row {
         id: hwGroup
+        visible: root.hudMeterCpu || root.hudMeterFan || root.hudMeterRam || root.hudMeterDsk
         spacing: 6
         width: implicitWidth
         height: root.barSize
@@ -6817,6 +7503,7 @@ Item {
 
         // CPU Gauge
         Row {
+          visible: root.hudMeterCpu
           spacing: 4
           anchors.verticalCenter: parent.verticalCenter
           Text {
@@ -6863,6 +7550,7 @@ Item {
 
         // Divider
         Text {
+          visible: root.hudMeterCpu && (root.hudMeterFan || root.hudMeterRam || root.hudMeterDsk)
           text: "|"
           font.family: root.fontFamily
           font.pixelSize: 8
@@ -6872,6 +7560,7 @@ Item {
 
         // FAN Gauge (Vertical Bars per Fan)
         Row {
+          visible: root.hudMeterFan
           spacing: 4
           anchors.verticalCenter: parent.verticalCenter
           Text {
@@ -6916,6 +7605,7 @@ Item {
 
         // Divider
         Text {
+          visible: root.hudMeterFan && (root.hudMeterRam || root.hudMeterDsk)
           text: "|"
           font.family: root.fontFamily
           font.pixelSize: 8
@@ -6925,6 +7615,7 @@ Item {
 
         // RAM / MEM Gauge
         Row {
+          visible: root.hudMeterRam
           spacing: 4
           anchors.verticalCenter: parent.verticalCenter
           Text {
@@ -6961,6 +7652,7 @@ Item {
 
         // Divider
         Text {
+          visible: root.hudMeterRam && root.hudMeterDsk
           text: "|"
           font.family: root.fontFamily
           font.pixelSize: 8
@@ -6970,6 +7662,7 @@ Item {
 
         // DISK Gauge
         Row {
+          visible: root.hudMeterDsk
           spacing: 4
           anchors.verticalCenter: parent.verticalCenter
           Text {
@@ -7007,6 +7700,7 @@ Item {
 
       // Divider
       Text {
+        visible: hwGroup.visible && commsGroup.visible
         text: "|"
         font.family: root.fontFamily
         font.pixelSize: 8
@@ -7017,6 +7711,7 @@ Item {
       // Comms Telemetry Group (CONNS, NET) -> Launches smart comms inspector
       Row {
         id: commsGroup
+        visible: root.hudMeterConns || root.hudMeterNet
         spacing: 6
         width: implicitWidth
         height: root.barSize
@@ -7037,6 +7732,7 @@ Item {
 
         // Connections Indicator
         Row {
+          visible: root.hudMeterConns
           spacing: 4
           anchors.verticalCenter: parent.verticalCenter
           Text {
@@ -7061,6 +7757,7 @@ Item {
 
         // Divider
         Text {
+          visible: root.hudMeterConns && root.hudMeterNet
           text: "|"
           font.family: root.fontFamily
           font.pixelSize: 8
@@ -7070,6 +7767,7 @@ Item {
 
         // NET Rates
         Row {
+          visible: root.hudMeterNet
           spacing: 4
           anchors.verticalCenter: parent.verticalCenter
           Text {
