@@ -4867,8 +4867,36 @@ Item {
       acceptedButtons: Qt.RightButton
       z: 1001
       cursorShape: Qt.ArrowCursor
+      propagateComposedEvents: true
+
+      function isOverModuleSlot(px, py) {
+        if (!root.moduleSlots || root.moduleSlots.length === 0) return false
+        for (var i = 0; i < root.moduleSlots.length; i++) {
+          var slot = root.moduleSlots[i]
+          if (!slot || !slot.visible || slot.width <= 0 || slot.height <= 0) continue
+          try {
+            var pt = slot.mapFromItem(topBarRightClickArea, px, py)
+            if (pt.x >= 0 && pt.x <= slot.width && pt.y >= 0 && pt.y <= slot.height) {
+              return true
+            }
+          } catch (e) {}
+        }
+        return false
+      }
+
+      onPressed: function(mouse) {
+        if (mouse.button === Qt.RightButton && isOverModuleSlot(mouse.x, mouse.y)) {
+          mouse.accepted = false
+          return
+        }
+      }
+
       onClicked: function(mouse) {
         if (mouse.button === Qt.RightButton) {
+          if (isOverModuleSlot(mouse.x, mouse.y)) {
+            mouse.accepted = false
+            return
+          }
           root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
           mouse.accepted = true
         }
@@ -5845,36 +5873,64 @@ Item {
           return "full"
         }
 
-        property bool is12h: {
-          if (clockSettings && clockSettings.timeFormat) return clockSettings.timeFormat === "12h"
+        property string timeFormatMode: {
+          if (clockSettings && clockSettings.timeFormat) {
+            var tf = String(clockSettings.timeFormat)
+            if (tf === "12h" || tf === "24h" || tf === "military") return tf
+          }
           if (clockSettings && clockSettings.format) {
             var f = String(clockSettings.format)
-            if (f.indexOf("AP") !== -1 || f.indexOf("ap") !== -1 || f.indexOf("h:") !== -1) return true
+            if (f.indexOf("AP") !== -1 || f.indexOf("ap") !== -1 || f.indexOf("h:") !== -1) return "12h"
+            if (f.indexOf("HHmm") !== -1) return "military"
+            if (f.indexOf("HH:mm") !== -1) return "24h"
           }
-          return false
+          return "military"
         }
 
         property bool precision: {
           if (clockSettings && clockSettings.precision !== undefined) return clockSettings.precision === true
           if (clockSettings && clockSettings.format) {
-            if (String(clockSettings.format).indexOf(":ss") !== -1) return true
+            var f2 = String(clockSettings.format)
+            if (f2.indexOf(":ss") !== -1 || f2.indexOf("ss") !== -1) return true
           }
           return false
         }
 
-        function saveSettings(newDateFormat, newIs12h, newPrecision) {
+        onClockSettingsChanged: {
+          if (clockSettings) {
+            if (clockSettings.dateFormat) dateFormat = clockSettings.dateFormat
+            if (clockSettings.timeFormat) {
+              timeFormatMode = clockSettings.timeFormat
+            } else if (clockSettings.format) {
+              var f = String(clockSettings.format)
+              if (f.indexOf("AP") !== -1 || f.indexOf("ap") !== -1 || f.indexOf("h:") !== -1) timeFormatMode = "12h"
+              else if (f.indexOf("HHmm") !== -1) timeFormatMode = "military"
+              else if (f.indexOf("HH:mm") !== -1) timeFormatMode = "24h"
+            }
+            if (clockSettings.precision !== undefined) precision = (clockSettings.precision === true)
+          }
+        }
+
+        function saveSettings(newDateFormat, newTimeFormatMode, newPrecision) {
+          dateFormat = newDateFormat
+          timeFormatMode = newTimeFormatMode
+          precision = newPrecision
+
           var entry = { id: "omarchy.clock" }
           if (clockSettings) {
             for (var k in clockSettings) if (k !== "id") entry[k] = clockSettings[k]
           }
           entry.dateFormat = newDateFormat
-          entry.timeFormat = newIs12h ? "12h" : "24h"
+          entry.timeFormat = newTimeFormatMode
           entry.precision = newPrecision
 
           // Keep format synced with canonical omarchy.clock presets
-          if (newIs12h) {
+          if (newTimeFormatMode === "12h") {
             entry.format = newPrecision ? "dddd h:mm:ss AP" : "dddd h:mm AP"
             entry.verticalFormat = "h\n—\nmm\nAP"
+          } else if (newTimeFormatMode === "military") {
+            entry.format = newPrecision ? "dddd HHmmss" : "dddd HHmm"
+            entry.verticalFormat = "HHmm"
           } else {
             entry.format = newPrecision ? "dddd HH:mm:ss" : "dddd HH:mm"
             entry.verticalFormat = "HH\n—\nmm"
@@ -5887,25 +5943,34 @@ Item {
         }
 
         function cycleDateFormat() {
-          var next = "full"
-          if (dateFormat === "full") next = "compact"
-          else if (dateFormat === "compact") next = "iso"
-          else next = "full"
-          saveSettings(next, is12h, precision)
+          var formats = ["full", "compact", "iso", "dayDate"]
+          var idx = formats.indexOf(dateFormat)
+          var next = formats[(idx + 1) % formats.length]
+          saveSettings(next, timeFormatMode, precision)
         }
 
-        function toggleTimeFormat() {
-          saveSettings(dateFormat, !is12h, precision)
+        function cycleTimeFormat() {
+          var modes = ["12h", "24h", "military"]
+          var idx = modes.indexOf(timeFormatMode)
+          var next = modes[(idx + 1) % modes.length]
+          saveSettings(dateFormat, next, precision)
         }
 
         function togglePrecision() {
-          saveSettings(dateFormat, is12h, !precision)
+          saveSettings(dateFormat, timeFormatMode, !precision)
         }
 
         function dateFormatName() {
           if (dateFormat === "compact") return "Compact"
           if (dateFormat === "iso") return "YYYY-MM-DD"
+          if (dateFormat === "dayDate") return "Day & Date"
           return "Full"
+        }
+
+        function timeFormatName() {
+          if (timeFormatMode === "12h") return "12-hr"
+          if (timeFormatMode === "24h") return "24-hr"
+          return "Military"
         }
 
         property date currentDate: new Date()
@@ -5933,6 +5998,8 @@ Item {
           } else if (dateFormat === "iso") {
             var mNum = String(d.getMonth() + 1).padStart(2, "0")
             return yr + "-" + mNum + "-" + dayNum
+          } else if (dateFormat === "dayDate") {
+            return dayName + ", " + mon + " " + dayNum
           } else {
             return mon + " " + dayNum + " " + yr + " / " + dayName
           }
@@ -5944,23 +6011,18 @@ Item {
           var m = String(d.getMinutes()).padStart(2, "0")
           var s = String(d.getSeconds()).padStart(2, "0")
 
-          if (is12h) {
+          if (timeFormatMode === "12h") {
             var ap = h >= 12 ? "PM" : "AM"
             var h12 = h % 12
             if (h12 === 0) h12 = 12
             var hStr = String(h12)
-            if (precision) {
-              return hStr + ":" + m + ":" + s + " " + ap
-            } else {
-              return hStr + ":" + m + " " + ap
-            }
-          } else {
+            return precision ? (hStr + ":" + m + ":" + s + " " + ap) : (hStr + ":" + m + " " + ap)
+          } else if (timeFormatMode === "24h") {
             var hh = String(h).padStart(2, "0")
-            if (precision) {
-              return hh + m + s
-            } else {
-              return hh + m
-            }
+            return precision ? (hh + ":" + m + ":" + s) : (hh + ":" + m)
+          } else {
+            var hh2 = String(h).padStart(2, "0")
+            return precision ? (hh2 + m + s) : (hh2 + m)
           }
         }
 
@@ -5970,22 +6032,17 @@ Item {
           var m = String(d.getMinutes()).padStart(2, "0")
           var s = String(d.getSeconds()).padStart(2, "0")
 
-          if (is12h) {
+          if (timeFormatMode === "12h") {
             var ap = h >= 12 ? "PM" : "AM"
             var h12 = h % 12
             if (h12 === 0) h12 = 12
-            if (precision) {
-              return [String(h12), m, s, ap]
-            } else {
-              return [String(h12), "—", m, ap]
-            }
-          } else {
+            return precision ? [String(h12), m, s, ap] : [String(h12), "—", m, ap]
+          } else if (timeFormatMode === "24h") {
             var hh = String(h).padStart(2, "0")
-            if (precision) {
-              return [hh, m, s]
-            } else {
-              return [hh, "—", m]
-            }
+            return precision ? [hh, m, s] : [hh, "—", m]
+          } else {
+            var hh2 = String(h).padStart(2, "0")
+            return precision ? [hh2, m, s] : [hh2, m]
           }
         }
 
@@ -6054,7 +6111,7 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onEntered: {
-                  root.showTooltip(dateBox, "Date (" + clockOverlayRoot.dateFormatName() + ") · Right-click: Cycle format (Full / Compact / YYYY-MM-DD)")
+                  root.showTooltip(dateBox, "Date (" + clockOverlayRoot.dateFormatName() + ") · Right-click / Scroll: Cycle format")
                 }
                 onExited: root.hideTooltip(dateBox)
                 onClicked: function(mouse) {
@@ -6065,6 +6122,9 @@ Item {
                   } else {
                     clockOverlayRoot.togglePanel()
                   }
+                }
+                onWheel: function(wheel) {
+                  clockOverlayRoot.cycleDateFormat()
                 }
               }
             }
@@ -6105,9 +6165,9 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onEntered: {
-                  var modeStr = clockOverlayRoot.is12h ? "12-hr" : "24-hr"
+                  var modeStr = clockOverlayRoot.timeFormatName()
                   var secStr = clockOverlayRoot.precision ? "Seconds: ON" : "Seconds: OFF"
-                  root.showTooltip(timeBox, "Time (" + modeStr + ") · Right-click: Swap 12h/24h · Middle-click / Double-click: Toggle seconds (" + secStr + ")")
+                  root.showTooltip(timeBox, "Time (" + modeStr + ") · Right-click: Cycle format (12h/24h/Military) · Scroll / Double-click: Toggle seconds (" + secStr + ")")
                 }
                 onExited: root.hideTooltip(timeBox)
                 onDoubleClicked: function(mouse) {
@@ -6117,7 +6177,7 @@ Item {
                 }
                 onClicked: function(mouse) {
                   if (mouse.button === Qt.RightButton) {
-                    clockOverlayRoot.toggleTimeFormat()
+                    clockOverlayRoot.cycleTimeFormat()
                   } else if (mouse.button === Qt.MiddleButton) {
                     clockOverlayRoot.togglePrecision()
                   } else {
@@ -6153,14 +6213,14 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onEntered: {
-              var modeStr = clockOverlayRoot.is12h ? "12-hr" : "24-hr"
+              var modeStr = clockOverlayRoot.timeFormatName()
               var secStr = clockOverlayRoot.precision ? "Seconds: ON" : "Seconds: OFF"
-              root.showTooltip(verticalContent, "Left-click: Calendar · Right-click: Swap 12h/24h (" + modeStr + ") · Middle-click / Double-click: Toggle seconds (" + secStr + ")")
+              root.showTooltip(verticalContent, "Left-click: Calendar · Right-click: Cycle format (" + modeStr + ") · Scroll / Double-click: Toggle seconds (" + secStr + ")")
             }
             onExited: root.hideTooltip(verticalContent)
             onClicked: function(mouse) {
               if (mouse.button === Qt.RightButton) {
-                clockOverlayRoot.toggleTimeFormat()
+                clockOverlayRoot.cycleTimeFormat()
               } else if (mouse.button === Qt.MiddleButton) {
                 clockOverlayRoot.togglePrecision()
               } else {
@@ -6171,6 +6231,9 @@ Item {
               if (mouse.button === Qt.LeftButton) {
                 clockOverlayRoot.togglePrecision()
               }
+            }
+            onWheel: function(wheel) {
+              clockOverlayRoot.togglePrecision()
             }
           }
 
@@ -6745,6 +6808,13 @@ Item {
         Component.onCompleted: if (typeof root.registerClickTarget === "function") root.registerClickTarget(this)
         Component.onDestruction: if (typeof root.unregisterClickTarget === "function") root.unregisterClickTarget(this)
 
+        HoverHandler {
+          onHoveredChanged: {
+            if (hovered) root.showTooltip(hwGroup, root.hudTooltipText() || "Activity Monitor (btop)")
+            else root.hideTooltip(hwGroup)
+          }
+        }
+
         // CPU Gauge
         Row {
           spacing: 4
@@ -6957,6 +7027,13 @@ Item {
         }
         Component.onCompleted: if (typeof root.registerClickTarget === "function") root.registerClickTarget(this)
         Component.onDestruction: if (typeof root.unregisterClickTarget === "function") root.unregisterClickTarget(this)
+
+        HoverHandler {
+          onHoveredChanged: {
+            if (hovered) root.showTooltip(commsGroup, "Comms & Network Inspector")
+            else root.hideTooltip(commsGroup)
+          }
+        }
 
         // Connections Indicator
         Row {

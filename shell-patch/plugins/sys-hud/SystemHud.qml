@@ -32,8 +32,28 @@ BarWidget {
 
   property bool pressable: true
   function triggerPress(button) {
-    if (root.bar) root.bar.run("omarchy-launch-or-focus-tui btop")
+    var cmd = "omarchy-launch-or-focus-tui btop"
+    if (root.bar && typeof root.bar.run === "function") root.bar.run(cmd)
+    else if (typeof root.run === "function") root.run(cmd)
   }
+
+  function registerTargets() {
+    if (root.bar && typeof root.bar.registerClickTarget === "function") {
+      if (typeof hwGroup !== "undefined" && hwGroup) root.bar.registerClickTarget(hwGroup)
+      if (typeof commsGroup !== "undefined" && commsGroup) root.bar.registerClickTarget(commsGroup)
+    }
+  }
+
+  function unregisterTargets() {
+    if (root.bar && typeof root.bar.unregisterClickTarget === "function") {
+      if (typeof hwGroup !== "undefined" && hwGroup) root.bar.unregisterClickTarget(hwGroup)
+      if (typeof commsGroup !== "undefined" && commsGroup) root.bar.unregisterClickTarget(commsGroup)
+    }
+  }
+
+  onBarChanged: registerTargets()
+  Component.onCompleted: registerTargets()
+  Component.onDestruction: unregisterTargets()
 
   function updateMetrics(raw) {
     if (!raw) return
@@ -101,10 +121,21 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       property bool pressable: true
       function triggerPress(button) {
-        if (root.bar) root.bar.run("omarchy-launch-or-focus-tui btop")
+        var cmd = "omarchy-launch-or-focus-tui btop"
+        if (root.bar && typeof root.bar.run === "function") root.bar.run(cmd)
+        else if (typeof root.run === "function") root.run(cmd)
       }
       Component.onCompleted: if (root.bar && typeof root.bar.registerClickTarget === "function") root.bar.registerClickTarget(this)
       Component.onDestruction: if (root.bar && typeof root.bar.unregisterClickTarget === "function") root.bar.unregisterClickTarget(this)
+
+      HoverHandler {
+        onHoveredChanged: {
+          if (root.bar && typeof root.bar.showTooltip === "function") {
+            if (hovered) root.bar.showTooltip(hwGroup, "Activity Monitor (btop)")
+            else root.bar.hideTooltip(hwGroup)
+          }
+        }
+      }
 
       // CPU Gauge
       Row {
@@ -314,10 +345,21 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       property bool pressable: true
       function triggerPress(button) {
-        if (root.bar) root.bar.run("omarchy-launch-or-focus-tui --app-id=TUI.float " + root.homeDir + "/.config/omarchy/themes/midnight-doll/bin/launch-comms.sh")
+        var cmd = "omarchy-launch-or-focus-tui --app-id=TUI.float " + root.homeDir + "/.config/omarchy/themes/midnight-doll/bin/launch-comms.sh"
+        if (root.bar && typeof root.bar.run === "function") root.bar.run(cmd)
+        else if (typeof root.run === "function") root.run(cmd)
       }
       Component.onCompleted: if (root.bar && typeof root.bar.registerClickTarget === "function") root.bar.registerClickTarget(this)
       Component.onDestruction: if (root.bar && typeof root.bar.unregisterClickTarget === "function") root.bar.unregisterClickTarget(this)
+
+      HoverHandler {
+        onHoveredChanged: {
+          if (root.bar && typeof root.bar.showTooltip === "function") {
+            if (hovered) root.bar.showTooltip(commsGroup, "Comms & Network Inspector")
+            else root.bar.hideTooltip(commsGroup)
+          }
+        }
+      }
 
       // Connections Indicator
       Row {

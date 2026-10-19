@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "midnight-doll.bar",
+  "name": "Midnight Doll Cyberdeck Bar",
+  "version": "1.0.0",
+  "author": "Midnight Doll",
+  "description": "Dual-bar HUD & visualizer",
+  "kinds": [
+    "bar"
+  ],
+  "entryPoints": {
+    "bar": "Bar.qml"
+  }
+}
