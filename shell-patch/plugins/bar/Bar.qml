@@ -37,36 +37,24 @@ Item {
   }
 
   property string home: Quickshell.env("HOME")
-  property bool fullscreenSyncPending: false
-  readonly property string midnightThemeDir: root.home + "/.config/omarchy/themes/midnight-doll"
-  readonly property string fullscreenSyncBin: root.midnightThemeDir + "/bin/omarchy-fullscreen-bar-sync"
-
-  Process {
-    id: fullscreenBarSyncProc
-    command: [root.fullscreenSyncBin]
-    onExited: {
-      if (root.fullscreenSyncPending) {
-        root.fullscreenSyncPending = false
-        fullscreenSyncDebounceTimer.restart()
-      }
-    }
-  }
-
-  Timer {
-    id: fullscreenSyncDebounceTimer
-    interval: 50
-    repeat: false
-    onTriggered: {
-      if (fullscreenBarSyncProc.running) {
-        root.fullscreenSyncPending = true
-      } else {
-        fullscreenBarSyncProc.running = true
-      }
-    }
-  }
-
   function triggerFullscreenSync() {
-    fullscreenSyncDebounceTimer.restart()
+    var ws = Hyprland.focusedWorkspace
+    var fs = ws ? Boolean(ws.hasFullscreen) : false
+    if (!fs && Hyprland.toplevels && Hyprland.toplevels.values) {
+      for (var i = 0; i < Hyprland.toplevels.values.length; i++) {
+        var t = Hyprland.toplevels.values[i]
+        if (t && t.workspace && t.workspace.id === (ws ? ws.id : -1)) {
+          var ipc = t.lastIpcObject
+          if (ipc && (ipc.fullscreen || ipc.fullscreenClient)) {
+            fs = true
+            break
+          }
+        }
+      }
+    }
+    if (root.fullscreenModeActive !== fs) {
+      root.fullscreenModeActive = fs
+    }
   }
 
   FileView {

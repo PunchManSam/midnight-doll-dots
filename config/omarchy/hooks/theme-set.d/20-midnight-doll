@@ -13,9 +13,8 @@ NEW_THEME="${1:-}"
 NORM_THEME="$(echo "$NEW_THEME" | tr '[:upper:]' '[:lower:]' | tr -d ' -_')"
 
 if [[ "$NORM_THEME" == "midnightdoll" ]]; then
-  # Switching to Midnight Doll: activate bar, modular plugins, and scoped QML path
-  mkdir -p "$HOME/.config/environment.d"
-  echo "QML_IMPORT_PATH=$HOME/.config/omarchy/themes/midnight-doll/qml" > "$HOME/.config/environment.d/qml.conf"
+  # Clean up any legacy QML environment overrides
+  rm -f "$HOME/.config/environment.d/qml.conf"
   if command -v omarchy &>/dev/null; then
     CURRENT_BAR=$(python3 -c "import json; data=json.load(open('$HOME/.config/omarchy/shell.json')); print(data.get('bar', {}).get('id', ''))" 2>/dev/null || true)
     if [[ "$CURRENT_BAR" != "midnight-doll.bar" ]]; then

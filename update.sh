@@ -133,37 +133,14 @@ for loose in "cava.conf" "sys-hud.sh" "set-accent.sh" "launch-comms.sh" "midnigh
   fi
 done
 
-echo -e "\n${VIOLET}[*] Step 4: Deploying scoped QML shelf drawer overrides...${RESET}"
-QML_OVERRIDE_DIR="${THEME_DIR}/qml"
-mkdir -p "${QML_OVERRIDE_DIR}/qs/Ui"
-ln -sfn "/usr/share/omarchy/shell/Commons" "${QML_OVERRIDE_DIR}/qs/Commons"
-if [ -d "/usr/share/omarchy/shell/Ui" ]; then
-  for f in /usr/share/omarchy/shell/Ui/*.qml; do
-    base="$(basename "$f")"
-    if [ "$base" != "KeyboardPanel.qml" ] && [ "$base" != "PopupCard.qml" ]; then
-      ln -sfn "$f" "${QML_OVERRIDE_DIR}/qs/Ui/${base}"
-    fi
-  done
-fi
-if [ -f "/usr/share/omarchy/shell/Ui/qmldir" ]; then
-  cp "/usr/share/omarchy/shell/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/qmldir"
-else
-  cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
-fi
-cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/KeyboardPanel.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
-cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/PopupCard.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
-
-# Remove legacy global ~/.config/omarchy/qml if present
+echo -e "\n${VIOLET}[*] Step 4: Ensuring clean QML environment (zero system shadows)...${RESET}"
+rm -rf "${THEME_DIR}/qml"
 rm -rf "${OMARCHY_DIR}/qml"
-
-# Configure QML_IMPORT_PATH to point to theme directory
-mkdir -p "${HOME}/.config/environment.d"
-echo "QML_IMPORT_PATH=${QML_OVERRIDE_DIR}" > "${HOME}/.config/environment.d/qml.conf"
+rm -f "${HOME}/.config/environment.d/qml.conf"
 if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
   sed -i '/QML_IMPORT_PATH/d' "${HOME}/.config/hypr/autostart.lua"
-  sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "'"${HOME}"'") .. "/.config/omarchy/themes/midnight-doll/qml")' "${HOME}/.config/hypr/autostart.lua"
 fi
-echo -e "    ${GREEN}✓ QML overrides localized to:${RESET} ${QML_OVERRIDE_DIR}"
+echo -e "    ${GREEN}✓ Pure stock Omarchy QML environment restored (no shadows)${RESET}"
 
 echo -e "\n${VIOLET}[*] Step 5: Installing theme lifecycle hook (100% theme isolation)...${RESET}"
 mkdir -p "${HOOKS_DIR}"
@@ -195,12 +172,7 @@ if [ -d "${DOTS_DIR}/shell-patch/plugins/notifications" ]; then
   chmod +x "${PLUGINS_DIR}/midnight-doll.notifications/helper.py" 2>/dev/null || true
 fi
 
-# Fullscreen sync binary
-if [ -f "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" ]; then
-  mkdir -p "${HOME}/.local/bin"
-  cp "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" "${HOME}/.local/bin/"
-  chmod +x "${HOME}/.local/bin/omarchy-fullscreen-bar-sync"
-fi
+
 
 # 5. Safe layout synchronization in shell.json
 if [ -f "${HOME}/.config/omarchy/shell.json" ]; then

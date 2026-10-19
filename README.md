@@ -55,9 +55,9 @@
   - Smooth cubic sliding and opacity animations when toggling bars on/off via `Super+Shift+Space`.
   - Top bar slides vertically off-screen, left bar slides horizontally off-screen.
   - Immediate pointer input release: the input mask drops to zero immediately upon dismiss so games and full-screen windows are never blocked while animating.
-- 🖥️ **Intelligent Fullscreen Sync (`omarchy-fullscreen-bar-sync`)**:
-  - Automatically hides bars when launching fullscreen games, media, or applications.
-  - Preserves user preferences: remembers whether bars were explicitly hidden on the desktop, ensuring they only restore if they were auto-hidden by fullscreen.
+- 🖥️ **Native Fullscreen Integration**:
+  - Leverages Omarchy and Hyprland's native atomic fullscreen engine (`Super+F`). Zero focus stealing, zero delay, and instant window toggling.
+  - Bars automatically yield to full-screen games, media, and applications without fragile system-level hooks.
 - 📊 **Real-Time Ultra-Fast System Telemetry & Interactive HUD**:
   - Custom 3ms metrics sampler monitoring **CPU Temp & %**, **Fan Speed**, **RAM (Used / Total)**, **Disk %**, **Live Network TX / RX** rates, and **Active Socket Connections**.
   - Interactive click action: click the accent header/subtitle to instantly summon a floating **btop** activity monitor or your own custom command.
@@ -103,8 +103,6 @@ midnight-doll-dots/
 ├── install.sh                     # Automated 1-click installer & backup generator
 ├── update.sh                      # Automated updater & migration script
 ├── uninstall.sh                   # Instant rollback script
-├── bin/
-│   └── omarchy-fullscreen-bar-sync# Fullscreen bar state & auto-hide sync engine
 ├── config/
 │   └── omarchy/
 │       ├── hooks/
@@ -121,16 +119,9 @@ midnight-doll-dots/
 │               ├── bin/           # Theme-specific helper binaries
 │               │   ├── set-accent.sh
 │               │   ├── launch-comms.sh
-│               │   ├── sys-hud.sh
-│               │   └── omarchy-fullscreen-bar-sync
+│               │   └── sys-hud.sh
 │               └── backgrounds/   # Curated Midnight Doll retro-cyberpunk wallpapers
 └── shell-patch/
-    ├── qml/                       # Scoped QML overrides for attached shelf drawers
-    │   └── qs/
-    │       └── Ui/
-    │           ├── KeyboardPanel.qml # Attached shelf drawers with edge snapping
-    │           ├── PopupCard.qml     # Attached popup cards & transparent adaptation
-    │           └── qmldir            # QML module registry
     └── plugins/
         ├── bar/
         │   ├── Bar.qml            # Dual-bar HUD core engine, transitions & slot routing

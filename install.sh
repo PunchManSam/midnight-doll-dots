@@ -475,11 +475,7 @@ for old_cfg in "sys-hud.sh" "cava.conf" "set-accent.sh" "launch-comms.sh" "midni
   rm -f "${HOME}/.config/omarchy/${old_cfg}"
 done
 
-if [ -f "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" ]; then
-  mkdir -p "${HOME}/.local/bin"
-  cp "${DOTS_DIR}/bin/omarchy-fullscreen-bar-sync" "${HOME}/.local/bin/"
-  chmod +x "${HOME}/.local/bin/omarchy-fullscreen-bar-sync"
-fi
+
 
 
 # Apply customized accent & complimentary colors to theme configs
@@ -615,36 +611,13 @@ mkdir -p "${HOME}/.config/omarchy/hooks/theme-set.d"
 cp "${DOTS_DIR}/config/omarchy/hooks/theme-set.d/20-midnight-doll" "${HOME}/.config/omarchy/hooks/theme-set.d/"
 chmod +x "${HOME}/.config/omarchy/hooks/theme-set.d/20-midnight-doll"
 
-# 6. Shell QML overrides (attached shelf popouts for KeyboardPanel and PopupCard)
-echo -e "${VIOLET}[*] Deploying QML shell overrides to ~/.config/omarchy/themes/midnight-doll/qml/...${RESET}"
-QML_OVERRIDE_DIR="${HOME}/.config/omarchy/themes/midnight-doll/qml"
-mkdir -p "${QML_OVERRIDE_DIR}/qs/Ui"
-ln -sfn "/usr/share/omarchy/shell/Commons" "${QML_OVERRIDE_DIR}/qs/Commons"
-if [ -d "/usr/share/omarchy/shell/Ui" ]; then
-  for f in /usr/share/omarchy/shell/Ui/*.qml; do
-    base="$(basename "$f")"
-    if [ "$base" != "KeyboardPanel.qml" ] && [ "$base" != "PopupCard.qml" ]; then
-      ln -sfn "$f" "${QML_OVERRIDE_DIR}/qs/Ui/${base}"
-    fi
-  done
-fi
-if [ -f "/usr/share/omarchy/shell/Ui/qmldir" ]; then
-  cp "/usr/share/omarchy/shell/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/qmldir"
-else
-  cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
-fi
-cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/KeyboardPanel.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
-cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/PopupCard.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
-
-# Clean up legacy ~/.config/omarchy/qml if present
+# 6. Ensure clean QML environment (100% stock Omarchy UI components, zero shadows)
+echo -e "${VIOLET}[*] Ensuring clean QML environment (zero system shadows)...${RESET}"
+rm -rf "${HOME}/.config/omarchy/themes/midnight-doll/qml"
 rm -rf "${HOME}/.config/omarchy/qml"
-
-# Ensure QML_IMPORT_PATH is set in environment.d and hyprland autostart
-mkdir -p "${HOME}/.config/environment.d"
-echo "QML_IMPORT_PATH=${QML_OVERRIDE_DIR}" > "${HOME}/.config/environment.d/qml.conf"
+rm -f "${HOME}/.config/environment.d/qml.conf"
 if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
   sed -i '/QML_IMPORT_PATH/d' "${HOME}/.config/hypr/autostart.lua"
-  sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "'"${HOME}"'") .. "/.config/omarchy/themes/midnight-doll/qml")' "${HOME}/.config/hypr/autostart.lua"
 fi
 
 
