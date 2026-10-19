@@ -19,6 +19,7 @@ if [[ "$NORM_THEME" == "midnightdoll" ]]; then
     CURRENT_BAR=$(python3 -c "import json; data=json.load(open('$HOME/.config/omarchy/shell.json')); print(data.get('bar', {}).get('id', ''))" 2>/dev/null || true)
     if [[ "$CURRENT_BAR" != "midnight-doll.bar" ]]; then
       omarchy bar use midnight-doll.bar >/dev/null 2>&1 || true
+      omarchy restart shell >/dev/null 2>&1 || true
     fi
     omarchy plugin enable midnight-doll.notifications >/dev/null 2>&1 || true
     omarchy plugin enable midnight-doll.sys-hud >/dev/null 2>&1 || true

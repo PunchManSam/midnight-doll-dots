@@ -631,6 +631,7 @@ try:
     with open(shell_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     bar = data.setdefault("bar", {})
+    bar["id"] = "midnight-doll.bar"
     layout = bar.setdefault("layout", {})
 
     def get_id(item):

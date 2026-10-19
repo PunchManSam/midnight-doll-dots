@@ -184,6 +184,7 @@ try:
     with open(shell_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     bar = data.setdefault("bar", {})
+    bar["id"] = "midnight-doll.bar"
     layout = bar.setdefault("layout", {})
 
     def get_id(item):
@@ -216,12 +217,9 @@ if command -v omarchy-shell &>/dev/null; then
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 fi
 if command -v omarchy &>/dev/null; then
-  # Re-apply current theme to trigger hook & ensure everything binds cleanly
-  CURRENT_THEME="$(cat "${HOME}/.local/state/omarchy/current/theme.name" 2>/dev/null | tr -d '[:space:]' || echo "Midnight Doll")"
-  if [[ "$CURRENT_THEME" =~ [Mm]idnight ]]; then
-    omarchy theme set "Midnight Doll" >/dev/null 2>&1 || true
-    omarchy bar use midnight-doll.bar >/dev/null 2>&1 || true
-  fi
+  # Re-apply theme and ensure custom bar is active
+  omarchy theme set "Midnight Doll" >/dev/null 2>&1 || true
+  omarchy bar use midnight-doll.bar >/dev/null 2>&1 || true
   omarchy restart shell >/dev/null 2>&1 || true
 fi
 
