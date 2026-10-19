@@ -13,8 +13,16 @@ NEW_THEME="${1:-}"
 NORM_THEME="$(echo "$NEW_THEME" | tr '[:upper:]' '[:lower:]' | tr -d ' -_')"
 
 if [[ "$NORM_THEME" == "midnightdoll" ]]; then
-  # Clean up any legacy QML environment overrides
-  rm -f "$HOME/.config/environment.d/qml.conf"
+  # Switching to Midnight Doll: activate bar, modular plugins, and scoped QML path
+  mkdir -p "$HOME/.config/environment.d"
+  echo "QML_IMPORT_PATH=$HOME/.config/omarchy/themes/midnight-doll/qml" > "$HOME/.config/environment.d/qml.conf"
+  if [ -f "$HOME/.config/hypr/autostart.lua" ]; then
+    sed -i '/QML_IMPORT_PATH/d' "$HOME/.config/hypr/autostart.lua"
+    sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "") .. "/.config/omarchy/themes/midnight-doll/qml")' "$HOME/.config/hypr/autostart.lua"
+  fi
+  if command -v hyprctl &>/dev/null; then
+    hyprctl reload >/dev/null 2>&1 || true
+  fi
   if command -v omarchy &>/dev/null; then
     CURRENT_BAR=$(python3 -c "import json; data=json.load(open('$HOME/.config/omarchy/shell.json')); print(data.get('bar', {}).get('id', ''))" 2>/dev/null || true)
     if [[ "$CURRENT_BAR" != "midnight-doll.bar" ]]; then
@@ -29,6 +37,12 @@ if [[ "$NORM_THEME" == "midnightdoll" ]]; then
 else
   # Switching to any other theme: restore stock Omarchy and purge theme QML environment
   rm -f "$HOME/.config/environment.d/qml.conf"
+  if [ -f "$HOME/.config/hypr/autostart.lua" ]; then
+    sed -i '/QML_IMPORT_PATH/d' "$HOME/.config/hypr/autostart.lua"
+  fi
+  if command -v hyprctl &>/dev/null; then
+    hyprctl reload >/dev/null 2>&1 || true
+  fi
   if command -v omarchy &>/dev/null; then
     CURRENT_BAR=$(python3 -c "import json; data=json.load(open('$HOME/.config/omarchy/shell.json')); print(data.get('bar', {}).get('id', ''))" 2>/dev/null || true)
     if [[ "$CURRENT_BAR" == "midnight-doll.bar" ]]; then

@@ -133,14 +133,41 @@ for loose in "cava.conf" "sys-hud.sh" "set-accent.sh" "launch-comms.sh" "midnigh
   fi
 done
 
-echo -e "\n${VIOLET}[*] Step 4: Ensuring clean QML environment (zero system shadows)...${RESET}"
-rm -rf "${THEME_DIR}/qml"
+echo -e "\n${VIOLET}[*] Step 4: Deploying scoped QML shelf drawer overrides...${RESET}"
+QML_OVERRIDE_DIR="${THEME_DIR}/qml"
+mkdir -p "${QML_OVERRIDE_DIR}/qs/Ui"
+ln -sfn "/usr/share/omarchy/shell/Commons" "${QML_OVERRIDE_DIR}/qs/Commons"
+if [ -d "/usr/share/omarchy/shell/Ui" ]; then
+  for f in /usr/share/omarchy/shell/Ui/*.qml; do
+    base="$(basename "$f")"
+    if [ "$base" != "KeyboardPanel.qml" ] && [ "$base" != "PopupCard.qml" ]; then
+      ln -sfn "$f" "${QML_OVERRIDE_DIR}/qs/Ui/${base}"
+    fi
+  done
+fi
+if [ -f "/usr/share/omarchy/shell/Ui/qmldir" ]; then
+  cp "/usr/share/omarchy/shell/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/qmldir"
+else
+  cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/"
+fi
+cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/KeyboardPanel.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
+cp "${DOTS_DIR}/shell-patch/qml/qs/Ui/PopupCard.qml" "${QML_OVERRIDE_DIR}/qs/Ui/"
+
+# Remove legacy global ~/.config/omarchy/qml if present
 rm -rf "${OMARCHY_DIR}/qml"
-rm -f "${HOME}/.config/environment.d/qml.conf"
+
+# Configure QML_IMPORT_PATH to point to theme directory
+mkdir -p "${HOME}/.config/environment.d"
+echo "QML_IMPORT_PATH=${QML_OVERRIDE_DIR}" > "${HOME}/.config/environment.d/qml.conf"
 if [ -f "${HOME}/.config/hypr/autostart.lua" ]; then
   sed -i '/QML_IMPORT_PATH/d' "${HOME}/.config/hypr/autostart.lua"
+  sed -i '1i hl.env("QML_IMPORT_PATH", (os.getenv("HOME") or "'"${HOME}"'") .. "/.config/omarchy/themes/midnight-doll/qml")' "${HOME}/.config/hypr/autostart.lua"
 fi
-echo -e "    ${GREEN}✓ Pure stock Omarchy QML environment restored (no shadows)${RESET}"
+if command -v hyprctl &>/dev/null; then
+  hyprctl reload >/dev/null 2>&1 || true
+fi
+export QML_IMPORT_PATH="${QML_OVERRIDE_DIR}"
+echo -e "    ${GREEN}✓ Attached shelf drawers & drawer animations deployed${RESET}"
 
 echo -e "\n${VIOLET}[*] Step 5: Installing theme lifecycle hook (100% theme isolation)...${RESET}"
 mkdir -p "${HOOKS_DIR}"
