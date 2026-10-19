@@ -123,7 +123,6 @@ Panel {
         text: "󰂚"
         fontFamily: button.fontFamily
         fontSize: button.fontSize
-        paintedSize: Style.bar.iconSize
         color: button.active && button.useActiveColor ? button.activeColor : button.foreground
         anchors.verticalCenter: parent.verticalCenter
       }
