@@ -33,12 +33,35 @@ Item {
   // without an exclusion zone; updated by the FileView watcher further down.
   property bool barHidden: false
   onBarHiddenChanged: {
+    if (root.appIsFullscreen) {
+      root.fullscreenBarsRevealed = !root.barHidden
+    } else {
+      root.fullscreenBarsRevealed = false
+    }
     root.triggerFullscreenSync()
   }
 
   property string home: Quickshell.env("HOME")
   readonly property string midnightThemeDir: root.home + "/.config/omarchy/themes/midnight-doll"
+
+  property bool appIsFullscreen: false
+  property bool fullscreenBarsRevealed: false
+  property bool autoHiddenByFullscreen: false
+  readonly property bool fullscreenIndicatorVisible: root.appIsFullscreen && root.fullscreenBarsRevealed && !root.barHidden
+  property bool fullscreenModeActive: root.fullscreenIndicatorVisible
+
+  Timer {
+    id: fullscreenSyncDebounceTimer
+    interval: 80
+    repeat: false
+    onTriggered: root.syncLiveFullscreenState()
+  }
+
   function triggerFullscreenSync() {
+    fullscreenSyncDebounceTimer.restart()
+  }
+
+  function syncLiveFullscreenState() {
     var ws = Hyprland.focusedWorkspace
     var fs = ws ? Boolean(ws.hasFullscreen) : false
     if (!fs && Hyprland.toplevels && Hyprland.toplevels.values) {
@@ -46,47 +69,32 @@ Item {
         var t = Hyprland.toplevels.values[i]
         if (t && t.workspace && t.workspace.id === (ws ? ws.id : -1)) {
           var ipc = t.lastIpcObject
-          if (ipc && (ipc.fullscreen || ipc.fullscreenClient)) {
+          if (ipc && (ipc.fullscreen > 0 || ipc.fullscreenClient > 0)) {
             fs = true
             break
           }
         }
       }
     }
-    if (root.fullscreenModeActive !== fs) {
-      root.fullscreenModeActive = fs
+
+    if (root.appIsFullscreen !== fs) {
+      root.appIsFullscreen = fs
     }
-  }
 
-  FileView {
-    id: fullscreenStateFile
-    path: root.home + "/.local/state/omarchy/fullscreen-bars.json"
-    watchChanges: true
-    printErrors: false
-    onLoaded: root.syncFullscreenFromStateFile()
-    onFileChanged: reload()
-    onTextChanged: root.syncFullscreenFromStateFile()
-  }
-
-  function syncFullscreenFromStateFile() {
-    try {
-      var raw = fullscreenStateFile.text()
-      if (raw && raw.trim().length > 0) {
-        var parsed = JSON.parse(raw)
-        if (typeof parsed.fullscreen_active === "boolean") {
-          var ws = Hyprland.focusedWorkspace
-          var wsId = ws ? ws.id : null
-          var active = parsed.fullscreen_active
-          if (active && parsed.fullscreen_workspace !== undefined && wsId !== null && parsed.fullscreen_workspace !== wsId) {
-            active = false
-          }
-          if (root.fullscreenModeActive !== active) {
-            root.fullscreenModeActive = active
-          }
-          return
-        }
+    if (!fs) {
+      root.fullscreenBarsRevealed = false
+      if (root.autoHiddenByFullscreen) {
+        root.autoHiddenByFullscreen = false
+        root.run("omarchy-toggle bar-off off")
       }
-    } catch (e) {}
+    } else {
+      if (!root.barHidden && !root.fullscreenBarsRevealed && !root.autoHiddenByFullscreen) {
+        root.autoHiddenByFullscreen = true
+        root.run("omarchy-toggle bar-off on")
+      }
+    }
+
+    root.updateCornerWindowState()
   }
   FileView {
     id: currentThemeFile
@@ -498,7 +506,7 @@ Item {
       }
     }
 
-    if (!hasFs && root.fullscreenModeActive) {
+    if (!hasFs && root.appIsFullscreen) {
       hasFs = true
     }
 
@@ -577,10 +585,7 @@ Item {
     }
   }
 
-  property bool fullscreenModeActive: false
-
   function updateFullscreenState() {
-    root.syncFullscreenFromStateFile()
     root.triggerFullscreenSync()
   }
 
@@ -792,7 +797,6 @@ Item {
         root.markWorkspaceVisited(ws.id)
       }
       Hyprland.refreshToplevels()
-      root.syncFullscreenFromStateFile()
       root.triggerFullscreenSync()
       root.updateCornerWindowState()
     }
@@ -801,11 +805,23 @@ Item {
       if (event.name === "fullscreen") {
         var val = String(event.data || "").trim()
         if (val === "0" || val === "false") {
-          root.fullscreenModeActive = false
+          root.appIsFullscreen = false
+          root.fullscreenBarsRevealed = false
+          if (root.autoHiddenByFullscreen) {
+            root.autoHiddenByFullscreen = false
+            root.run("omarchy-toggle bar-off off")
+          }
+        } else if (val === "1" || val === "true") {
+          root.appIsFullscreen = true
+          root.fullscreenBarsRevealed = false
+          if (!root.barHidden) {
+            root.autoHiddenByFullscreen = true
+            root.run("omarchy-toggle bar-off on")
+          }
         }
-        root.triggerFullscreenSync()
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
+        root.triggerFullscreenSync()
         root.updateCornerWindowState()
       } else if (event.name === "openwindow" || event.name === "closewindow" ||
                  event.name === "movewindow" || event.name === "changefloatingmode") {
@@ -849,7 +865,6 @@ Item {
     running: true
     repeat: true
     onTriggered: {
-      root.syncFullscreenFromStateFile()
       root.urgentTick = (root.urgentTick + 1) % 1000
       root.updateCornerWindowState()
     }
@@ -1949,7 +1964,17 @@ Item {
     id: barHiddenProbe
     running: true
     command: ["bash", "-c", "[[ -f $HOME/.local/state/omarchy/toggles/bar-off ]] && echo yes || echo no"]
-    stdout: SplitParser { onRead: function(line) { root.barHidden = String(line).trim() === "yes" } }
+    stdout: SplitParser {
+      onRead: function(line) {
+        var hidden = String(line).trim() === "yes"
+        root.barHidden = hidden
+        if (root.appIsFullscreen) {
+          root.fullscreenBarsRevealed = !hidden
+        } else {
+          root.fullscreenBarsRevealed = false
+        }
+      }
+    }
   }
   FileView {
     path: root.home + "/.local/state/omarchy/toggles"
@@ -4841,7 +4866,7 @@ Item {
     color: "transparent"
     surfaceFormat.opaque: false
     WlrLayershell.namespace: (root.sideBarPosition === "right") ? "omarchy-midnight-right-bar" : "omarchy-midnight-left-bar"
-    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.layer: (root.appIsFullscreen && root.fullscreenBarsRevealed) ? WlrLayer.Overlay : WlrLayer.Top
 
     mask: Region {
       Region {
@@ -5157,7 +5182,7 @@ Item {
     color: "transparent"
     surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-bar"
-    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.layer: (root.appIsFullscreen && root.fullscreenBarsRevealed) ? WlrLayer.Overlay : WlrLayer.Top
 
     mask: Region {
       Region {
@@ -5767,7 +5792,7 @@ Item {
 
   component FullscreenModeBadge: Rectangle {
     id: badgeRoot
-    visible: root.fullscreenModeActive
+    visible: root.fullscreenIndicatorVisible
     height: 20
     width: visible ? (badgeRow.implicitWidth + 14) : 0
     radius: 3
@@ -5807,7 +5832,7 @@ Item {
       anchors.fill: parent
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      onClicked: root.run(root.fullscreenSyncBin + " --toggle-window")
+      onClicked: root.run("hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = \"fullscreen\", action = \"unset\" })'; hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = \"maximized\", action = \"unset\" })'")
     }
 
     HoverHandler {
