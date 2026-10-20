@@ -6,6 +6,8 @@
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Hyprland-ff51c5?style=flat-square)](#)
 [![Engine](https://img.shields.io/badge/Engine-Quickshell-bb9af7?style=flat-square)](#)
 [![Theme](https://img.shields.io/badge/Theme-Midnight--Doll-ff51c5?style=flat-square)](#)
+[![Built With](https://img.shields.io/badge/Built%20With-Google%20Gemini%203.8%20Flash-4285F4?style=flat-square&logo=google)](https://deepmind.google/technologies/gemini/)
+[![Pair Programmed](https://img.shields.io/badge/Pair%20Programmed%20Via-AGY%20CLI-00f0ff?style=flat-square)](#)
 [![License](https://img.shields.io/badge/License-MIT-white?style=flat-square)](#)
 
 ```text
@@ -17,7 +19,7 @@
               |___/      // CYBERDECK HUD
 ```
 
-*Ultra-dense, claustrophobic, retro-futuristic hacker cyberdeck interface featuring custom audio visualizers, live telemetry, dual-bar sequencing, attached shelf drawers, and solid pitch-black aesthetics.*
+*Ultra-dense, claustrophobic, retro-futuristic hacker cyberdeck interface featuring custom audio visualizers, live telemetry, dual-bar sequencing, attached shelf drawers, interactive Control Center, and solid pitch-black aesthetics.*
 
 </div>
 
@@ -42,6 +44,20 @@
 ## ⚡ Key Features
 
 - 💀 **Cyberdeck Skull Menu Launcher**: Dedicated **18px Neon Pink Nerd Font Skull (`󰚌`)** menu icon on the top bar with full native integration with the official Omarchy application launcher and shell menus.
+- 🎛️ **Midnight Doll Control Center (`Super+W` / Right-Click Top Bar)**:
+  - Resizable native floating cyberdeck dashboard (`800x700`) with real-time 1:1 HUD telemetry preview strip and framed accent skull badge.
+  - **󰚌 Branding**: Live custom glyph picker with presets (`󰚌`, `󰈸`, `󰀘`, `󰛳`, `󰍹`, `󰘚`), color selector (Primary vs Harmonic Compliment), and interactive title/subtitle editor.
+  - **󰏘 Accents**: 16-color Tokyo Night & Cyberdeck neon palette selector, dynamic harmonic compliment computation, custom hex codes, live bar opacity slider, and real-time syncing across Ghostty, Alacritty, Kitty, and Hyprland active window borders.
+  - **󰍹 Layout & 󰒓 Widgets**: Instant panel orientation toggling, edge positioning, and modular desktop widget management.
+  - **󰘚 Meters**: Granular system telemetry controls with 6 independent toggles (`CPU`, `FAN`, `RAM`, `DSK`, `CONNS`, `NET`), 4 quick presets (`ALL ON`, `HARDWARE`, `NETWORK`, `MINIMAL`), and 1-click tools to install (`omarchy pkg add`) and launch (`sudo bandwhich`, `sudo nethogs`) process-level network traffic analyzers.
+  - **󰈙 Quick Links**: 1-click editor shortcuts for shortcuts JSON, theme configs, `colors.toml`, `cava.conf`, and Hyprland rules.
+- 🌐 **Intelligent Split Comms & Telemetry Click Routing**:
+  - Clicking `CONNS` (active sockets) or `NET` (bandwidth rates) in the status bar launches the **Theme Comms & Socket Inspector** (`launch-comms.sh`), which elevates privileges and priority cascades through `sudo bandwhich` → `sudo nethogs` → `sniffnet` → `sudo iftop` → `ss` inside a floating terminal (`TUI.float`).
+  - Clicking any hardware telemetry gauge (`CPU`, `FAN`, `RAM`, `DSK`) or the HUD header directly launches the interactive `btop` system activity monitor.
+- 🕒 **Granular Monospace Clock & Precision Seconds**:
+  - Independent, clickable Date and Time modules.
+  - Click to cycle display formats: 12-hour AM/PM and 24-hour military colonless format.
+  - Scroll mouse wheel on the clock to toggle precision seconds on/off live without resetting the clock widget.
 - 🎛️ **Dual-Bar Sequencing Architecture**:
   - **Top Bar (30px)**: Full-width priority header with solid pitch-black `#010101` backplane and neon accent underline.
   - **Left Launcher Panel (36px)**: Edge-flush vertical app launcher with interactive right-click JSON shortcut editor.
@@ -66,9 +82,6 @@
   - Pipewire-driven **CAVA spectrum capture**.
   - **22-column × 5-tier discrete violet LED dot-matrix** (`#bb9af7`) with **neon pink peak indicators** (`#ff51c5`).
   - **Inverted Stacked Audio Gauges**: Pinched `AIR` (top), `MID` (middle), and `BASS` (bottom) level meters.
-- 🕒 **Interactive Military Monospace Header Clock**:
-  - Centered monospace date & time display with independent, clickable sections.
-  - Click to cycle display formats: 12-hour, 24-hour colonless, and precision seconds toggle.
 - 📟 **Integrated Notification Center (`midnight-doll.notifications`)**:
   - Cyberdeck notification drawer with multi-edge shelf geometry, action controls, and an alert badge featuring native two-tier heuristics.
 - 🔒 **Total Theme Isolation**:
@@ -81,10 +94,15 @@
 | Shortcut / Gesture | Target | Action |
 | :--- | :--- | :--- |
 | `Super + Shift + Space` | Entire Suite | Smoothly summon or dismiss top and left bars with slide transitions |
+| `Super + W` | Control Center | Open or close the **Midnight Doll Control Center** floating window |
+| `Right-Click` | Top Bar Background | Toggle the **Midnight Doll Control Center** |
 | `Double-Click` | Bar Background | Toggle solid pitch-black (`#010101`) vs transparent bar backplane |
 | `Right-Click` | Left Launcher Panel | Open graphical launcher shortcut manager (add, reorder, delete items) |
+| `Click` | `CONNS` or `NET` Meters | Launch **Theme Comms & Socket Inspector** (`bandwhich` / `nethogs` / `iftop`) |
+| `Click` | `CPU` / `FAN` / `RAM` / `DSK` | Launch **System Activity Monitor** (`btop`) |
 | `Click` | HUD Title / Subtitle | Launch configured activity monitor (Default: floating `btop`) |
-| `Click` | Header Date / Time | Cycle time format (12-hour / 24-hour / toggle precision seconds) |
+| `Click` | Header Date / Time | Cycle time format (12-hour AM/PM vs 24-hour military) |
+| `Scroll Wheel` | Header Clock | Toggle precision seconds display on / off |
 | `Click` | Bar Widgets & Icons | Open attached cyberpunk shelf drawers with continuous borders |
 
 ---
@@ -233,6 +251,15 @@ cd midnight-doll-dots
 ```
 
 The uninstaller restores your original `shell.json`, removes deployed plugins and QML overrides, cleans up environment configurations, and safely resets your bar.
+
+---
+
+## 🤖 Credits & Acknowledgements
+
+The **Midnight Doll Cyberdeck Suite** and its recent feature additions—including the **Midnight Doll Control Center**, **Intelligent Comms & Telemetry Click Routing**, **Granular Precision Clock**, and **Full UI Polish**—were pair programmed and created with:
+
+- **[Google Gemini 3.8 Flash](https://deepmind.google/technologies/gemini/)** — Advanced multimodal reasoning model powering rapid code architecture, system telemetry integrations, and aesthetic polish.
+- **[AGY CLI (Google Antigravity)](https://github.com/google)** — Autonomous agentic pair programming environment enabling live system inspection, pixel-perfect visual verification via screenshot analysis, and real-time desktop workflow automation.
 
 ---
 
