@@ -2636,8 +2636,8 @@ Item {
               Rectangle {
                 width: 26
                 height: 26
-                color: Qt.rgba(1, 1, 1, 0.05)
-                border.color: Qt.rgba(1, 1, 1, 0.15)
+                color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.15)
+                border.color: Commons.Color.accent
                 border.width: 1
 
                 Text {
@@ -2948,24 +2948,6 @@ Item {
               }
 
               Item { Layout.fillWidth: true }
-
-              // Live HUD badge
-              Rectangle {
-                width: 76
-                height: 22
-                color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.15)
-                border.color: Commons.Color.accent
-                border.width: 1
-
-                Text {
-                  anchors.centerIn: parent
-                  text: "LIVE STRIP"
-                  font.family: root.fontFamily
-                  font.bold: true
-                  font.pixelSize: 9
-                  color: Commons.Color.accent
-                }
-              }
             }
           }
 
@@ -3179,8 +3161,8 @@ Item {
                 Rectangle {
                   width: 28
                   height: 28
-                  color: Qt.rgba(1, 1, 1, 0.05)
-                  border.color: Qt.rgba(1, 1, 1, 0.2)
+                  color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.15)
+                  border.color: Commons.Color.accent
                   border.width: 1
 
                   Text {
