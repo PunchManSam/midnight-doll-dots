@@ -21,6 +21,8 @@
 
 *Ultra-dense, claustrophobic, retro-futuristic hacker cyberdeck interface featuring custom audio visualizers, live telemetry, dual-bar sequencing, attached shelf drawers, interactive Control Center, and solid pitch-black aesthetics.*
 
+**Created & Pair-Programmed with Google Gemini 3.8 Flash and the AGY CLI.**
+
 </div>
 
 ---
@@ -43,6 +45,7 @@
 
 ## ⚡ Key Features
 
+- 🤖 **Engineered with Google Gemini 3.8 Flash & AGY CLI**: Autonomous agentic pair programming powering rapid code development, visual UI iteration via live screenshots, and flawless QML & system script integrations.
 - 💀 **Cyberdeck Skull Menu Launcher**: Dedicated **18px Neon Pink Nerd Font Skull (`󰚌`)** menu icon on the top bar with full native integration with the official Omarchy application launcher and shell menus.
 - 🎛️ **Midnight Doll Control Center (`Super+W` / Right-Click Top Bar)**:
   - Resizable native floating cyberdeck dashboard (`800x700`) with real-time 1:1 HUD telemetry preview strip and framed accent skull badge.
