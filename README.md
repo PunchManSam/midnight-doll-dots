@@ -86,8 +86,12 @@
   - **22-column × 5-tier discrete violet LED dot-matrix** (`#bb9af7`) with **neon pink peak indicators** (`#ff51c5`).
   - **Inverted Stacked Audio Gauges**: Pinched `AIR` (top), `MID` (middle), and `BASS` (bottom) level meters.
   - **Interactive Audio & Equalizer Controls**:
-    - **Left-Click**: Launches or focuses **CLIAMP** retro terminal music player.
-    - **Right-Click**: Smart equalizer & audio launcher — launches an equalizer (`easyeffects`, `jamesdsp`, `pulseaudio-equalizer-gtk`, `qpaeq`) if installed, or opens the system audio settings (`pavucontrol` / Omarchy audio panel) if not.
+    - **Left-Click**: Launch dedicated terminal music session running **CLIAMP** retro player.
+    - **Right-Click**: Smart equalizer & audio launcher — launches equalizer (`easyeffects`, `jamesdsp`, `pulseaudio-equalizer-gtk`, `qpaeq`) if installed, or opens audio settings (`pavucontrol` / Omarchy audio panel) if not.
+    - **Scroll Wheel**: Master audio sink volume control (`wpctl set-volume 5%±`).
+- 🎛️ **Cyberdeck Shortcut Router & Interaction Matrix (`SHORTCUTS` Tab in Control Center)**:
+  - Comprehensive, interactive configuration center allowing you to view and customize **Left-Click**, **Right-Click**, and **Scroll Wheel** actions for all deck elements live (`visualizer`, `sys-hud`, `conns/net`, `menu`, `clock`, `notifications`, `branding`, and canvas).
+  - Open custom command slots to assign any CLI, TUI, or GUI application to any interaction. All current system and theme defaults are clearly documented in the matrix.
 - 📟 **Integrated Notification Center (`midnight-doll.notifications`)**:
   - Cyberdeck notification drawer with multi-edge shelf geometry, action controls, and an alert badge featuring native two-tier heuristics.
 - 🔒 **Total Theme Isolation**:
@@ -106,8 +110,10 @@
 | `Right-Click` | Left Launcher Panel | Open graphical launcher shortcut manager (add, reorder, delete items) |
 | `Click` | `CONNS` or `NET` Meters | Launch **Theme Comms & Socket Inspector** (`bandwhich` / `nethogs` / `iftop`) |
 | `Click` | `CPU` / `FAN` / `RAM` / `DSK` | Launch **System Activity Monitor** (`btop`) |
-| `Left-Click` | Audio Visualizer | Launch or focus **CLIAMP** retro terminal music player |
+| `Left-Click` | Audio Visualizer | Launch dedicated terminal music session with **CLIAMP** |
 | `Right-Click` | Audio Visualizer | Launch equalizer (`easyeffects` / `jamesdsp`) or audio settings |
+| `Scroll Wheel` | Audio Visualizer | Increase / decrease master audio volume (`wpctl`) |
+| `Tab: SHORTCUTS` | Control Center | Customize click, right-click, and scroll bindings for all deck elements |
 | `Click` | HUD Title / Subtitle | Launch configured activity monitor (Default: floating `btop`) |
 | `Click` | Header Date / Time | Cycle time format (12-hour AM/PM vs 24-hour military) |
 | `Scroll Wheel` | Header Clock | Toggle precision seconds display on / off |

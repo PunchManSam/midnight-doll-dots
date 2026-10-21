@@ -170,8 +170,84 @@ Item {
       dsk: true,
       conns: true,
       net: true
-    })
+    }),
+    barActions: ({})
   })
+
+  readonly property var defaultBarActions: ({
+    visualizer: {
+      click: root.midnightThemeDir + "/bin/launch-cliamp.sh",
+      rightClick: root.midnightThemeDir + "/bin/launch-audio-tool.sh",
+      scrollUp: "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
+      scrollDown: "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+    },
+    sysHud: {
+      click: "omarchy-launch-or-focus-tui btop",
+      rightClick: "omarchy-launch-or-focus-tui --app-id=TUI.float " + root.midnightThemeDir + "/bin/launch-comms.sh",
+      scrollUp: "",
+      scrollDown: ""
+    },
+    comms: {
+      click: "omarchy-launch-or-focus-tui --app-id=TUI.float " + root.midnightThemeDir + "/bin/launch-comms.sh",
+      rightClick: "",
+      scrollUp: "",
+      scrollDown: ""
+    },
+    menu: {
+      click: "",
+      rightClick: "xdg-terminal-exec",
+      scrollUp: "",
+      scrollDown: ""
+    },
+    clock: {
+      click: "",
+      rightClick: "",
+      scrollUp: "",
+      scrollDown: ""
+    },
+    notifications: {
+      click: "",
+      rightClick: "",
+      scrollUp: "",
+      scrollDown: ""
+    }
+  })
+
+  readonly property var barActions: (root.midnightConfig && root.midnightConfig.barActions) ? root.midnightConfig.barActions : ({})
+
+  function getBarAction(elementKey, actionType) {
+    if (root.midnightConfig && root.midnightConfig.barActions &&
+        root.midnightConfig.barActions[elementKey] &&
+        root.midnightConfig.barActions[elementKey][actionType] !== undefined &&
+        root.midnightConfig.barActions[elementKey][actionType] !== "") {
+      return String(root.midnightConfig.barActions[elementKey][actionType])
+    }
+    if (root.defaultBarActions && root.defaultBarActions[elementKey] &&
+        root.defaultBarActions[elementKey][actionType] !== undefined) {
+      return String(root.defaultBarActions[elementKey][actionType])
+    }
+    return ""
+  }
+
+  function getRawBarAction(elementKey, actionType) {
+    if (root.midnightConfig && root.midnightConfig.barActions &&
+        root.midnightConfig.barActions[elementKey] &&
+        root.midnightConfig.barActions[elementKey][actionType] !== undefined) {
+      return String(root.midnightConfig.barActions[elementKey][actionType])
+    }
+    return ""
+  }
+
+  function saveBarActionMatrix(actionsMap) {
+    var cfg = Object.assign({}, root.midnightConfig, { barActions: actionsMap })
+    root.saveMidnightConfig(cfg)
+  }
+
+  function resetBarActionsToDefault() {
+    var cfg = Object.assign({}, root.midnightConfig)
+    delete cfg.barActions
+    root.saveMidnightConfig(cfg)
+  }
 
   readonly property var hudMeters: (root.midnightConfig && root.midnightConfig.hudMeters) ? root.midnightConfig.hudMeters : ({
     cpu: true, fan: true, ram: true, dsk: true, conns: true, net: true
@@ -330,6 +406,9 @@ Item {
             updated.hudMeters = Object.assign({
               cpu: true, fan: true, ram: true, dsk: true, conns: true, net: true
             }, parsed.hudMeters)
+          }
+          if (parsed.barActions && typeof parsed.barActions === "object") {
+            updated.barActions = parsed.barActions
           }
           midnightConfig = updated
           return
@@ -1803,7 +1882,81 @@ Item {
     return null
   }
 
+  function executeBarAction(slot, button, localX, localY) {
+    if (!slot) return false
+    var name = slot.moduleName || ""
+    var isRight = (button === Qt.RightButton)
+
+    if (name === "midnight-doll.visualizer" || name === "midnight-doll.cava") {
+      var vCmd = root.getBarAction("visualizer", isRight ? "rightClick" : "click")
+      if (vCmd) {
+        root.run(vCmd)
+        return true
+      }
+    }
+
+    if (name === "midnight-doll.sys-hud" || name === "midnight-doll.system-hud" || name === "midnight-doll.hud") {
+      var commsTarget = root.moduleClickTargetAt(slot, localX, localY)
+      if (commsTarget && (commsTarget.id === "commsGroup" || commsTarget.objectName === "commsGroup")) {
+        var cCmd = root.getBarAction("comms", isRight ? "rightClick" : "click")
+        if (cCmd) {
+          root.run(cCmd)
+          return true
+        }
+      }
+      var sCmd = root.getBarAction("sysHud", isRight ? "rightClick" : "click")
+      if (sCmd) {
+        root.run(sCmd)
+        return true
+      }
+    }
+
+    if (name === "omarchy.menu" && isRight) {
+      var mCmd = root.getBarAction("menu", "rightClick")
+      if (mCmd) {
+        root.run(mCmd)
+        return true
+      }
+    }
+
+    if (name === "omarchy.clock" && isRight) {
+      var clkCmd = root.getBarAction("clock", "rightClick")
+      if (clkCmd) {
+        root.run(clkCmd)
+        return true
+      }
+    }
+
+    return false
+  }
+
+  function wheelModuleClickTarget(slot, deltaY, localX, localY) {
+    if (!slot) return false
+    var name = slot.moduleName || ""
+    var isUp = deltaY > 0
+
+    if (name === "midnight-doll.visualizer" || name === "midnight-doll.cava") {
+      var vWheelCmd = root.getBarAction("visualizer", isUp ? "scrollUp" : "scrollDown")
+      if (vWheelCmd) {
+        root.run(vWheelCmd)
+        return true
+      }
+    }
+
+    if (name === "midnight-doll.sys-hud" || name === "midnight-doll.system-hud") {
+      var hWheelCmd = root.getBarAction("sysHud", isUp ? "scrollUp" : "scrollDown")
+      if (hWheelCmd) {
+        root.run(hWheelCmd)
+        return true
+      }
+    }
+
+    return false
+  }
+
   function pressModuleClickTarget(slot, button, localX, localY) {
+    if (root.executeBarAction(slot, button, localX, localY)) return true
+
     var target = moduleClickTargetAt(slot, localX, localY)
     if (!target) return false
 
@@ -3046,6 +3199,16 @@ Item {
               selected: modalContainer.activeTab === 5
               Layout.fillWidth: true
               onClicked: modalContainer.activeTab = 5
+            }
+
+            Button {
+              text: "󰌌 SHORTCUTS"
+              fontFamily: root.fontFamily
+              accent: Commons.Color.accent
+              bordered: true
+              selected: modalContainer.activeTab === 6
+              Layout.fillWidth: true
+              onClicked: modalContainer.activeTab = 6
             }
           }
 
@@ -4800,6 +4963,536 @@ Item {
               }
             }
           }
+
+          // TAB 6: CYBERDECK SHORTCUT ROUTER & INTERACTION MATRIX
+          ColumnLayout {
+            id: tabShortcuts
+            anchors.fill: parent
+            visible: modalContainer.activeTab === 6
+            spacing: 8
+
+            property var draftActions: ({})
+            property string saveStatusMsg: ""
+
+            function initDrafts() {
+              var acts = (root.midnightConfig && root.midnightConfig.barActions) ? root.midnightConfig.barActions : ({})
+              draftActions = JSON.parse(JSON.stringify(acts))
+              saveStatusMsg = ""
+            }
+
+            Component.onCompleted: initDrafts()
+            Connections {
+              target: root
+              function onMidnightConfigChanged() {
+                tabShortcuts.initDrafts()
+              }
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              Text {
+                text: "CYBERDECK INTERACTION MATRIX & SHORTCUT ROUTER"
+                font.family: root.fontFamily
+                font.bold: true
+                font.pixelSize: Style.font.caption
+                color: Commons.Color.accent
+                Layout.fillWidth: true
+              }
+
+              Text {
+                visible: tabShortcuts.saveStatusMsg !== ""
+                text: tabShortcuts.saveStatusMsg
+                font.family: root.fontFamily
+                font.bold: true
+                font.pixelSize: 10
+                color: Commons.Color.accent
+              }
+
+              Button {
+                text: "󰆓 SAVE & APPLY"
+                fontFamily: root.fontFamily
+                fontSize: 9
+                accent: Commons.Color.accent
+                bordered: true
+                onClicked: {
+                  root.saveBarActionMatrix(tabShortcuts.draftActions)
+                  tabShortcuts.saveStatusMsg = "✓ SHORTCUTS SAVED & ACTIVE LIVE"
+                  saveFeedbackTimer.restart()
+                }
+              }
+
+              Button {
+                text: "󰦛 RESET ALL"
+                fontFamily: root.fontFamily
+                fontSize: 9
+                accent: root.secondaryColor
+                bordered: true
+                onClicked: {
+                  root.resetBarActionsToDefault()
+                  tabShortcuts.initDrafts()
+                  tabShortcuts.saveStatusMsg = "✓ RESTORED DEFAULTS"
+                  saveFeedbackTimer.restart()
+                }
+              }
+
+              Timer {
+                id: saveFeedbackTimer
+                interval: 3500
+                onTriggered: tabShortcuts.saveStatusMsg = ""
+              }
+            }
+
+            Text {
+              text: "Configure click, right-click, and scroll events for all deck components. Custom commands take effect immediately upon saving."
+              font.family: root.fontFamily
+              font.pixelSize: 10
+              color: Qt.rgba(1, 1, 1, 0.5)
+            }
+
+            ListView {
+              id: shortcutsListView
+              Layout.fillWidth: true
+              Layout.fillHeight: true
+              clip: true
+              spacing: 8
+
+              model: [
+                {
+                  key: "visualizer",
+                  title: "Audio Spectrum Visualizer",
+                  glyph: "󰎈",
+                  badge: "midnight-doll.visualizer",
+                  desc: "CAVA frequency LED dot matrix and inverted stacked level meters.",
+                  hasLeft: true,
+                  hasRight: true,
+                  hasWheel: true,
+                  defaultLeft: root.midnightThemeDir + "/bin/launch-cliamp.sh",
+                  defaultRight: root.midnightThemeDir + "/bin/launch-audio-tool.sh",
+                  defaultWheelUp: "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
+                  defaultWheelDown: "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
+                  leftHint: "CLIAMP retro music player",
+                  rightHint: "Equalizer / Audio settings panel",
+                  wheelHint: "Master audio volume up / down"
+                },
+                {
+                  key: "sysHud",
+                  title: "System Telemetry HUD",
+                  glyph: "󰘚",
+                  badge: "midnight-doll.sys-hud",
+                  desc: "Live hardware telemetry (CPU, Fan RPM, RAM, Disk utilization).",
+                  hasLeft: true,
+                  hasRight: true,
+                  hasWheel: false,
+                  defaultLeft: "omarchy-launch-or-focus-tui btop",
+                  defaultRight: "omarchy-launch-or-focus-tui --app-id=TUI.float " + root.midnightThemeDir + "/bin/launch-comms.sh",
+                  leftHint: "System resource monitor (btop)",
+                  rightHint: "Theme Comms & Socket Inspector"
+                },
+                {
+                  key: "comms",
+                  title: "Comms & Network Telemetry",
+                  glyph: "󰈀",
+                  badge: "CONNS / NET",
+                  desc: "Active socket connections counter and real-time bandwidth rates.",
+                  hasLeft: true,
+                  hasRight: true,
+                  hasWheel: false,
+                  defaultLeft: "omarchy-launch-or-focus-tui --app-id=TUI.float " + root.midnightThemeDir + "/bin/launch-comms.sh",
+                  defaultRight: "",
+                  leftHint: "Socket & bandwidth inspector",
+                  rightHint: "Custom command slot"
+                },
+                {
+                  key: "menu",
+                  title: "Omarchy Menu & Launcher",
+                  glyph: "󰚌",
+                  badge: "omarchy.menu",
+                  desc: "Cyberdeck skull launcher button and application menu.",
+                  hasLeft: false,
+                  isLeftSystem: true,
+                  hasRight: true,
+                  hasWheel: false,
+                  defaultLeft: "[Built-in: Omarchy Application Menu]",
+                  defaultRight: "xdg-terminal-exec",
+                  leftHint: "Launches Omarchy full application menu",
+                  rightHint: "Launches default terminal session"
+                },
+                {
+                  key: "clock",
+                  title: "Clock & Temporal Readout",
+                  glyph: "󰥔",
+                  badge: "omarchy.clock",
+                  desc: "Cyberdeck clock with format switching and precision seconds.",
+                  hasLeft: false,
+                  isLeftSystem: true,
+                  hasRight: true,
+                  hasWheel: false,
+                  isWheelSystem: true,
+                  defaultLeft: "[Built-in: Cycle 12h ↔ 24h ↔ Military Format]",
+                  defaultRight: "",
+                  defaultWheelUp: "[Built-in: Toggle Precision Seconds]",
+                  leftHint: "Cycles time display format on click",
+                  rightHint: "Custom calendar or world clock command",
+                  wheelHint: "Toggles seconds display on/off"
+                },
+                {
+                  key: "notifications",
+                  title: "Notification Center",
+                  glyph: "󰂚",
+                  badge: "midnight-doll.notifications",
+                  desc: "Cyberdeck notification drawer with action controls.",
+                  hasLeft: false,
+                  isLeftSystem: true,
+                  hasRight: true,
+                  hasWheel: false,
+                  defaultLeft: "[Built-in: Toggle Notification Drawer]",
+                  defaultRight: "",
+                  leftHint: "Toggles notification cyberdeck drawer",
+                  rightHint: "Custom command slot"
+                },
+                {
+                  key: "branding",
+                  title: "HUD Branding & Deck Status",
+                  glyph: "󰒓",
+                  badge: "HUD Title / Skull",
+                  desc: "Cyberdeck identity text and control center trigger.",
+                  hasLeft: false,
+                  isLeftSystem: true,
+                  hasRight: false,
+                  isRightSystem: true,
+                  hasWheel: false,
+                  defaultLeft: "[Built-in: Toggle Control Center]",
+                  defaultRight: "[Built-in: Toggle Control Center]",
+                  leftHint: "Toggles Midnight Doll Control Center",
+                  rightHint: "Toggles Midnight Doll Control Center"
+                },
+                {
+                  key: "canvas",
+                  title: "Bar Background & Canvas",
+                  glyph: "󰍹",
+                  badge: "Bar Canvas",
+                  desc: "Empty space and glass backdrop across the bar surface.",
+                  hasLeft: false,
+                  isLeftSystem: true,
+                  hasRight: false,
+                  isRightSystem: true,
+                  hasWheel: false,
+                  defaultLeft: "[Built-in: Double-click toggles transparency]",
+                  defaultRight: "[Built-in: Right-click opens Control Center]",
+                  leftHint: "Double-click toggles transparent glass mode",
+                  rightHint: "Right-click opens Midnight Doll Control Center"
+                }
+              ]
+
+              delegate: Rectangle {
+                id: cardRoot
+                required property var modelData
+                required property int index
+
+                width: shortcutsListView.width
+                implicitHeight: cardCol.implicitHeight + 16
+                color: Qt.rgba(1, 1, 1, 0.03)
+                border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.25)
+                border.width: 1
+
+                ColumnLayout {
+                  id: cardCol
+                  anchors.fill: parent
+                  anchors.margins: 10
+                  spacing: 6
+
+                  // Header Row: Glyph + Title + Badge
+                  RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Text {
+                      text: modelData.glyph
+                      font.family: root.fontFamily
+                      font.pixelSize: 16
+                      color: Commons.Color.accent
+                    }
+
+                    Text {
+                      text: modelData.title
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 11
+                      color: Commons.Color.foreground
+                    }
+
+                    Rectangle {
+                      color: Qt.rgba(root.secondaryColor.r, root.secondaryColor.g, root.secondaryColor.b, 0.15)
+                      border.color: root.secondaryColor
+                      border.width: 1
+                      height: 18
+                      width: badgeText.implicitWidth + 8
+                      radius: 2
+                      Text {
+                        id: badgeText
+                        anchors.centerIn: parent
+                        text: modelData.badge
+                        font.family: root.fontFamily
+                        font.pixelSize: 8
+                        color: root.secondaryColor
+                      }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Text {
+                      text: modelData.desc
+                      font.family: root.fontFamily
+                      font.pixelSize: 9
+                      color: Qt.rgba(1, 1, 1, 0.45)
+                    }
+                  }
+
+                  // Left Click Slot
+                  RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Text {
+                      text: "󰍽 LEFT-CLICK:"
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 9
+                      color: root.secondaryColor
+                      Layout.preferredWidth: 105
+                    }
+
+                    TextField {
+                      visible: !!modelData.hasLeft
+                      id: leftCmdInput
+                      Layout.fillWidth: true
+                      font.family: root.fontFamily
+                      font.pixelSize: 10
+                      color: Commons.Color.foreground
+                      placeholderText: modelData.defaultLeft || "Leave blank for default"
+                      text: {
+                        var k = modelData.key
+                        if (tabShortcuts.draftActions && tabShortcuts.draftActions[k] && tabShortcuts.draftActions[k].click !== undefined) {
+                          return tabShortcuts.draftActions[k].click
+                        }
+                        return ""
+                      }
+                      onTextChanged: {
+                        var k = modelData.key
+                        if (!tabShortcuts.draftActions[k]) tabShortcuts.draftActions[k] = {}
+                        tabShortcuts.draftActions[k].click = text
+                      }
+                    }
+
+                    Rectangle {
+                      visible: !modelData.hasLeft && !!modelData.isLeftSystem
+                      Layout.fillWidth: true
+                      height: 24
+                      color: Qt.rgba(1, 1, 1, 0.05)
+                      border.color: Qt.rgba(1, 1, 1, 0.15)
+                      border.width: 1
+                      RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        Text {
+                          text: modelData.defaultLeft
+                          font.family: root.fontFamily
+                          font.pixelSize: 9
+                          color: Qt.rgba(1, 1, 1, 0.6)
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                          text: "SYSTEM BUILT-IN"
+                          font.family: root.fontFamily
+                          font.pixelSize: 8
+                          color: root.secondaryColor
+                        }
+                      }
+                    }
+
+                    Text {
+                      text: modelData.leftHint
+                      font.family: root.fontFamily
+                      font.pixelSize: 8
+                      color: Qt.rgba(1, 1, 1, 0.4)
+                      Layout.preferredWidth: 160
+                      elide: Text.ElideRight
+                    }
+                  }
+
+                  // Right Click Slot
+                  RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Text {
+                      text: "󰍾 RIGHT-CLICK:"
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 9
+                      color: Commons.Color.accent
+                      Layout.preferredWidth: 105
+                    }
+
+                    TextField {
+                      visible: !!modelData.hasRight
+                      id: rightCmdInput
+                      Layout.fillWidth: true
+                      font.family: root.fontFamily
+                      font.pixelSize: 10
+                      color: Commons.Color.foreground
+                      placeholderText: modelData.defaultRight || "Leave blank for default"
+                      text: {
+                        var k = modelData.key
+                        if (tabShortcuts.draftActions && tabShortcuts.draftActions[k] && tabShortcuts.draftActions[k].rightClick !== undefined) {
+                          return tabShortcuts.draftActions[k].rightClick
+                        }
+                        return ""
+                      }
+                      onTextChanged: {
+                        var k = modelData.key
+                        if (!tabShortcuts.draftActions[k]) tabShortcuts.draftActions[k] = {}
+                        tabShortcuts.draftActions[k].rightClick = text
+                      }
+                    }
+
+                    Rectangle {
+                      visible: !modelData.hasRight && !!modelData.isRightSystem
+                      Layout.fillWidth: true
+                      height: 24
+                      color: Qt.rgba(1, 1, 1, 0.05)
+                      border.color: Qt.rgba(1, 1, 1, 0.15)
+                      border.width: 1
+                      RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        Text {
+                          text: modelData.defaultRight
+                          font.family: root.fontFamily
+                          font.pixelSize: 9
+                          color: Qt.rgba(1, 1, 1, 0.6)
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                          text: "SYSTEM BUILT-IN"
+                          font.family: root.fontFamily
+                          font.pixelSize: 8
+                          color: Commons.Color.accent
+                        }
+                      }
+                    }
+
+                    Text {
+                      text: modelData.rightHint
+                      font.family: root.fontFamily
+                      font.pixelSize: 8
+                      color: Qt.rgba(1, 1, 1, 0.4)
+                      Layout.preferredWidth: 160
+                      elide: Text.ElideRight
+                    }
+                  }
+
+                  // Scroll Wheel Slot (if component supports wheel)
+                  RowLayout {
+                    visible: !!modelData.hasWheel || !!modelData.isWheelSystem
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Text {
+                      text: "󰚌 SCROLL WHEEL:"
+                      font.family: root.fontFamily
+                      font.bold: true
+                      font.pixelSize: 9
+                      color: Qt.rgba(1, 1, 1, 0.7)
+                      Layout.preferredWidth: 105
+                    }
+
+                    TextField {
+                      visible: !!modelData.hasWheel
+                      id: wheelUpInput
+                      Layout.fillWidth: true
+                      font.family: root.fontFamily
+                      font.pixelSize: 10
+                      color: Commons.Color.foreground
+                      placeholderText: (modelData.defaultWheelUp ? "UP: " + modelData.defaultWheelUp : "Scroll up command")
+                      text: {
+                        var k = modelData.key
+                        if (tabShortcuts.draftActions && tabShortcuts.draftActions[k] && tabShortcuts.draftActions[k].scrollUp !== undefined) {
+                          return tabShortcuts.draftActions[k].scrollUp
+                        }
+                        return ""
+                      }
+                      onTextChanged: {
+                        var k = modelData.key
+                        if (!tabShortcuts.draftActions[k]) tabShortcuts.draftActions[k] = {}
+                        tabShortcuts.draftActions[k].scrollUp = text
+                      }
+                    }
+
+                    TextField {
+                      visible: !!modelData.hasWheel
+                      id: wheelDownInput
+                      Layout.fillWidth: true
+                      font.family: root.fontFamily
+                      font.pixelSize: 10
+                      color: Commons.Color.foreground
+                      placeholderText: (modelData.defaultWheelDown ? "DN: " + modelData.defaultWheelDown : "Scroll down command")
+                      text: {
+                        var k = modelData.key
+                        if (tabShortcuts.draftActions && tabShortcuts.draftActions[k] && tabShortcuts.draftActions[k].scrollDown !== undefined) {
+                          return tabShortcuts.draftActions[k].scrollDown
+                        }
+                        return ""
+                      }
+                      onTextChanged: {
+                        var k = modelData.key
+                        if (!tabShortcuts.draftActions[k]) tabShortcuts.draftActions[k] = {}
+                        tabShortcuts.draftActions[k].scrollDown = text
+                      }
+                    }
+
+                    Rectangle {
+                      visible: !modelData.hasWheel && !!modelData.isWheelSystem
+                      Layout.fillWidth: true
+                      height: 24
+                      color: Qt.rgba(1, 1, 1, 0.05)
+                      border.color: Qt.rgba(1, 1, 1, 0.15)
+                      border.width: 1
+                      RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        Text {
+                          text: modelData.defaultWheelUp
+                          font.family: root.fontFamily
+                          font.pixelSize: 9
+                          color: Qt.rgba(1, 1, 1, 0.6)
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                          text: "SYSTEM BUILT-IN"
+                          font.family: root.fontFamily
+                          font.pixelSize: 8
+                          color: Qt.rgba(1, 1, 1, 0.7)
+                        }
+                      }
+                    }
+
+                    Text {
+                      text: modelData.wheelHint || ""
+                      font.family: root.fontFamily
+                      font.pixelSize: 8
+                      color: Qt.rgba(1, 1, 1, 0.4)
+                      Layout.preferredWidth: 160
+                      elide: Text.ElideRight
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
 
         // 4. Bottom Footer Bar
@@ -6407,13 +7100,14 @@ Item {
       // make neighboring modules overlap after a small aborted drag.
 
       onPressed: function(mouse) {
+        dragging = false
+        suppressClick = false
+        pressedX = mouse.x
+        pressedY = mouse.y
         if (mouse.button === Qt.LeftButton) {
-          dragging = false
-          suppressClick = false
-          pressedX = mouse.x
-          pressedY = mouse.y
           root.clearBarDrag()
         }
+        mouse.accepted = true
       }
 
       onPositionChanged: function(mouse) {
@@ -6449,22 +7143,20 @@ Item {
       }
 
       onReleased: function(mouse) {
-        if (mouse.button === Qt.LeftButton) {
-          var wasDragging = dragging
-          var targetSlot = root.barDragTarget
-          var afterTarget = root.barDragAfter
+        var wasDragging = dragging
+        var targetSlot = root.barDragTarget
+        var afterTarget = root.barDragAfter
 
-          if (wasDragging) suppressClick = true
+        if (wasDragging) suppressClick = true
 
-          dragging = false
-          root.clearBarDrag()
+        dragging = false
+        root.clearBarDrag()
 
-          if (wasDragging && targetSlot) {
-            root.dropBarModuleAtTarget(slot, targetSlot, afterTarget)
-            mouse.accepted = true
-          } else if (!wasDragging) {
-            mouse.accepted = false
-          }
+        if (wasDragging && targetSlot && mouse.button === Qt.LeftButton) {
+          root.dropBarModuleAtTarget(slot, targetSlot, afterTarget)
+          mouse.accepted = true
+        } else {
+          mouse.accepted = true
         }
       }
 
@@ -6493,6 +7185,14 @@ Item {
         }
 
         mouse.accepted = false
+      }
+
+      onWheel: function(wheel) {
+        if (root.wheelModuleClickTarget(slot, wheel.angleDelta.y, wheel.x, wheel.y)) {
+          wheel.accepted = true
+          return
+        }
+        wheel.accepted = false
       }
     }
 
@@ -7812,7 +8512,13 @@ Item {
 
     property bool pressable: true
     function triggerPress(button) {
-      if (button === Qt.RightButton) {
+      var isRight = (button === Qt.RightButton)
+      var customCmd = root.getBarAction("visualizer", isRight ? "rightClick" : "click")
+      if (customCmd) {
+        root.run(customCmd)
+        return
+      }
+      if (isRight) {
         cavaRoot.launchEqualizerOrAudioSettings()
       } else {
         cavaRoot.launchCliamp()
@@ -8035,7 +8741,7 @@ Item {
       acceptedButtons: Qt.LeftButton | Qt.RightButton
       onEntered: {
         if (typeof root.showTooltip === "function") {
-          root.showTooltip(visualizerMouse, "Audio Visualizer (CAVA) · Left-click: CLIAMP · Right-click: Equalizer / Audio Settings")
+          root.showTooltip(visualizerMouse, "Audio Visualizer (CAVA) · Left: CLIAMP · Right: Equalizer · Scroll: Volume")
         }
       }
       onExited: {
@@ -8045,6 +8751,11 @@ Item {
       }
       onClicked: function(mouse) {
         cavaRoot.triggerPress(mouse.button)
+      }
+      onWheel: function(wheel) {
+        if (root.wheelModuleClickTarget(cavaRoot.parent, wheel.angleDelta.y, wheel.x, wheel.y)) {
+          wheel.accepted = true
+        }
       }
     }
   }

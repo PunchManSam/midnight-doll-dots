@@ -18,5 +18,43 @@
     "dsk": true,
     "conns": true,
     "net": true
+  },
+  "barActions": {
+    "visualizer": {
+      "click": "~/.config/omarchy/themes/midnight-doll/bin/launch-cliamp.sh",
+      "rightClick": "~/.config/omarchy/themes/midnight-doll/bin/launch-audio-tool.sh",
+      "scrollUp": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
+      "scrollDown": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+    },
+    "sysHud": {
+      "click": "omarchy-launch-or-focus-tui btop",
+      "rightClick": "omarchy-launch-or-focus-tui --app-id=TUI.float ~/.config/omarchy/themes/midnight-doll/bin/launch-comms.sh",
+      "scrollUp": "",
+      "scrollDown": ""
+    },
+    "comms": {
+      "click": "omarchy-launch-or-focus-tui --app-id=TUI.float ~/.config/omarchy/themes/midnight-doll/bin/launch-comms.sh",
+      "rightClick": "",
+      "scrollUp": "",
+      "scrollDown": ""
+    },
+    "menu": {
+      "click": "",
+      "rightClick": "xdg-terminal-exec",
+      "scrollUp": "",
+      "scrollDown": ""
+    },
+    "clock": {
+      "click": "",
+      "rightClick": "",
+      "scrollUp": "",
+      "scrollDown": ""
+    },
+    "notifications": {
+      "click": "",
+      "rightClick": "",
+      "scrollUp": "",
+      "scrollDown": ""
+    }
   }
 }

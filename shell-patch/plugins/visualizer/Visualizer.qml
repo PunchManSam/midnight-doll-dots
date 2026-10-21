@@ -23,7 +23,17 @@ BarWidget {
 
   property bool pressable: true
   function triggerPress(button) {
-    if (button === Qt.RightButton) {
+    var barObj = (root.shellBar || root.bar)
+    var isRight = (button === Qt.RightButton)
+    if (barObj && typeof barObj.getBarAction === "function") {
+      var customCmd = barObj.getBarAction("visualizer", isRight ? "rightClick" : "click")
+      if (customCmd) {
+        if (typeof barObj.run === "function") barObj.run(customCmd)
+        else if (typeof root.run === "function") root.run(customCmd)
+        return
+      }
+    }
+    if (isRight) {
       root.launchEqualizerOrAudioSettings()
     } else {
       root.launchCliamp()
@@ -259,7 +269,7 @@ BarWidget {
     onEntered: {
       var barObj = (root.shellBar || root.bar)
       if (barObj && typeof barObj.showTooltip === "function") {
-        barObj.showTooltip(visualizerMouse, "Audio Visualizer (CAVA) · Left-click: CLIAMP · Right-click: Equalizer / Audio Settings")
+        barObj.showTooltip(visualizerMouse, "Audio Visualizer (CAVA) · Left: CLIAMP · Right: Equalizer · Scroll: Volume")
       }
     }
     onExited: {
@@ -270,6 +280,12 @@ BarWidget {
     }
     onClicked: function(mouse) {
       root.triggerPress(mouse.button)
+    }
+    onWheel: function(wheel) {
+      var barObj = (root.shellBar || root.bar)
+      if (barObj && typeof barObj.wheelModuleClickTarget === "function") {
+        barObj.wheelModuleClickTarget(root.parent, wheel.angleDelta.y, wheel.x, wheel.y)
+      }
     }
   }
 }
