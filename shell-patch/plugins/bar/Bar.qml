@@ -5500,16 +5500,29 @@ Item {
       propagateComposedEvents: true
 
       function isOverModuleSlot(px, py) {
-        if (!root.moduleSlots || root.moduleSlots.length === 0) return false
-        for (var i = 0; i < root.moduleSlots.length; i++) {
-          var slot = root.moduleSlots[i]
-          if (!slot || !slot.visible || slot.width <= 0 || slot.height <= 0) continue
-          try {
-            var pt = slot.mapFromItem(topBarRightClickArea, px, py)
-            if (pt.x >= 0 && pt.x <= slot.width && pt.y >= 0 && pt.y <= slot.height) {
-              return true
-            }
-          } catch (e) {}
+        if (root.moduleSlots) {
+          for (var i = 0; i < root.moduleSlots.length; i++) {
+            var slot = root.moduleSlots[i]
+            if (!slot || !slot.visible || slot.width <= 0 || slot.height <= 0) continue
+            try {
+              var pt = slot.mapFromItem(topBarRightClickArea, px, py)
+              if (pt.x >= 0 && pt.x <= slot.width && pt.y >= 0 && pt.y <= slot.height) {
+                return true
+              }
+            } catch (e) {}
+          }
+        }
+        if (root.clickTargets) {
+          for (var j = 0; j < root.clickTargets.length; j++) {
+            var ct = root.clickTargets[j]
+            if (!ct || !ct.visible || ct.width <= 0 || ct.height <= 0) continue
+            try {
+              var cpt = ct.mapFromItem(topBarRightClickArea, px, py)
+              if (cpt.x >= 0 && cpt.x <= ct.width && cpt.y >= 0 && cpt.y <= ct.height) {
+                return true
+              }
+            } catch (e) {}
+          }
         }
         return false
       }
@@ -5969,6 +5982,34 @@ Item {
     cursorShape: dragging ? Qt.ClosedHandCursor : Qt.ArrowCursor
     pressAndHoldInterval: 200
 
+    function isOverInteractive(px, py) {
+      if (root.moduleSlots) {
+        for (var i = 0; i < root.moduleSlots.length; i++) {
+          var slot = root.moduleSlots[i]
+          if (!slot || !slot.visible || slot.width <= 0 || slot.height <= 0) continue
+          try {
+            var pt = slot.mapFromItem(gestureArea, px, py)
+            if (pt.x >= 0 && pt.x <= slot.width && pt.y >= 0 && pt.y <= slot.height) {
+              return true
+            }
+          } catch (e) {}
+        }
+      }
+      if (root.clickTargets) {
+        for (var j = 0; j < root.clickTargets.length; j++) {
+          var ct = root.clickTargets[j]
+          if (!ct || !ct.visible || ct.width <= 0 || ct.height <= 0) continue
+          try {
+            var cpt = ct.mapFromItem(gestureArea, px, py)
+            if (cpt.x >= 0 && cpt.x <= ct.width && cpt.y >= 0 && cpt.y <= ct.height) {
+              return true
+            }
+          } catch (e) {}
+        }
+      }
+      return false
+    }
+
     function startDrag(x, y) {
       if (dragging) return
       dragging = true
@@ -5978,6 +6019,10 @@ Item {
     }
 
     onPressed: function(mouse) {
+      if (mouse.button === Qt.RightButton && isOverInteractive(mouse.x, mouse.y)) {
+        mouse.accepted = false
+        return
+      }
       if (mouse.button === Qt.LeftButton) {
         dragging = false
         suppressClick = false
@@ -6031,6 +6076,10 @@ Item {
         return
       }
       if (mouse.button === Qt.RightButton) {
+        if (isOverInteractive(mouse.x, mouse.y)) {
+          mouse.accepted = false
+          return
+        }
         root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
         mouse.accepted = true
       }
@@ -6349,7 +6398,7 @@ Item {
       readonly property real dragThreshold: Style.space(4)
 
       anchors.fill: parent
-      acceptedButtons: Qt.LeftButton
+      acceptedButtons: Qt.LeftButton | Qt.RightButton
       enabled: slot.visible && slot.width > 0 && slot.height > 0
       propagateComposedEvents: true
       cursorShape: root.moduleClickTargetAt(slot, mouseX, mouseY) ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -6358,11 +6407,13 @@ Item {
       // make neighboring modules overlap after a small aborted drag.
 
       onPressed: function(mouse) {
-        dragging = false
-        suppressClick = false
-        pressedX = mouse.x
-        pressedY = mouse.y
-        root.clearBarDrag()
+        if (mouse.button === Qt.LeftButton) {
+          dragging = false
+          suppressClick = false
+          pressedX = mouse.x
+          pressedY = mouse.y
+          root.clearBarDrag()
+        }
       }
 
       onPositionChanged: function(mouse) {
@@ -6398,20 +6449,22 @@ Item {
       }
 
       onReleased: function(mouse) {
-        var wasDragging = dragging
-        var targetSlot = root.barDragTarget
-        var afterTarget = root.barDragAfter
+        if (mouse.button === Qt.LeftButton) {
+          var wasDragging = dragging
+          var targetSlot = root.barDragTarget
+          var afterTarget = root.barDragAfter
 
-        if (wasDragging) suppressClick = true
+          if (wasDragging) suppressClick = true
 
-        dragging = false
-        root.clearBarDrag()
+          dragging = false
+          root.clearBarDrag()
 
-        if (wasDragging && targetSlot) {
-          root.dropBarModuleAtTarget(slot, targetSlot, afterTarget)
-          mouse.accepted = true
-        } else if (!wasDragging) {
-          mouse.accepted = false
+          if (wasDragging && targetSlot) {
+            root.dropBarModuleAtTarget(slot, targetSlot, afterTarget)
+            mouse.accepted = true
+          } else if (!wasDragging) {
+            mouse.accepted = false
+          }
         }
       }
 
@@ -6428,7 +6481,18 @@ Item {
           return
         }
 
-        if (!root.pressModuleClickTarget(slot, mouse.button, mouse.x, mouse.y)) mouse.accepted = false
+        if (root.pressModuleClickTarget(slot, mouse.button, mouse.x, mouse.y)) {
+          mouse.accepted = true
+          return
+        }
+
+        if (mouse.button === Qt.RightButton) {
+          root.midnightThemeCenterOpen = !root.midnightThemeCenterOpen
+          mouse.accepted = true
+          return
+        }
+
+        mouse.accepted = false
       }
     }
 
@@ -7757,7 +7821,7 @@ Item {
 
     function launchCliamp() {
       var script = root.midnightThemeDir + "/bin/launch-cliamp.sh"
-      var fallbackCmd = "omarchy-launch-or-focus-tui cliamp 2>/dev/null || gtk-launch cliamp.desktop 2>/dev/null || xdg-terminal-exec cliamp 2>/dev/null || cliamp"
+      var fallbackCmd = "omarchy-launch-tui --app-id=TUI.cliamp cliamp 2>/dev/null || xdg-terminal-exec cliamp 2>/dev/null || ghostty -e cliamp 2>/dev/null || foot -e cliamp 2>/dev/null || cliamp"
       var cmd = "test -x \"" + script + "\" && \"" + script + "\" || (" + fallbackCmd + ")"
       root.run(cmd)
     }

@@ -32,7 +32,7 @@ BarWidget {
 
   function launchCliamp() {
     var script = root.themeDir + "/bin/launch-cliamp.sh"
-    var fallbackCmd = "omarchy-launch-or-focus-tui cliamp 2>/dev/null || gtk-launch cliamp.desktop 2>/dev/null || xdg-terminal-exec cliamp 2>/dev/null || cliamp"
+    var fallbackCmd = "omarchy-launch-tui --app-id=TUI.cliamp cliamp 2>/dev/null || xdg-terminal-exec cliamp 2>/dev/null || ghostty -e cliamp 2>/dev/null || foot -e cliamp 2>/dev/null || cliamp"
     var cmd = "test -x \"" + script + "\" && \"" + script + "\" || (" + fallbackCmd + ")"
     if (root.shellBar && typeof root.shellBar.run === "function") root.shellBar.run(cmd)
     else if (typeof root.run === "function") root.run(cmd)
