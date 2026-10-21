@@ -14,9 +14,48 @@ BarWidget {
   readonly property color urgentColor: (shellBar && shellBar.urgent) ? shellBar.urgent : Commons.Color.accent
   readonly property string fontFam: (shellBar && shellBar.fontFamily) ? shellBar.fontFamily : "JetBrainsMono Nerd Font"
   readonly property string homeDir: Quickshell.env("HOME")
+  readonly property string themeDir: (shellBar && shellBar.midnightThemeDir) ? shellBar.midnightThemeDir : (root.homeDir + "/.config/omarchy/themes/midnight-doll")
 
   implicitWidth: cavaRow.implicitWidth
   implicitHeight: root.barSize
+  width: implicitWidth
+  height: implicitHeight
+
+  property bool pressable: true
+  function triggerPress(button) {
+    if (button === Qt.RightButton) {
+      root.launchEqualizerOrAudioSettings()
+    } else {
+      root.launchCliamp()
+    }
+  }
+
+  function launchCliamp() {
+    var script = root.themeDir + "/bin/launch-cliamp.sh"
+    var fallbackCmd = "omarchy-launch-or-focus-tui cliamp 2>/dev/null || gtk-launch cliamp.desktop 2>/dev/null || xdg-terminal-exec cliamp 2>/dev/null || cliamp"
+    var cmd = "test -x \"" + script + "\" && \"" + script + "\" || (" + fallbackCmd + ")"
+    if (root.shellBar && typeof root.shellBar.run === "function") root.shellBar.run(cmd)
+    else if (typeof root.run === "function") root.run(cmd)
+    else Util.execDetached(cmd)
+  }
+
+  function launchEqualizerOrAudioSettings() {
+    var script = root.themeDir + "/bin/launch-audio-tool.sh"
+    var fallbackCmd = 'if command -v easyeffects >/dev/null 2>&1; then (omarchy-launch-or-focus easyeffects easyeffects 2>/dev/null || easyeffects); elif command -v jamesdsp >/dev/null 2>&1; then (omarchy-launch-or-focus jamesdsp jamesdsp 2>/dev/null || jamesdsp); elif command -v pulseaudio-equalizer-gtk >/dev/null 2>&1; then (omarchy-launch-or-focus pulseaudio-equalizer-gtk pulseaudio-equalizer-gtk 2>/dev/null || pulseaudio-equalizer-gtk); elif command -v qpaeq >/dev/null 2>&1; then (omarchy-launch-or-focus qpaeq qpaeq 2>/dev/null || qpaeq); elif command -v pavucontrol >/dev/null 2>&1; then (omarchy-launch-or-focus pavucontrol pavucontrol 2>/dev/null || pavucontrol); elif command -v pavucontrol-qt >/dev/null 2>&1; then (omarchy-launch-or-focus pavucontrol-qt pavucontrol-qt 2>/dev/null || pavucontrol-qt); else omarchy-shell shell toggle omarchy.audio; fi'
+    var cmd = "test -x \"" + script + "\" && \"" + script + "\" || (" + fallbackCmd + ")"
+    if (root.shellBar && typeof root.shellBar.run === "function") root.shellBar.run(cmd)
+    else if (typeof root.run === "function") root.run(cmd)
+    else Util.execDetached(cmd)
+  }
+
+  Component.onCompleted: {
+    var barObj = (root.shellBar || root.bar)
+    if (barObj && typeof barObj.registerClickTarget === "function") barObj.registerClickTarget(root)
+  }
+  Component.onDestruction: {
+    var barObj = (root.shellBar || root.bar)
+    if (barObj && typeof barObj.unregisterClickTarget === "function") barObj.unregisterClickTarget(root)
+  }
 
   property var spectrum: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   property real bassLevel: 0
@@ -208,6 +247,29 @@ BarWidget {
           }
         }
       }
+    }
+  }
+
+  MouseArea {
+    id: visualizerMouse
+    anchors.fill: parent
+    hoverEnabled: true
+    cursorShape: Qt.PointingHandCursor
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
+    onEntered: {
+      var barObj = (root.shellBar || root.bar)
+      if (barObj && typeof barObj.showTooltip === "function") {
+        barObj.showTooltip(visualizerMouse, "Audio Visualizer (CAVA) · Left-click: CLIAMP · Right-click: Equalizer / Audio Settings")
+      }
+    }
+    onExited: {
+      var barObj = (root.shellBar || root.bar)
+      if (barObj && typeof barObj.hideTooltip === "function") {
+        barObj.hideTooltip(visualizerMouse)
+      }
+    }
+    onClicked: function(mouse) {
+      root.triggerPress(mouse.button)
     }
   }
 }

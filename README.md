@@ -85,6 +85,9 @@
   - Pipewire-driven **CAVA spectrum capture**.
   - **22-column × 5-tier discrete violet LED dot-matrix** (`#bb9af7`) with **neon pink peak indicators** (`#ff51c5`).
   - **Inverted Stacked Audio Gauges**: Pinched `AIR` (top), `MID` (middle), and `BASS` (bottom) level meters.
+  - **Interactive Audio & Equalizer Controls**:
+    - **Left-Click**: Launches or focuses **CLIAMP** retro terminal music player.
+    - **Right-Click**: Smart equalizer & audio launcher — launches an equalizer (`easyeffects`, `jamesdsp`, `pulseaudio-equalizer-gtk`, `qpaeq`) if installed, or opens the system audio settings (`pavucontrol` / Omarchy audio panel) if not.
 - 📟 **Integrated Notification Center (`midnight-doll.notifications`)**:
   - Cyberdeck notification drawer with multi-edge shelf geometry, action controls, and an alert badge featuring native two-tier heuristics.
 - 🔒 **Total Theme Isolation**:
@@ -103,6 +106,8 @@
 | `Right-Click` | Left Launcher Panel | Open graphical launcher shortcut manager (add, reorder, delete items) |
 | `Click` | `CONNS` or `NET` Meters | Launch **Theme Comms & Socket Inspector** (`bandwhich` / `nethogs` / `iftop`) |
 | `Click` | `CPU` / `FAN` / `RAM` / `DSK` | Launch **System Activity Monitor** (`btop`) |
+| `Left-Click` | Audio Visualizer | Launch or focus **CLIAMP** retro terminal music player |
+| `Right-Click` | Audio Visualizer | Launch equalizer (`easyeffects` / `jamesdsp`) or audio settings |
 | `Click` | HUD Title / Subtitle | Launch configured activity monitor (Default: floating `btop`) |
 | `Click` | Header Date / Time | Cycle time format (12-hour AM/PM vs 24-hour military) |
 | `Scroll Wheel` | Header Clock | Toggle precision seconds display on / off |
@@ -140,6 +145,8 @@ midnight-doll-dots/
 │               ├── bin/           # Theme-specific helper binaries
 │               │   ├── set-accent.sh
 │               │   ├── launch-comms.sh
+│               │   ├── launch-cliamp.sh
+│               │   ├── launch-audio-tool.sh
 │               │   └── sys-hud.sh
 │               └── backgrounds/   # Curated Midnight Doll retro-cyberpunk wallpapers
 └── shell-patch/

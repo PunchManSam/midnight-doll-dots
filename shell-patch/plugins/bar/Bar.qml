@@ -7746,6 +7746,32 @@ Item {
     implicitHeight: root.barSize
     width: implicitWidth
 
+    property bool pressable: true
+    function triggerPress(button) {
+      if (button === Qt.RightButton) {
+        cavaRoot.launchEqualizerOrAudioSettings()
+      } else {
+        cavaRoot.launchCliamp()
+      }
+    }
+
+    function launchCliamp() {
+      var script = root.midnightThemeDir + "/bin/launch-cliamp.sh"
+      var fallbackCmd = "omarchy-launch-or-focus-tui cliamp 2>/dev/null || gtk-launch cliamp.desktop 2>/dev/null || xdg-terminal-exec cliamp 2>/dev/null || cliamp"
+      var cmd = "test -x \"" + script + "\" && \"" + script + "\" || (" + fallbackCmd + ")"
+      root.run(cmd)
+    }
+
+    function launchEqualizerOrAudioSettings() {
+      var script = root.midnightThemeDir + "/bin/launch-audio-tool.sh"
+      var fallbackCmd = 'if command -v easyeffects >/dev/null 2>&1; then (omarchy-launch-or-focus easyeffects easyeffects 2>/dev/null || easyeffects); elif command -v jamesdsp >/dev/null 2>&1; then (omarchy-launch-or-focus jamesdsp jamesdsp 2>/dev/null || jamesdsp); elif command -v pulseaudio-equalizer-gtk >/dev/null 2>&1; then (omarchy-launch-or-focus pulseaudio-equalizer-gtk pulseaudio-equalizer-gtk 2>/dev/null || pulseaudio-equalizer-gtk); elif command -v qpaeq >/dev/null 2>&1; then (omarchy-launch-or-focus qpaeq qpaeq 2>/dev/null || qpaeq); elif command -v pavucontrol >/dev/null 2>&1; then (omarchy-launch-or-focus pavucontrol pavucontrol 2>/dev/null || pavucontrol); elif command -v pavucontrol-qt >/dev/null 2>&1; then (omarchy-launch-or-focus pavucontrol-qt pavucontrol-qt 2>/dev/null || pavucontrol-qt); else omarchy-shell shell toggle omarchy.audio; fi'
+      var cmd = "test -x \"" + script + "\" && \"" + script + "\" || (" + fallbackCmd + ")"
+      root.run(cmd)
+    }
+
+    Component.onCompleted: if (typeof root.registerClickTarget === "function") root.registerClickTarget(cavaRoot)
+    Component.onDestruction: if (typeof root.unregisterClickTarget === "function") root.unregisterClickTarget(cavaRoot)
+
     property var spectrum: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     property real bassLevel: 0
     property real midLevel: 0
@@ -7934,6 +7960,27 @@ Item {
             ctx.fill()
           }
         }
+      }
+    }
+
+    MouseArea {
+      id: visualizerMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      acceptedButtons: Qt.LeftButton | Qt.RightButton
+      onEntered: {
+        if (typeof root.showTooltip === "function") {
+          root.showTooltip(visualizerMouse, "Audio Visualizer (CAVA) · Left-click: CLIAMP · Right-click: Equalizer / Audio Settings")
+        }
+      }
+      onExited: {
+        if (typeof root.hideTooltip === "function") {
+          root.hideTooltip(visualizerMouse)
+        }
+      }
+      onClicked: function(mouse) {
+        cavaRoot.triggerPress(mouse.button)
       }
     }
   }
