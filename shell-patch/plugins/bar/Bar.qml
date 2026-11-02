@@ -5531,14 +5531,9 @@ Item {
   component MidnightLeftPanel: PanelWindow {
     id: leftBarWindow
 
-    visible: root.isMidnightDoll && root.sideBarEnabled && (!root.barHidden || root.barAnimProgress > 0.001) && !remapGuardLeft.remapping
+    visible: root.isMidnightDoll && root.sideBarEnabled && (!root.barHidden || root.barAnimProgress > 0.001)
     exclusionMode: (root.isMidnightDoll && root.sideBarEnabled && !root.barHidden) ? ExclusionMode.Normal : ExclusionMode.Ignore
     exclusiveZone: (root.isMidnightDoll && root.sideBarEnabled && !root.barHidden) ? 36 : 0
-
-    ScreenMoveRemap {
-      id: remapGuardLeft
-      window: leftBarWindow
-    }
 
     margins {
       top: 0
@@ -5847,14 +5842,9 @@ Item {
     // Unmap the layer surface while hidden so that revealing it (via
     // Super+Shift+Space) remaps a fresh surface that draws over active
     // fullscreen windows in Hyprland, matching the sidebar behavior.
-    visible: (!root.barHidden || root.barAnimProgress > 0.001) && !remapGuard.remapping
+    visible: (!root.barHidden || root.barAnimProgress > 0.001)
     exclusionMode: root.barHidden ? ExclusionMode.Ignore : ExclusionMode.Normal
     exclusiveZone: root.barHidden ? 0 : root.barSize
-
-    ScreenMoveRemap {
-      id: remapGuard
-      window: barWindow
-    }
 
     margins {
       top: 0

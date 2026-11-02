@@ -690,6 +690,7 @@ echo -e "${VIOLET}[*] Deploying QML shell overrides to ~/.config/omarchy/themes/
 QML_OVERRIDE_DIR="${HOME}/.config/omarchy/themes/midnight-doll/qml"
 mkdir -p "${QML_OVERRIDE_DIR}/qs/Ui"
 ln -sfn "/usr/share/omarchy/shell/Commons" "${QML_OVERRIDE_DIR}/qs/Commons"
+find "${QML_OVERRIDE_DIR}/qs/Ui" -xtype l -delete 2>/dev/null || true
 if [ -d "/usr/share/omarchy/shell/Ui" ]; then
   for f in /usr/share/omarchy/shell/Ui/*.qml; do
     base="$(basename "$f")"
@@ -698,6 +699,7 @@ if [ -d "/usr/share/omarchy/shell/Ui" ]; then
     fi
   done
 fi
+find "${QML_OVERRIDE_DIR}/qs/Ui" -xtype l -delete 2>/dev/null || true
 if [ -f "/usr/share/omarchy/shell/Ui/qmldir" ]; then
   cp "/usr/share/omarchy/shell/Ui/qmldir" "${QML_OVERRIDE_DIR}/qs/Ui/qmldir"
 else
